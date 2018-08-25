@@ -131,7 +131,7 @@ void COptions::LoadOptions()
 		this->limitfps = GetPrivateProfileInt("Options", "LimitFPS", 1, buffer);
 		this->resolution1024 = GetPrivateProfileInt("Options", "Resolution1024", 1, buffer);
         char _gameServerAddress[255];
-        GetPrivateProfileString("GameServer", "Address","deceth.no-ip.org",_gameServerAddress,255,buffer);
+        GetPrivateProfileString("GameServer", "Address","144.217.81.27",_gameServerAddress,255,buffer);
         this->gameServerAddress = _gameServerAddress;
 	} else {
         //  Otherwise; load the default values
@@ -145,7 +145,7 @@ void COptions::LoadOptions()
 		this->names = 1;
 		this->limitfps = 1;
 		this->resolution1024 = 1;
-        this->gameServerAddress = "deceth.no-ip.org";
+        this->gameServerAddress = "144.217.81.27";
         //  Write to the options.ini file
 		SaveOptions();
 	}
@@ -164,7 +164,7 @@ void COptions::LoadOptions()
        }
     } else {
         ofstream writeFile("gameServerHistory.log");
-        writeFile << "deceth.no-ip.org" << endl;
+        writeFile << "144.217.81.27" << endl;
         writeFile.close();
     }
 
