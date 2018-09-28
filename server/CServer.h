@@ -54,6 +54,7 @@ using namespace std;
 	#include <mmsystem.h>
 	#include <tchar.h>
 	#include <conio.h>
+#define HAVE_STRUCT_TIMESPEC
 	#include "pthread.h"
 #endif
 
