@@ -8,9 +8,9 @@
 License: GPLv3
 Credits: Deceth
 
-Download the latest release from the [official website](http://battlecity.org)
+Download the latest release from [here](https://github.com/johnsie/Battle-City)
 
-Download the source code from the master [Battle-City code repository](https://github.com/Deceth/Battle-City)
+Download the source code from the master [Battle-City code repository](https://github.com/johnsie/Battle-City)
 
 ## Resources
 * [How to Setup your Development Environment](https://github.com/Deceth/Battle-City/wiki/How-to-Setup-your-Development-Environment)
@@ -30,7 +30,7 @@ At this time development must be completed on a Windows machine due to the libra
 Installing applications and dependencies
 Battle City requires that you have the following applications and dependencies installed:
 
-Visual C++ (2008/2010 Express)
+Visual C++ (2017 Community)
 FMOD 3.75 (Available through this project under the external folder)
 DirectX SDK (Feb. 2010)
 Download and extract the Battle City source code
