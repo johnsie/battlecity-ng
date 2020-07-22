@@ -435,7 +435,7 @@ void CProcess::ProcessError(int error) {
 		case 69: //Message E
 			{MessageBox(this->p->hWnd, "Account is currently in use", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
 		case 70: //Message F
-			{MessageBox(this->p->hWnd, "Please download the latest version of BattleCity at http://battlecity.org", 0, 0); SendMessage(this->p->hWnd, WM_CLOSE, 0, 0); break;}
+			{MessageBox(this->p->hWnd, "Please download the latest version of BattleCity at https://bc.outiva.com", 0, 0); SendMessage(this->p->hWnd, WM_CLOSE, 0, 0); break;}
 		case 71: //Message G
 			{MessageBox(this->p->hWnd, "Banned", 0, 0); SendMessage(this->p->hWnd, WM_CLOSE, 0, 0); break;}
 		case 72: //Message H
@@ -467,7 +467,7 @@ void CProcess::ProcessEvent(int Event) {
             //  Perform thread sleep
 			Sleep(100);
             //  Display message box alerting user that a connection issue was experienced
-			MessageBox(this->p->hWnd, "Unable to connect to the BattleCity server.  Make sure you are properly connected to the internet, and if you are, the server is likely down for maintenance or being updated.  Please try again later.", "BattleCity", 0);
+			MessageBox(this->p->hWnd, "Unable to connect to the BattleCity NG server.  Make sure you are properly connected to the internet, and if you are, the server is likely down for maintenance or being updated.  Please try again later.", "BattleCity", 0);
             //  Send WM_CLOSE to window handler
             this->p->ConnectionManager->showConnectionManager();
 			//  SendMessage(this->p->hWnd, WM_CLOSE, 0, 0);
@@ -490,7 +490,7 @@ void CProcess::ProcessEvent(int Event) {
             //  Perform thread sleep for 100 milliseconds
 			Sleep(100);
             //  Display message box informing user that they have disconnected
- 			MessageBox(this->p->hWnd, "You have been disconnected from the BattleCity server.  Please try again later.", "BattleCity", 0);
+ 			MessageBox(this->p->hWnd, "You have been disconnected from the BattleCity NG server.  Please try again later.", "BattleCity", 0);
             //  Send WM_CLOSE to the window handler
 			SendMessage(this->p->hWnd, WM_CLOSE, 0, 0);
 			break;
@@ -653,7 +653,7 @@ void CProcess::ProcessEnterGame(sSMStateGame *game) {
 	}	
 	this->p->InGame->AppendInfo(welcome);
 
-	this->p->InGame->AppendInfo("Press HELP for instructions, or visit: http://battlecity.org");
+	this->p->InGame->AppendInfo("Press HELP for instructions, or visit: https://bc.outiva.com");
 	this->p->InGame->AppendInfo("");	
 
 	// If newbie tips are on,

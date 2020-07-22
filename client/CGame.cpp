@@ -271,7 +271,7 @@ void CGame::Init(HWND hWnd, HINSTANCE hInst) {
         //  Disconnect from game server
 		this->Winsock->Socket = 0;
         //  Display message box that map.dat is corrupt
-		MessageBox(hWnd, "Your map.dat is corrupted.  Please redownload the client at battlecity.org!", "BattleCity", 0);
+		MessageBox(hWnd, "Your map.dat is corrupted.  Please redownload the client at https://bc.outiva.com", "BattleCity", 0);
         //  Send WM_CLOSE to window handler
 		SendMessage(hWnd, WM_CLOSE, 0, 0);
 	}
@@ -346,7 +346,7 @@ int CGame::CheckFile(string file)
     //  Define error string for message box
 	string ErrorString;
     //  Set error string
-	ErrorString = "Unable to load resource, " + file + ".  Please visit battlecity.org and download the latest client to fix this problem!";
+	ErrorString = "Unable to load resource, " + file + ".  Please visit https://bc.outiva.com and download the latest client to fix this problem!";
     //  Open message box reporting the error message.
 	MessageBox(hWnd, ErrorString.c_str(), "Error", 0);
 	return 0;
