@@ -136,6 +136,10 @@ class CServer {
 
 		CSocket *Winsock;
 		CPlayer *Player[MAX_PLAYERS];
+		// Never used. The two tables sit back to back, so City[-1] (a player who is not in a city) or Player[MAX_PLAYERS]
+		// silently hit the neighbouring table and corrupted a CPlayer. With these null slots in between such a bug is an
+		// immediate, located crash instead.
+		void *guardBetweenTables[2];
 		CCity *City[MAX_CITIES];
 		CProcess *Process;
 		CAccount *Account;

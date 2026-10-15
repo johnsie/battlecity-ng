@@ -40,6 +40,7 @@ CServer::CServer() {
 	cout << "Battle City Server Version " << VERSION << endl;
 	cout << endl;
     //  Socket abstraction
+	guardBetweenTables[0] = guardBetweenTables[1] = NULL;
 	Winsock = new CSocket(this);
     //  Process abstraction
 	Process = new CProcess(this);
