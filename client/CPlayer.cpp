@@ -139,9 +139,10 @@ void CPlayer::Cycle() {
 			this->isLagging = 0;
 		}
 
-		// Blend a remote player towards its last authoritative position (about 100ms to close the gap)
+		// Blend a remote player towards its last authoritative position. 250ms keeps the largest visible jump to a few
+		// units; a shorter blend (100ms) left 10 to 14 unit jumps in a simulation of 20ms network jitter, snapping left 40 to 70.
 		if (id != p->Winsock->MyIndex && (errX != 0 || errY != 0)) {
-			float k = p->TimePassed / 100.0f;
+			float k = p->TimePassed / 250.0f;
 			if (k > 1) {
 				k = 1;
 			}
