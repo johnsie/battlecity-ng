@@ -27,10 +27,16 @@ Done (2026-10-15 and 16):
 - Topic branches merged into `windows-port` (the integration branch); audio exists on the SDL2 client; docs: `docs/TECHNICAL.md`, `docs/protocol.md`, `deploy/windows/`.
 - CI: all jobs pass on `windows-port` (Linux build and tests, sanitizers plus fuzz plus relay, Windows server, Windows client). `v0.1.0-rc1` was published as a GitHub pre-release with both clients and both servers. The Windows server also passes the smoke, fuzz and relay tests on a real Windows machine.
 
+Also done (2026-10-16):
+- README explains orbs in plain language and links the Discord server; GitLab no longer redeploys (restarts) the live server for documentation-only pushes.
+- Lost connection: the client says so and restarts from the login screen (relaunch on Linux and Windows, page reload on web) instead of just closing. A full in-session reconnect was judged too risky: it would need every piece of game state reset.
+- Movement checks: the server judges position updates by speed and elapsed time (it used a fixed 300 units, which warped players back after a lag spike); the relay test checks that an impossible jump is refused.
+- Post-deploy checks already exist in `ci/deploy.sh` (port 9680 must answer, automatic rollback) and `ci/deploy-web.sh` (web page must return 200).
+
 Known open problems:
 - Default branch: GitLab's is `main`, CI matches `master`. Nothing has been merged to `master`, so GitLab has not run these changes (merging deploys production).
 - The Windows server is built with MSVC in CI but has only been run (smoke, fuzz, relay) from a MinGW build; the MSVC `.exe` itself is untested.
-- Dropped connections still show a message and close the window; there is no automatic reconnect (Workstream 3.3).
+- No seamless in-session reconnect (Workstream 3.3): after a drop the game restarts to the login screen.
 - Client packages ship `options.ini` pointing at the live server by default (`BC_SERVER` overrides it).
 - No 24 hour soak yet, no gameplay-level bot beyond join and drive, web client not re-tested after the movement changes.
 
