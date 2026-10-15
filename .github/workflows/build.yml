@@ -23,6 +23,12 @@ jobs:
         run: ci/smoke-test.sh build/server/bc-server data/map.dat
       - name: Client smoke test
         run: ci/smoke-test-client.sh build/client/bc-client data
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: |
+            build/server/bc-server
+            build/client/bc-client
 
   # Server built with AddressSanitizer/UBSan: out-of-range indexing (the Windows crash class) fails here on Linux
   linux-sanitizers:

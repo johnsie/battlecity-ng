@@ -4,7 +4,7 @@ Goal: make the game stable and playable on every target, with automated build an
 
 | # | Deliverable | Build | Release / deploy |
 |---|-------------|-------|------------------|
-| 1 | Linux server | CMake, GitLab CI | GitLab CI, automatic, to bc.outiva.com |
+| 1 | Linux server | CMake, GitLab CI and GitHub Actions | GitLab CI deploys to bc.outiva.com; GitHub Release asset too |
 | 2 | Windows server | CMake (MSVC), GitHub Actions | GitHub Release asset |
 | 3 | Linux client (SDL2) | CMake, GitHub Actions | GitHub Release asset |
 | 4 | Windows client (SDL2) | CMake (MSVC), GitHub Actions | GitHub Release asset |
@@ -82,7 +82,7 @@ Already present in `.gitlab-ci.yml`; changes needed:
 - Keep the rule that `master` and tags deploy automatically. Only the server job touches `/var/lib/battlecity` through the service, never the runner.
 - Remove the Windows and client artifacts from GitLab's duties: the native clients are released from GitHub.
 
-#### 4.2 GitHub Actions (Windows and Linux clients, Windows server)
+#### 4.2 GitHub Actions (Linux and Windows clients, Linux and Windows servers)
 Add `.github/workflows/build.yml` (push and pull request) and `.github/workflows/release.yml` (tags `v*`).
 
 `build.yml`:
@@ -93,6 +93,7 @@ Add `.github/workflows/build.yml` (push and pull request) and `.github/workflows
 
 `release.yml` (trigger: tag `v*`):
 - Build the same matrix and package:
+  - `battlecity-server-<ver>-linux-x86_64.tar.gz` (the same package GitLab deploys; GitLab stays the deployer)
   - `battlecity-client-<ver>-linux-x86_64.tar.gz` (binary, `data/`, README; AppImage as a later option)
   - `battlecity-client-<ver>-windows-x64.zip` (exe, `SDL2.dll`, `data/`, PDB)
   - `battlecity-server-<ver>-windows-x64.zip` (exe, PDB, `data/map.dat`)
@@ -101,7 +102,7 @@ Add `.github/workflows/build.yml` (push and pull request) and `.github/workflows
 
 #### 4.3 Versioning
 - One version string (`VERSION` in the server and client constants) bumped on protocol changes.
-- Tag `vMAJOR.MINOR.PATCH` on `master`; GitLab deploys server and web, GitHub publishes the native clients and Windows server.
+- Tag `vMAJOR.MINOR.PATCH` on `master`; GitLab deploys server and web, GitHub publishes the native clients and both servers.
 - Remotes: `origin` is GitHub, `gitlab` is GitLab. Push `master` and tags to both.
 
 ### Workstream 5: Windows server operations
@@ -119,7 +120,7 @@ Add `.github/workflows/build.yml` (push and pull request) and `.github/workflows
 | Milestone | Theme | Contents | Done when |
 |-----------|-------|----------|-----------|
 | **Now: Stabilise** | Stop the crashes | Workstream 0; Workstream 1 (3.1 to 3.3) | Sanitizer smoke run is clean; Windows server survives a soak |
-| **Next: Ship** | Downloadable builds | Workstream 4.2 (GitHub Actions); Workstream 2.1 and 3.4 (test movement, safe defaults) | Tagging `v0.x` publishes Windows and Linux clients and the Windows server |
+| **Next: Ship** | Downloadable builds | Workstream 4.2 (GitHub Actions); Workstream 2.1 and 3.4 (test movement, safe defaults) | Tagging `v0.x` publishes the Windows and Linux clients and servers |
 | **Then: Playable** | Usable on all clients | Workstream 3.1 to 3.3 and 3.6 (dialogs, audio, reconnect, WebSocket bridge) | A new player can create an account and play from the web or a native client |
 | **Later: Harden** | Confidence | Workstream 2.3 and 4.1 additions (bots, sanitizer jobs, post-deploy checks); Workstreams 5 and 6 | Load test and post-deploy checks pass in CI; docs complete |
 | **Release: v1.0.0** | Launch | Release checklist in Workstream 6 | Tagged release deployed and published on both platforms |

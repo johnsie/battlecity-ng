@@ -1,5 +1,5 @@
-# Publishes a GitHub Release when a version tag is pushed (vMAJOR.MINOR.PATCH): Linux and Windows clients, Windows server.
-# The Linux server and the web client are deployed by GitLab CI from the same tag.
+# Publishes a GitHub Release when a version tag is pushed (vMAJOR.MINOR.PATCH): Linux and Windows clients and servers.
+# GitLab CI separately builds and deploys the production Linux server and the web client from the same tag.
 name: release
 
 on:
@@ -25,6 +25,24 @@ jobs:
         run: ci/package-client.sh build/client/bc-client "${GITHUB_REF_NAME#v}" linux-x86_64 dist
       - uses: actions/upload-artifact@v4
         with: { name: dist-linux-client, path: dist/* }
+
+  linux-server:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake libsqlite3-dev
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_CLIENT=OFF
+          cmake --build build -j"$(nproc)"
+      - name: Test
+        run: |
+          ctest --test-dir build --output-on-failure
+          ci/smoke-test.sh build/server/bc-server data/map.dat
+      - name: Package
+        run: ci/package-server.sh build "${GITHUB_REF_NAME#v}" dist
+      - uses: actions/upload-artifact@v4
+        with: { name: dist-linux-server, path: dist/* }
 
   windows-client:
     runs-on: windows-latest
@@ -73,7 +91,7 @@ jobs:
         with: { name: dist-windows-server, path: dist/* }
 
   publish:
-    needs: [linux-client, windows-client, windows-server]
+    needs: [linux-client, linux-server, windows-client, windows-server]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/download-artifact@v4
