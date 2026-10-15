@@ -10,11 +10,14 @@ Target: Linux host running the GitLab runner tagged `ubuntu-server`; public name
 
 ## Deploying
 Pipeline: build → smoke test → package → automatic `deploy:production` job (every push to master, and tags).
-The job installs the release under `/opt/battlecity/releases/<version>`, backs up the database,
-restarts the service and checks port 9680, rolling back automatically if it does not come up.
+The job installs the release under `/opt/battlecity/releases/<version>`, restarts the service and checks
+port 9680, rolling back automatically if it does not come up. The runner never touches the state directory:
+the service's `ExecStartPre` (`ci/prestart.sh`) seeds `map.dat` and backs up the database as the service user.
 
 State lives in `/var/lib/battlecity` (`dat/BCData.db`, `logs/`, `map.dat`, `news.txt`) and survives deploys.
-Backups of the database: `/var/lib/battlecity/backups` (newest 14 kept).
+Backups of the database: `/var/lib/battlecity/backups` (at most one per hour, newest 14 kept).
+
+After changing `battlecity.service`, re-run `sudo ./deploy/setup.sh` on the host (it is safe to repeat).
 
 ## Useful commands
     systemctl status battlecity

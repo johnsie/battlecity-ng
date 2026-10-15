@@ -2,7 +2,8 @@
 # Deploys a server tarball on THIS machine (run by the ubuntu-server GitLab runner).
 # Layout:  /opt/battlecity/releases/<version>/   immutable release
 #          /opt/battlecity/current -> releases/<version>
-#          /var/lib/battlecity/                  persistent state (dat/, logs/, map.dat, news.txt)
+#          /var/lib/battlecity/                  persistent state, owned by the service user; the runner
+#                                                never touches it (ci/prestart.sh seeds the map and backs up the DB)
 # Rolls back to the previous release if the new one does not come up on the game port.
 # Usage: ci/deploy.sh <tarball> <version>
 set -euo pipefail
@@ -20,16 +21,6 @@ PREV=$(readlink -f "$APP/current" 2>/dev/null || true)
 echo "== Installing release $VERSION"
 mkdir -p "$REL"
 tar -xzf "$TARBALL" -C "$REL" --strip-components=1
-
-# First deploy only: seed the map. Afterwards the live map belongs to the state dir.
-[ -f "$STATE/map.dat" ] || cp "$REL/map.dat" "$STATE/map.dat"
-
-echo "== Backing up database"
-if [ -f "$STATE/dat/BCData.db" ]; then
-  mkdir -p "$STATE/backups"
-  cp "$STATE/dat/BCData.db" "$STATE/backups/BCData-$(date +%Y%m%d-%H%M%S).db"
-  ls -1t "$STATE"/backups/BCData-*.db | tail -n +15 | xargs -r rm -f
-fi
 
 wait_for_port() {
   for _ in $(seq 1 30); do

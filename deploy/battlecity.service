@@ -8,6 +8,8 @@ User=battlecity
 Group=battlecity
 WorkingDirectory=/var/lib/battlecity
 Environment=BC_PORT=9680
+UMask=0027
+ExecStartPre=/opt/battlecity/current/prestart.sh
 ExecStart=/opt/battlecity/current/bc-server
 Restart=on-failure
 RestartSec=3

@@ -7,6 +7,7 @@ STAGE=$(mktemp -d); trap 'rm -rf "$STAGE"' EXIT
 DIR="$STAGE/battlecity-server-$VERSION"
 mkdir -p "$DIR" "$OUT"
 install -m 0755 "$BUILD/server/bc-server" "$DIR/bc-server"
+install -m 0755 ci/prestart.sh "$DIR/prestart.sh"
 install -m 0644 data/map.dat "$DIR/map.dat"
 echo "$VERSION" > "$DIR/VERSION"
 tar -C "$STAGE" -czf "$OUT/battlecity-server-$VERSION-linux-x86_64.tar.gz" "battlecity-server-$VERSION"
