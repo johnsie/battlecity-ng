@@ -80,6 +80,12 @@ void CWinsock::StartTCP() {
 		return;
 	}
 
+	//  No Nagle delay: small position updates must go out immediately, not in bursts
+	{
+		int one = 1;
+		setsockopt(Socket, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
+	}
+
 	//  Non-blocking: the window must stay responsive while connecting (and a browser cannot block at all).
 	//  The connection is completed in Cycle() / CheckConnect().
 	bc_set_nonblocking(Socket);

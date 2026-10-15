@@ -259,6 +259,12 @@ void CSocket::TCPCycle() {
                 int size = atoi(sndbuf);
                 setsockopt(newfd, SOL_SOCKET, SO_SNDBUF, (const char *)&size, sizeof(size));
             }
+            //  Send small packets (position updates) immediately: Nagle's algorithm would hold them back and release
+            //  them in bursts, which shows up as other players' tanks stalling and then snapping forward
+            {
+                int one = 1;
+                setsockopt(newfd, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
+            }
             //  Set blocking mode to non-blocking
             //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms738573(v=vs.85).aspx
 #ifdef WIN32

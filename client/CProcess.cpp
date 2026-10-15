@@ -717,14 +717,29 @@ void CProcess::ProcessNewBuilding(sSMBuild *data, int sound) {
 void CProcess::ProcessUpdate(sSMUpdate *data) {
 	CPlayer* player = this->p->Player[data->id];
 
-	float dx = (float)data->x - player->X;
-	float dy = (float)data->y - player->Y;
+	// The position is how far the sender had got when it sent it; by now it has moved on. Carry it forward by the
+	// one-way delay (half the measured round trip) so the tank is not pulled back to a stale spot by every update.
+	float targetX = (float)data->x;
+	float targetY = (float)data->y;
+	int moving = data->move - 1;
+	if (moving != 0) {
+		float delay = this->p->InGame->TCPPing / 2.0f;
+		if (delay > 250.0f) {
+			delay = 250.0f;
+		}
+		float speed = player->isAdmin() ? MOVEMENT_SPEED_ADMIN : MOVEMENT_SPEED_PLAYER;
+		float fDir = (float)-data->dir + 32;
+		targetX += (float)(sin(fDir / 16 * 3.14) * moving) * speed * delay;
+		targetY += (float)(cos(fDir / 16 * 3.14) * moving) * speed * delay;
+	}
+	float dx = targetX - player->X;
+	float dy = targetY - player->Y;
 
 	// Snap on first sight, after death, after a long silence or a big jump (warp); otherwise blend the
 	// correction in over the next frames so remote tanks glide instead of jittering every update
 	if (player->isDead || player->lastUpdate == 0 || this->p->Tick > player->lastUpdate + 1000 || fabs(dx) > 150 || fabs(dy) > 150) {
-		player->X = data->x;
-		player->Y = data->y;
+		player->X = targetX;
+		player->Y = targetY;
 		player->errX = player->errY = 0;
 	}
 	else {

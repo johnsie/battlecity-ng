@@ -41,6 +41,7 @@ using namespace std;
 	#include <sys/socket.h>
 	#include <netinet/in.h>
 	#include <netdb.h>
+	#include <netinet/tcp.h>
 	#include <unistd.h>
 	#include <termios.h>
 	#include <string>
