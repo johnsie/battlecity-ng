@@ -25,6 +25,8 @@
 CWinsock::CWinsock(CGame *game)  {
 	p = game;
 	Connected = false;
+	Connecting = false;
+	ConnectStart = 0;
 	MyIndex = 0;
 	Socket = BC_INVALID_SOCKET;
 
@@ -71,25 +73,62 @@ void CWinsock::StartTCP() {
     //  Initialize socket 
 	Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    //  Non-blocking socket
-
-
     //  Upon verifying Socket connection failed display message box with an error message
 	if (Socket == BC_INVALID_SOCKET) {
 		MessageBox(p->hWnd, "Invalid Socket!", 0, 0);
-	} 
-
-    //  Upon verifying a connection error close the connection and process the event
-    //  ;Otherwise, set Connected as true and process the event
-    //  1 - Error connecting    
-    //  2 - Connected
-	if (connect(Socket, (sockaddr*)(&sockAddr), sizeof(sockaddr_in)) != 0) {
-		this->CloseWinsock();
 		p->Process->ProcessEvent(1);
-	} else {
+		return;
+	}
+
+	//  Non-blocking: the window must stay responsive while connecting (and a browser cannot block at all).
+	//  The connection is completed in Cycle() / CheckConnect().
+	bc_set_nonblocking(Socket);
+
+    //  1 - Error connecting
+    //  2 - Connected
+	if (connect(Socket, (sockaddr*)(&sockAddr), sizeof(sockaddr_in)) == 0) {
 		this->Connected = true;
 		p->Process->ProcessEvent(2);
+	} else if (bc_would_block()) {
+		this->Connecting = true;
+		this->ConnectStart = BCGetTicks();
+	} else {
+		this->CloseWinsock();
+		p->Process->ProcessEvent(1);
 	}
+}
+
+/// <summary> Finishes a non-blocking connect: success -> event 2, failure or 10s timeout -> event 1 </summary>
+void CWinsock::CheckConnect() {
+	if (!Connecting || Socket == BC_INVALID_SOCKET) return;
+
+	fd_set writable, failed;
+	FD_ZERO(&writable);
+	FD_ZERO(&failed);
+	FD_SET(Socket, &writable);
+	FD_SET(Socket, &failed);
+	timeval none;
+	none.tv_sec = 0;
+	none.tv_usec = 0;
+	int ready = select((int)Socket + 1, NULL, &writable, &failed, &none);
+
+	if (ready > 0) {
+		int error = 0;
+		socklen_t length = sizeof(error);
+		getsockopt(Socket, SOL_SOCKET, SO_ERROR, (char *)&error, &length);
+		if (error == 0 && !FD_ISSET(Socket, &failed)) {
+			Connecting = false;
+			Connected = true;
+			p->Process->ProcessEvent(2);
+			return;
+		}
+	} else if (BCGetTicks() - ConnectStart < 10000) {
+		return;   // still trying
+	}
+
+	// Failed or timed out
+	CloseWinsock();
+	p->Process->ProcessEvent(1);
 }
 
 void CWinsock::StartWinsock() {
@@ -101,6 +140,7 @@ void CWinsock::CloseWinsock() {
 		Socket = BC_INVALID_SOCKET;
 	}
 	Connected = false;
+	Connecting = false;
 	MyIndex = 0;
 	Sleep(5);
 	bc_net_shutdown();
@@ -132,6 +172,11 @@ void CWinsock::SendData(unsigned char PacketID, char *TheData, int len) {
 }
 
 void CWinsock::Cycle() {
+	if (Connecting) {
+		CheckConnect();
+		return;
+	}
+
 	if (hasData(Socket)) {
 		RecvTCP();	
 	}
@@ -154,7 +199,11 @@ bool CWinsock::hasData(bc_socket sock) {
 
 void CWinsock::RecvTCP() {
 	int nbytes = 0;
-	if ((nbytes = recv(Socket, this->Buffer + this->BufferLength, 2048 - this->BufferLength, 0)) <= 0) {
+	nbytes = recv(Socket, this->Buffer + this->BufferLength, 2048 - this->BufferLength, 0);
+	if (nbytes < 0 && bc_would_block()) {
+		return;   // nothing to read after all
+	}
+	if (nbytes <= 0) {
 		p->Process->ProcessEvent(3); //Disconnected
 	}
 	else {
@@ -200,11 +249,17 @@ void CWinsock::ProcessBuffer() {
 int CWinsock::SendAll(char *SendString, int SendLength) {
     int TotalSent = 0;
     int bytesLeft = SendLength;
-    int SendReturn;
+    int SendReturn = 0;
+    int retries = 0;
 
     while(TotalSent < SendLength)  {
         SendReturn = send(Socket, SendString+TotalSent, bytesLeft, 0);
         if (SendReturn == -1) {
+			if (bc_would_block() && ++retries < 2000) {
+				SendReturn = 0;
+				BCSleep(1);
+				continue;
+			}
 			break;
 		}
         TotalSent += SendReturn;

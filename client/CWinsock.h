@@ -36,6 +36,7 @@ public:
 
 	void StartTCP();
 	void StartWinsock();
+	void CheckConnect();
 	void CloseWinsock();
 
 	void Init(char *IP);
@@ -52,6 +53,8 @@ public:
 	int BufferLength;
 
 	bool Connected;
+	bool Connecting;               // connect() in progress (non-blocking, finished in Cycle())
+	unsigned long ConnectStart;
 	int MyIndex;
 
 	bc_socket Socket;
