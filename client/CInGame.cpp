@@ -64,6 +64,8 @@ CInGame::CInGame(CGame *game) {
 	this->HasSleeper = 0;
 	this->HasPlasma = 0;	
 	this->updateTick = 0;
+	this->lastSentMoving = 0;
+	this->lastSentTurning = 0;
 	this->lastTick = 0;
 	this->hospTick = 0;
 	this->TCPPing = 0;
@@ -116,7 +118,9 @@ void CInGame::Cycle() {
 	this->p->Draw->DrawGame();
 
 	// If the player update timer is up, and this player is still alive,
-	if ( (curTick > updateTick) && (this->p->Player[this->p->Winsock->MyIndex]->isDead == false)) {
+	int meNow = this->p->Winsock->MyIndex;
+	bool stateChanged = (this->p->Player[meNow]->isMoving != lastSentMoving) || (this->p->Player[meNow]->isTurning != lastSentTurning);
+	if ( (curTick > updateTick || stateChanged) && (this->p->Player[meNow]->isDead == false)) {
 		sCMUpdate packet;
 		int me = this->p->Winsock->MyIndex;
 		this->p->Player[me]->SectorX = (char)((this->p->Player[me]->X/48) / SectorSize);
@@ -127,6 +131,8 @@ void CInGame::Cycle() {
 		packet.move = (unsigned char)(this->p->Player[me]->isMoving + 1);
 		packet.turn = (unsigned char)(this->p->Player[me]->isTurning + 1);
 		this->p->Winsock->SendData(cmUpdate, (char *)&packet, sizeof(packet));
+		lastSentMoving = this->p->Player[me]->isMoving;
+		lastSentTurning = this->p->Player[me]->isTurning;
 		this->updateTick = curTick + 150;
 	}
 
@@ -369,6 +375,8 @@ void CInGame::ClearOut() {
 
 	lastTick = 0;
 	updateTick = 0;
+	lastSentMoving = 0;
+	lastSentTurning = 0;
 
 	ShowBuildMenu = 0;
 	Successor = 0;

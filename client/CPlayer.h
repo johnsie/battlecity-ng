@@ -80,6 +80,9 @@ class CPlayer {
 		string TownString;
 
 		float lastUpdate;
+		// Remaining distance to blend towards the last authoritative position of a remote player
+		float errX;
+		float errY;
 
 		unsigned short id;
 

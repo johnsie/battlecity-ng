@@ -91,6 +91,8 @@ void CPlayer::InGameClear() {
 	this->timeFrozen = 0;
 
 	this->lastUpdate = 0;
+	this->errX = 0;
+	this->errY = 0;
 }
 
 /***************************************************************
@@ -135,6 +137,21 @@ void CPlayer::Cycle() {
 		// Else (not lagging), set isLagging 0
 		else {
 			this->isLagging = 0;
+		}
+
+		// Blend a remote player towards its last authoritative position (about 100ms to close the gap)
+		if (id != p->Winsock->MyIndex && (errX != 0 || errY != 0)) {
+			float k = p->TimePassed / 100.0f;
+			if (k > 1) {
+				k = 1;
+			}
+			X += errX * k;
+			Y += errY * k;
+			errX -= errX * k;
+			errY -= errY * k;
+			if (fabs(errX) < 0.5f && fabs(errY) < 0.5f) {
+				errX = errY = 0;
+			}
 		}
 
 		// If the player is frozen,

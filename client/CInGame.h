@@ -46,6 +46,8 @@ class CInGame {
 
 		float lastTick;
 		float updateTick;
+		int lastSentMoving;
+		int lastSentTurning;
 		float hospTick;
 
 		int ShowBuildMenu;

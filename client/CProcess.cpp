@@ -20,6 +20,7 @@
     along with Battle City.  If not, see <http://www.gnu.org/licenses/>.
 ===============================================================================
 */
+#include <math.h>
 #include "CProcess.h"
 #include "NetMessages.h"
 
@@ -716,9 +717,21 @@ void CProcess::ProcessNewBuilding(sSMBuild *data, int sound) {
 void CProcess::ProcessUpdate(sSMUpdate *data) {
 	CPlayer* player = this->p->Player[data->id];
 
+	float dx = (float)data->x - player->X;
+	float dy = (float)data->y - player->Y;
+
+	// Snap on first sight, after death, after a long silence or a big jump (warp); otherwise blend the
+	// correction in over the next frames so remote tanks glide instead of jittering every update
+	if (player->isDead || player->lastUpdate == 0 || this->p->Tick > player->lastUpdate + 1000 || fabs(dx) > 150 || fabs(dy) > 150) {
+		player->X = data->x;
+		player->Y = data->y;
+		player->errX = player->errY = 0;
+	}
+	else {
+		player->errX = dx;
+		player->errY = dy;
+	}
 	player->isDead = false;
-	player->Y = data->y;
-	player->X = data->x;
 	player->isMoving = data->move - 1;
 	player->isTurning = data->turn - 1;
 	player->Direction = data->dir;
