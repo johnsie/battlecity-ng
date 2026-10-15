@@ -240,3 +240,35 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 	*mouseWindowX = x;
 	*mouseWindowY = y;
 }
+
+
+// ---- Restart after a lost connection ----
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+static int g_argc = 0;
+static char **g_argv = nullptr;
+void BCSetCommandLine(int argc, char **argv) { g_argc = argc; g_argv = argv; }
+
+void BCRestartApplication() {
+#ifdef __EMSCRIPTEN__
+	emscripten_run_script("location.reload()");
+#elif defined(_WIN32)
+	char path[MAX_PATH];
+	if (GetModuleFileNameA(NULL, path, MAX_PATH)) {
+		STARTUPINFOA si; PROCESS_INFORMATION pi;
+		ZeroMemory(&si, sizeof(si)); si.cb = sizeof(si);
+		ZeroMemory(&pi, sizeof(pi));
+		if (CreateProcessA(path, GetCommandLineA(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+			CloseHandle(pi.hThread); CloseHandle(pi.hProcess);
+		}
+	}
+	exit(0);
+#else
+	if (g_argv) {
+		SDL_Quit();   // release the window and audio device before the process image is replaced
+		execv("/proc/self/exe", g_argv);
+	}
+	exit(0);
+#endif
+}

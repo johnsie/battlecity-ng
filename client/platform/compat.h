@@ -89,6 +89,11 @@ void BCSleep(unsigned int ms);
 #define GetTickCount() BCGetTicks()
 #define timeGetTime() BCGetTicks()
 
+// Starts the game again from the login screen (native: relaunches the executable; web: reloads the page).
+// Used after the connection to the server is lost.
+void BCRestartApplication();
+void BCSetCommandLine(int argc, char **argv);
+
 // Message box (SDL_ShowSimpleMessageBox under the hood). Flags: 0 = OK, 1 = Yes/No.
 #define MB_YESNO 1
 #define MB_ICONQUESTION 0

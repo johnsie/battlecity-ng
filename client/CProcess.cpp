@@ -491,10 +491,9 @@ void CProcess::ProcessEvent(int Event) {
 			this->p->running = 0;
             //  Perform thread sleep for 100 milliseconds
 			Sleep(100);
-            //  Display message box informing user that they have disconnected
- 			MessageBox(this->p->hWnd, "You have been disconnected from the BattleCity NG server.  Please try again later.", "BattleCity", 0);
-            //  Send WM_CLOSE to the window handler
-			SendMessage(this->p->hWnd, WM_CLOSE, 0, 0);
+            //  Tell the user, then start again from the login screen (a clean restart is the reliable way to get a
+            //  fresh connection: it resets every piece of game state)
+			BCMessageBoxAsync("The connection to the BattleCity NG server was lost (the server may have restarted or your network dropped).\n\nThe game will now restart so you can log back in.", "BattleCity", 0, [](int) { BCRestartApplication(); });
 			break;
 	}
 }

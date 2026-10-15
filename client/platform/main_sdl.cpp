@@ -102,6 +102,7 @@ static void RunScript() {
 		}
 		else if (cmd == "shot") { std::string path; line >> path; g_game->DDraw->SaveScreenshot(path.c_str()); }
 		else if (cmd == "print") { std::string rest; std::getline(line, rest); printf("script:%s\n", rest.c_str()); }
+		else if (cmd == "restart") { BCRestartApplication(); }
 		else if (cmd == "quit") { g_quit = true; g_quitRequests = 2; return; }
 		else printf("script: unknown command '%s'\n", cmd.c_str());
 	}
@@ -184,6 +185,7 @@ static void MainLoopIteration() {
 }
 
 int main(int argc, char *argv[]) {
+	BCSetCommandLine(argc, argv);
 	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER) != 0) {
 		fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
 		return 1;
