@@ -53,6 +53,9 @@ const float UI_BOOST = 1.25f;        // dialogs are drawn this much larger than 
 const float MIN_UI_SCALE = 1.0f;     // never smaller than this just because the window/canvas is small ...
 const float MIN_FIT_SCALE = 0.6f;    // ... unless a dialog would not fit the window at all
 float g_scale = 0.0f;                // output pixels per logical pixel; the UI is laid out and rasterised at this scale
+float g_mouseScaleX = 1.0f;
+float g_mouseScaleY = 1.0f;
+bool g_fontBuilt = false;
 ImGuiStyle g_baseStyle;
 
 SDL_Window *g_window = nullptr;
@@ -152,6 +155,14 @@ void SelectRadio(Dlg *d, Ctl *chosen) {
 
 void Notify(Dlg *d, int id, int code, Ctl *from) {
 	if (d->proc) d->proc(d, WM_COMMAND, (WPARAM)MAKELONG(id, code), (LPARAM)from);
+}
+
+void UpdateMouseScale() {
+	int ww = 1, wh = 1, ow = 1, oh = 1;
+	SDL_GetWindowSize(g_window, &ww, &wh);
+	SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
+	g_mouseScaleX = ow / (float)std::max(ww, 1);
+	g_mouseScaleY = oh / (float)std::max(wh, 1);
 }
 
 } // namespace
@@ -304,18 +315,23 @@ WNDPROC BCSetControlProc(HWND control, WNDPROC proc) {
 // (Re)builds the font at the right pixel size and scales the style, so text is rasterised 1:1 on screen
 static void ApplyScale(float k) {
 	ImGuiIO &io = ImGui::GetIO();
-	io.Fonts->Clear();
-	ImFontConfig cfg;
-	cfg.PixelSnapH = true;
-	cfg.OversampleH = 1;
-	cfg.OversampleV = 1;
-	float pixels = std::max(8.0f, FONT_PIXELS * k);
-	if (!io.Fonts->AddFontFromFileTTF("Vera.ttf", pixels, &cfg)) {
-		cfg.SizePixels = pixels;
-		io.Fonts->AddFontDefault(&cfg);
+	if (!g_fontBuilt) {
+		// Keep one reasonably high-resolution atlas and scale it for each dialog. Rebuilding
+		// the TTF atlas when switching dialog sizes stalls the browser's UI thread.
+		const float atlasPixels = 24.0f;
+		ImFontConfig cfg;
+		cfg.PixelSnapH = true;
+		cfg.OversampleH = 1;
+		cfg.OversampleV = 1;
+		if (!io.Fonts->AddFontFromFileTTF("Vera.ttf", atlasPixels, &cfg)) {
+			cfg.SizePixels = atlasPixels;
+			io.Fonts->AddFontDefault(&cfg);
+		}
+		io.Fonts->Build();
+		ImGui_ImplSDLRenderer2_DestroyDeviceObjects();
+		g_fontBuilt = true;
 	}
-	io.Fonts->Build();
-	ImGui_ImplSDLRenderer2_DestroyDeviceObjects();     // the font texture is recreated on the next frame
+	io.FontGlobalScale = std::max(8.0f, FONT_PIXELS * k) / 24.0f;
 	ImGuiStyle &style = ImGui::GetStyle();
 	style = g_baseStyle;
 	style.ScaleAllSizes(k);
@@ -341,6 +357,7 @@ void BCDialogsInit(void *sdlWindow, void *sdlRenderer) {
 	g_baseStyle = style;
 	ImGui_ImplSDL2_InitForSDLRenderer(g_window, g_renderer);
 	ImGui_ImplSDLRenderer2_Init(g_renderer);
+	UpdateMouseScale();
 	g_imguiReady = true;
 }
 
@@ -380,19 +397,11 @@ void BCDialogsProcessEvent(const void *sdlEvent) {
 	if (!g_imguiReady || (!g_active && g_messages.empty())) return;
 	const SDL_Event &e = *(const SDL_Event *)sdlEvent;
 	ImGuiIO &io = ImGui::GetIO();
-	// The dialogs are drawn in output pixels: convert window points (differs from pixels on high-DPI screens)
-	auto toLogical = [&](int x, int y) {
-		int ww = 1, wh = 1, ow = 1, oh = 1;
-		SDL_GetWindowSize(g_window, &ww, &wh);
-		SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
-		return ImVec2(x * (float)ow / (float)std::max(ww, 1), y * (float)oh / (float)std::max(wh, 1));
-	};
 	switch (e.type) {
-		case SDL_MOUSEMOTION: { ImVec2 p = toLogical(e.motion.x, e.motion.y); io.AddMousePosEvent(p.x, p.y); break; }
+		case SDL_MOUSEMOTION: io.AddMousePosEvent(e.motion.x * g_mouseScaleX, e.motion.y * g_mouseScaleY); break;
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP: {
-			ImVec2 p = toLogical(e.button.x, e.button.y);
-			io.AddMousePosEvent(p.x, p.y);
+			io.AddMousePosEvent(e.button.x * g_mouseScaleX, e.button.y * g_mouseScaleY);
 			// Let the SDL backend track button state and mouse source (mouse vs touch emulation).
 			// Some browser SDL events have no registered window ID, so retain the direct
 			// fallback for those events after giving the backend a chance to handle them.
@@ -403,6 +412,10 @@ void BCDialogsProcessEvent(const void *sdlEvent) {
 			break;
 		}
 		case SDL_MOUSEWHEEL: io.AddMouseWheelEvent((float)e.wheel.x, (float)e.wheel.y); break;
+		case SDL_WINDOWEVENT:
+			if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED || e.window.event == SDL_WINDOWEVENT_RESIZED) UpdateMouseScale();
+			ImGui_ImplSDL2_ProcessEvent(&e);
+			break;
 		default: ImGui_ImplSDL2_ProcessEvent(&e); break;
 	}
 }
