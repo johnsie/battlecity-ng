@@ -70,6 +70,12 @@ static void RunScript() {
 		HWND dlg = BCDialogsActiveHandle();
 		if (cmd == "text") { int id; line >> id; std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); if (dlg) SetDlgItemText(dlg, id, rest.c_str()); else printf("script: no dialog for text %d\n", id); }
 		else if (cmd == "click") { int id; line >> id; if (dlg) SendMessage(dlg, WM_COMMAND, MAKELONG(id, BN_CLICKED), 0); else printf("script: no dialog for click %d\n", id); }
+		else if (cmd == "chat") {   // types a chat line (Enter, text, Enter), e.g. "chat /load demo.city"
+			std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1);
+			g_game->handleKey(13);
+			for (char ch : rest) g_game->handleKey((unsigned char)ch);
+			g_game->handleKey(13);
+		}
 		else if (cmd == "msg") { std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); BCMessageBox(NULL, rest.c_str(), "BattleCity", 0); }
 		else if (cmd == "ask") { std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); BCMessageBoxAsync(rest.c_str(), "BattleCity", MB_YESNO, [](int r) { printf("script: answer=%d\n", r); }); }
 		else if (cmd == "enter") { SDL_Event ev; SDL_zero(ev); ev.type = SDL_KEYDOWN; ev.key.windowID = SDL_GetWindowID(g_sdlWindow); ev.key.keysym.sym = SDLK_RETURN; ev.key.keysym.scancode = SDL_SCANCODE_RETURN; ev.key.state = SDL_PRESSED; SDL_PushEvent(&ev); ev.type = SDL_KEYUP; ev.key.state = SDL_RELEASED; SDL_PushEvent(&ev); }

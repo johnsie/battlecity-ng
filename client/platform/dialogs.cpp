@@ -48,7 +48,10 @@ struct Dlg {
 	bool focusFirst = false;
 };
 
-const float FONT_PIXELS = 11.5f;     // font size at scale 1 (1024x768 output)
+const float FONT_PIXELS = 11.5f;     // font size at scale 1 (the original dialogs' size at 1024x768)
+const float UI_BOOST = 1.25f;        // dialogs are drawn this much larger than the original Win32 ones: they were hard to read
+const float MIN_UI_SCALE = 1.0f;     // never smaller than this just because the window/canvas is small ...
+const float MIN_FIT_SCALE = 0.6f;    // ... unless a dialog would not fit the window at all
 float g_scale = 0.0f;                // output pixels per logical pixel; the UI is laid out and rasterised at this scale
 ImGuiStyle g_baseStyle;
 
@@ -333,6 +336,8 @@ void BCDialogsInit(void *sdlWindow, void *sdlRenderer) {
 	ImGuiStyle &style = ImGui::GetStyle();
 	style.WindowRounding = 0; style.FrameRounding = 0; style.ScrollbarRounding = 0; style.GrabRounding = 0;
 	style.WindowBorderSize = 1;
+	style.FrameBorderSize = 1;                       // outline edit boxes, check boxes and radio buttons: they were hard to see
+	style.Colors[ImGuiCol_Border] = ImVec4(0.25f, 0.25f, 0.25f, 0.75f);
 	g_baseStyle = style;
 	ImGui_ImplSDL2_InitForSDLRenderer(g_window, g_renderer);
 	ImGui_ImplSDLRenderer2_Init(g_renderer);
@@ -388,8 +393,13 @@ void BCDialogsProcessEvent(const void *sdlEvent) {
 		case SDL_MOUSEBUTTONUP: {
 			ImVec2 p = toLogical(e.button.x, e.button.y);
 			io.AddMousePosEvent(p.x, p.y);
-			int b = e.button.button == SDL_BUTTON_LEFT ? 0 : e.button.button == SDL_BUTTON_RIGHT ? 1 : e.button.button == SDL_BUTTON_MIDDLE ? 2 : -1;
-			if (b >= 0) io.AddMouseButtonEvent(b, e.type == SDL_MOUSEBUTTONDOWN);
+			// Let the SDL backend track button state and mouse source (mouse vs touch emulation).
+			// Some browser SDL events have no registered window ID, so retain the direct
+			// fallback for those events after giving the backend a chance to handle them.
+			if (!ImGui_ImplSDL2_ProcessEvent(&e)) {
+				int b = e.button.button == SDL_BUTTON_LEFT ? 0 : e.button.button == SDL_BUTTON_RIGHT ? 1 : e.button.button == SDL_BUTTON_MIDDLE ? 2 : -1;
+				if (b >= 0) io.AddMouseButtonEvent(b, e.type == SDL_MOUSEBUTTONDOWN);
+			}
 			break;
 		}
 		case SDL_MOUSEWHEEL: io.AddMouseWheelEvent((float)e.wheel.x, (float)e.wheel.y); break;
@@ -566,9 +576,15 @@ void BCDialogsRender() {
 	SDL_RenderGetLogicalSize(g_renderer, &lw, &lh);
 	SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
 	if (lw <= 0 || lh <= 0) { lw = ow; lh = oh; }
-	float k = std::min(ow / (float)lw, oh / (float)lh);
-	k = std::max(0.5f, std::floor(k * 16.0f + 0.5f) / 16.0f);          // quantised so it does not thrash while resizing
-	if (std::fabs(k - g_scale) > 0.001f) ApplyScale(k);
+	float k = std::min(ow / (float)lw, oh / (float)lh);                 // how much the game itself is scaled
+	float ui = std::max(MIN_UI_SCALE, k) * UI_BOOST;                    // dialogs stay readable when the window is small
+	if (d) {                                                            // ... but must fit inside the window
+		float fitW = ow * 0.97f / (d->def->w * DLU_X);
+		float fitH = (oh * 0.97f - 40.0f) / (d->def->h * DLU_Y);
+		ui = std::min(ui, std::min(fitW, fitH));
+	}
+	ui = std::max(MIN_FIT_SCALE, std::floor(ui * 16.0f + 0.5f) / 16.0f);   // quantised so it does not thrash
+	if (std::fabs(ui - g_scale) > 0.001f) ApplyScale(ui);
 	SDL_RenderSetLogicalSize(g_renderer, 0, 0);
 
 	ImGui_ImplSDLRenderer2_NewFrame();
