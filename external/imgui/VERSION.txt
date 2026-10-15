@@ -1,0 +1,1 @@
+Dear ImGui v1.91.9 (MIT) - https://github.com/ocornut/imgui. Vendored unmodified: core + SDL2 / SDL_Renderer2 backends.
