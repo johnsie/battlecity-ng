@@ -48,7 +48,7 @@ public:
     int FreeCommando();
     void DisplayCommandos();
 
-    Commando Commando[4];
+    struct ::Commando Commando[4];
 private:
     CGame *p;
 protected:

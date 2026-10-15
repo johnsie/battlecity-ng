@@ -13,7 +13,8 @@ variables:
 build:server-linux:
   stage: build
   script:
-    - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    # server only: a client problem must never block a server deploy
+    - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_CLIENT=OFF
     - cmake --build build -j"$(nproc)"
   artifacts:
     paths: [build/server/bc-server]
@@ -24,6 +25,22 @@ test:server-smoke:
   needs: [build:server-linux]
   script:
     - ci/smoke-test.sh build/server/bc-server data/map.dat
+
+# Native (Linux) client: built and smoke-tested, but independent of the server deploy
+build:client-linux:
+  stage: build
+  script:
+    - cmake -S . -B build-client -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_SERVER=OFF
+    - cmake --build build-client -j"$(nproc)"
+  artifacts:
+    paths: [build-client/client/bc-client]
+    expire_in: 1 week
+
+test:client-smoke:
+  stage: test
+  needs: [build:client-linux]
+  script:
+    - ci/smoke-test-client.sh build-client/client/bc-client data
 
 package:server-linux:
   stage: package
