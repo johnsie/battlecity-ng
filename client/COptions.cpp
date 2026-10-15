@@ -100,8 +100,8 @@ void COptions::LoadOptions()
     //  Retrieves the current directory for the current process, and populate the buffer variable
     //  http://msdn.microsoft.com/en-us/library/windows/desktop/aa364934(v=vs.85).aspx
 	GetCurrentDirectory(1024,buffer);
-    //  Append buffer with \options.ini
-	strcat(buffer, "\\options.ini");
+    //  Append buffer with /options.ini
+	strcat(buffer, "/options.ini");
     //  Set flag to false
 	int flag = 0;
     //  Initialize file handler
@@ -188,12 +188,12 @@ void COptions::SaveOptions()
     //  Retrieves the current directory for the current process, and populate the buffer variable
     //  http://msdn.microsoft.com/en-us/library/windows/desktop/aa364934(v=vs.85).aspx
 	GetCurrentDirectory(1024,buffer);
-    //  Append \options.ini to the buffer variable
-	strcat(buffer, "\\options.ini");
+    //  Append /options.ini to the buffer variable
+	strcat(buffer, "/options.ini");
     //  Initialize variable with two bytes
-	char sdf[2];
+	char sdf[16];
     //  Populate variable with zeros
-	memset(sdf, 0, 2);
+	memset(sdf, 0, sizeof(sdf));
     //  Convert this->music to integer and store in sdf variable
 	itoa(this->music, sdf, 10);
     //  Write sdf to buffer using initialization format

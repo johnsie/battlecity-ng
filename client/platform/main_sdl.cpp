@@ -12,6 +12,7 @@
 #endif
 
 static CGame *g_game = NULL;
+static bool g_quit = false;     // the application is closing (distinct from game.running: the engine can be stopped while dialogs stay usable)
 
 // Finds the directory holding the game's images/sounds and makes it the working directory,
 // because the game loads everything by relative name.
@@ -52,10 +53,12 @@ static void HandleEvent(const SDL_Event &e) {
 
 	switch (e.type) {
 		case SDL_QUIT:
+			g_quit = true;
 			game.running = 0;
 			break;
 		case SDL_WINDOWEVENT:
 			if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
+				g_quit = true;
 				game.running = 0;
 			} else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
 				game.Input->HasFocus = 1;
@@ -88,9 +91,10 @@ static void HandleEvent(const SDL_Event &e) {
 static void MainLoopIteration() {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) HandleEvent(e);
-	g_game->Engine->Frame();
+	if (g_game->running == 1) g_game->Engine->Frame();
+	else g_game->Engine->IdleFrame();
 #ifdef __EMSCRIPTEN__
-	if (!g_game->running) emscripten_cancel_main_loop();
+	if (g_quit) emscripten_cancel_main_loop();
 #endif
 }
 
@@ -132,7 +136,7 @@ int main(int argc, char *argv[]) {
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop(MainLoopIteration, 0, 1);
 #else
-	while (game.running == 1) {
+	while (!g_quit) {
 		MainLoopIteration();
 		if (testDialog && frames == 10) {
 			std::string n = testDialog;

@@ -474,6 +474,7 @@ void CProcess::ProcessEvent(int Event) {
 			break;
         //  Process connected
 		case 2:
+			this->p->running = 1;
             this->p->Options->SaveOptions();
             this->p->Options->addGameServerToHistory(&this->p->Options->gameServerAddress[0]);
             //  Display the login dialog box

@@ -177,6 +177,17 @@ void CEngine::Frame() {
 		}
 }
 
+/// <summary>   Splash screen + dialogs while the engine is not running (e.g. connection failed) </summary>
+void CEngine::IdleFrame() {
+	p->Dialog->Cycle();
+	p->DDraw->Clear();
+	p->DDraw->Draw(p->DDraw->imgCompany, (p->ResolutionX/2), (p->ResolutionY/2)-240, 320, 240);
+	p->DDraw->Draw(p->DDraw->imgCompany, (p->ResolutionX/2)-320, (p->ResolutionY/2), 320, 240);
+	p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2)-320, (p->ResolutionY/2)-240, 320, 240);
+	p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2), (p->ResolutionY/2), 320, 240);
+	p->DDraw->Flip();
+}
+
 /// <summary>   Log errors to debug.log </summary>
 ///
 /// <param name="error">    The error. </param>

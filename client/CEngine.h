@@ -36,6 +36,8 @@ public:
     void Init();
     /// <summary> Runs one iteration of the game loop (draw, input, network). Called from the main loop. </summary>
     void Frame();
+    /// <summary> Draws the splash screen and dialogs while the engine is stopped (e.g. not connected). </summary>
+    void IdleFrame();
 
     void logerror(std::string error);
 
