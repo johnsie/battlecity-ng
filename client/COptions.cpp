@@ -149,6 +149,10 @@ void COptions::LoadOptions()
         //  Write to the options.ini file
 		SaveOptions();
 	}
+	//  BC_SERVER overrides the configured server for this run (test builds must never reach production by accident)
+	if (const char *serverOverride = getenv("BC_SERVER")) {
+		this->gameServerAddress = serverOverride;
+	}
     //  File handler for reading past game servers
     ifstream file("gameServerHistory.log");
     //  Initialize line variable

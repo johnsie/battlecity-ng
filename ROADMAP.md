@@ -64,7 +64,7 @@ Exit: ASan/UBSan smoke run is clean; 24 h Windows soak with simulated clients do
 3.1 Complete the dialog layer: all 14 former resource dialogs usable with keyboard and mouse; text fields keep focus (a mouse-coordinate bug was already fixed for web).
 3.2 **Audio.** SDL mixer for the wavs, TinySoundFont for the `.mid` music. Mute option persisted in `options.ini`. On web, start audio after the first user gesture.
 3.3 Connection handling: clear errors for unreachable server, version mismatch, ban, kick. Automatic reconnect with backoff.
-3.4 **Safe defaults.** `options.ini` points at the live server by default. Add a command-line / query-string override and a visible "connected to" label so test builds never hit production by accident.
+3.4 **Safe defaults.** (`BC_SERVER` environment override: done.) `options.ini` points at the live server by default. Add a command-line / query-string override and a visible "connected to" label so test builds never hit production by accident.
 3.5 Input: gamepad optional; key rebinding; window resize and fullscreen; HiDPI.
 3.6 Web specifics: the browser cannot open raw TCP. Run a WebSocket-to-TCP bridge (for example websockify) behind the web server at `wss://bc.outiva.com/ws`, forwarding to port 9680. Add it to `deploy/` and the systemd setup.
 3.7 First-run experience: short in-game help, a default account flow that works without e-mail, readable fonts at 1x and 2x scale.
