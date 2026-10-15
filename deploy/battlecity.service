@@ -1,0 +1,25 @@
+[Unit]
+Description=Battle City game server
+After=network.target
+
+[Service]
+Type=simple
+User=battlecity
+Group=battlecity
+WorkingDirectory=/var/lib/battlecity
+Environment=BC_PORT=9680
+ExecStart=/opt/battlecity/current/bc-server
+Restart=on-failure
+RestartSec=3
+# The server stops cleanly on SIGTERM
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/battlecity
+
+[Install]
+WantedBy=multi-user.target

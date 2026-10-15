@@ -1,0 +1,3 @@
+# Install as /etc/sudoers.d/battlecity (mode 0440).
+# Lets the GitLab runner user restart ONLY the game service; nothing else.
+gitlab-runner ALL=(root) NOPASSWD: /usr/bin/systemctl restart battlecity, /usr/bin/systemctl status battlecity, /usr/bin/journalctl -u battlecity -n 40 --no-pager

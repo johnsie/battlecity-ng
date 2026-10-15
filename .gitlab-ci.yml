@@ -1,0 +1,50 @@
+# Battle City CI. Linux jobs run on the runner tagged `ubuntu-server` (shell executor,
+# on the same host that runs the game server).
+# Required on that host: build-essential cmake libsqlite3-dev  (see deploy/README.md)
+
+stages: [build, test, package, deploy]
+
+default:
+  tags: [ubuntu-server]
+
+variables:
+  GIT_DEPTH: "20"
+
+build:server-linux:
+  stage: build
+  script:
+    - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    - cmake --build build -j"$(nproc)"
+  artifacts:
+    paths: [build/server/bc-server]
+    expire_in: 1 week
+
+test:server-smoke:
+  stage: test
+  needs: [build:server-linux]
+  script:
+    - ci/smoke-test.sh build/server/bc-server data/map.dat
+
+package:server-linux:
+  stage: package
+  needs: [build:server-linux, test:server-smoke]
+  script:
+    - ci/package-server.sh build "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" dist
+  artifacts:
+    paths: [dist/]
+    expire_in: 4 weeks
+
+deploy:production:
+  stage: deploy
+  needs: [package:server-linux]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_TAG
+      when: manual
+  resource_group: production      # never run two deploys at once
+  environment:
+    name: production
+    url: https://bc.outiva.com
+  script:
+    - ci/deploy.sh dist/battlecity-server-*-linux-x86_64.tar.gz "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
