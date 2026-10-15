@@ -62,7 +62,10 @@ void BCSleep(unsigned int ms);
 // Message box (SDL_ShowSimpleMessageBox under the hood). Flags: 0 = OK, 1 = Yes/No.
 #define MB_YESNO 1
 #define MB_ICONQUESTION 0
+// In-game message box: shown as a modal dialog by the ImGui layer (never a blocking OS/browser popup). Returns 1
+// immediately; use BCMessageBoxAsync (dialogs.h) when the answer matters. Falls back to the OS box before the UI exists.
 int BCMessageBox(HWND parent, const char *text, const char *title, unsigned int flags);
+int BCMessageBoxNative(HWND parent, const char *text, const char *title, unsigned int flags);
 #define MessageBox(h, text, title, flags) BCMessageBox((h), (text), (title), (flags))
 
 // Win32 leftovers that are no-ops here

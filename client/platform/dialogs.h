@@ -10,6 +10,7 @@
 #define BC_PLATFORM_DIALOGS_H
 
 #include "compat.h"
+#include <functional>
 
 typedef intptr_t INT_PTR;
 typedef int (CALLBACK *DLGPROC)(HWND, UINT, WPARAM, LPARAM);
@@ -86,6 +87,10 @@ bool GetScrollInfo(HWND control, int bar, SCROLLINFO *info);
 WNDPROC BCSetControlProc(HWND control, WNDPROC proc);
 #define SetWindowLong(h, idx, v) BCSetControlProc((h), (WNDPROC)(v))
 #define CallWindowProc(orig, h, m, w, l) ((orig) ? (orig)((h), (m), (WPARAM)(w), (LPARAM)(l)) : 0)
+
+// Message box with a result callback (1 = Yes/OK, 2 = No). flags: 0 = OK, MB_YESNO = Yes/No.
+void BCMessageBoxAsync(const char *text, const char *title, unsigned int flags, std::function<void(int)> done);
+bool BCMessagesPending();
 
 // Called by the main loop
 void BCDialogsInit(void *sdlWindow, void *sdlRenderer);   // SDL_Window*, SDL_Renderer*

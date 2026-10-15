@@ -16,6 +16,7 @@
   #bar { width:min(320px, 70%); height:6px; background:#333; border-radius:3px; overflow:hidden; }
   #bar > div { height:100%; width:0; background:var(--accent); }
   #status.hidden { display:none; }
+  #status.ended { background:rgba(0,0,0,.78); pointer-events:auto; }
   #error { color:#ff8080; margin-top:1rem; white-space:pre-wrap; max-width:36rem; }
 </style>
 </head>
@@ -45,6 +46,12 @@
       if (m) { fillEl.style.width = (100 * m[2] / m[4]) + '%'; msgEl.textContent = m[1].trim(); } else { msgEl.textContent = t; }
     },
     onAbort: function (what) { statusEl.classList.remove('hidden'); errEl.textContent = 'The game stopped: ' + what; }
+  };
+  // Called by the game when it ends (quit, disconnected): the canvas would otherwise just freeze
+  window.bcEnded = function () {
+    statusEl.classList.remove('hidden'); statusEl.classList.add('ended');
+    msgEl.textContent = 'The game has ended. Reload the page to play again.';
+    document.getElementById('bar').style.display = 'none';
   };
   window.addEventListener('error', function (e) { statusEl.classList.remove('hidden'); errEl.textContent = 'Error: ' + e.message; });
 </script>

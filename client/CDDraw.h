@@ -57,6 +57,8 @@ public:
     bool SaveScreenshot(const char *path);
 
     SDL_Renderer *Renderer;
+    unsigned int DrawCalls;      // Draw() calls since the last Flip() (diagnostics)
+    unsigned int LastFrameDrawCalls;
 
     BCImage *imgArrowsRed;
     BCImage *imgArrows;

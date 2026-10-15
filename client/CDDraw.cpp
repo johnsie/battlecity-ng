@@ -31,6 +31,7 @@ CDDraw::CDDraw(CGame *game)
     Renderer = NULL;
     Window = NULL;
     lastOutputW = lastOutputH = 0;
+    DrawCalls = LastFrameDrawCalls = 0;
     Font = NULL;
     imgArrowsRed = NULL;
     imgArrows = NULL;
@@ -261,6 +262,8 @@ void CDDraw::Clear()
 void CDDraw::Flip()
 {
     if (!Renderer) return;
+    LastFrameDrawCalls = DrawCalls;
+    DrawCalls = 0;
     UpdateScaleMode();
     BCDialogsRender();   // Dear ImGui dialogs are drawn on top of the game frame
     SDL_RenderPresent(Renderer);
@@ -297,6 +300,7 @@ void CDDraw::Draw(BCImage* Surface, int X, int Y, int width, int height, int _sX
     SDL_Rect src = { l, t, r - l, b - t };
     SDL_Rect dst = { X, Y, r - l, b - t };
     SDL_RenderCopy(Renderer, Surface->texture, &src, &dst);
+    DrawCalls++;
 }
 
 void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)

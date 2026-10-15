@@ -13,6 +13,8 @@
 #endif
 
 static CGame *g_game = NULL;
+static SDL_Window *g_sdlWindow = NULL;
+static int g_quitRequests = 0;
 static bool g_quit = false;     // the application is closing (distinct from game.running: the engine can be stopped while dialogs stay usable)
 
 // Finds the directory holding the game's images/sounds and makes it the working directory,
@@ -68,11 +70,20 @@ static void RunScript() {
 		HWND dlg = BCDialogsActiveHandle();
 		if (cmd == "text") { int id; line >> id; std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); if (dlg) SetDlgItemText(dlg, id, rest.c_str()); else printf("script: no dialog for text %d\n", id); }
 		else if (cmd == "click") { int id; line >> id; if (dlg) SendMessage(dlg, WM_COMMAND, MAKELONG(id, BN_CLICKED), 0); else printf("script: no dialog for click %d\n", id); }
+		else if (cmd == "msg") { std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); BCMessageBox(NULL, rest.c_str(), "BattleCity", 0); }
+		else if (cmd == "ask") { std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); BCMessageBoxAsync(rest.c_str(), "BattleCity", MB_YESNO, [](int r) { printf("script: answer=%d\n", r); }); }
+		else if (cmd == "enter") { SDL_Event ev; SDL_zero(ev); ev.type = SDL_KEYDOWN; ev.key.windowID = SDL_GetWindowID(g_sdlWindow); ev.key.keysym.sym = SDLK_RETURN; ev.key.keysym.scancode = SDL_SCANCODE_RETURN; ev.key.state = SDL_PRESSED; SDL_PushEvent(&ev); ev.type = SDL_KEYUP; ev.key.state = SDL_RELEASED; SDL_PushEvent(&ev); }
 		else if (cmd == "select") { int id, index; line >> id >> index; if (dlg) SendDlgItemMessage(dlg, id, LB_SETCURSEL, index, 0); }
 		else if (cmd == "dbl") { int id; line >> id; if (dlg) SendDlgItemMessage(dlg, id, WM_LBUTTONDBLCLK, 0, 0); }
 		else if (cmd == "pos") {
 			CPlayer *me = g_game->Player[g_game->Winsock->MyIndex];
-			printf("script: state=%d me=%d pos=%.0f,%.0f moving=%d turning=%d dead=%d frozen=%d dir=%d\n", g_game->State, g_game->Winsock->MyIndex, (float)me->X, (float)me->Y, (int)me->isMoving, (int)me->isTurning, (int)me->isDead, (int)me->isFrozen, (int)me->Direction);
+			{
+				int mx = (int)me->X / 48, my = (int)me->Y / 48;
+				printf("script: collision=%d tile=%d,%d map[tile]=%d around: ", g_game->Collision->CheckPlayerCollision(g_game->Winsock->MyIndex), mx, my, (int)g_game->Map->map[mx][my]);
+				for (int dy = -1; dy <= 2; dy++) { for (int dx = -1; dx <= 1; dx++) printf("%d ", (int)g_game->Map->map[mx + dx][my + dy]); printf("| "); }
+				printf("\n");
+			}
+			printf("script: drawCalls/frame=%u fps=%d state=%d me=%d pos=%.0f,%.0f moving=%d turning=%d dead=%d frozen=%d dir=%d\n", g_game->DDraw->LastFrameDrawCalls, g_game->Engine->FPS, g_game->State, g_game->Winsock->MyIndex, (float)me->X, (float)me->Y, (int)me->isMoving, (int)me->isTurning, (int)me->isDead, (int)me->isFrozen, (int)me->Direction);
 		}
 		else if (cmd == "check") { int id; line >> id; if (dlg) CheckDlgButton(dlg, id, 1); }
 		else if (cmd == "key") {
@@ -82,7 +93,7 @@ static void RunScript() {
 		}
 		else if (cmd == "shot") { std::string path; line >> path; g_game->DDraw->SaveScreenshot(path.c_str()); }
 		else if (cmd == "print") { std::string rest; std::getline(line, rest); printf("script:%s\n", rest.c_str()); }
-		else if (cmd == "quit") { g_quit = true; return; }
+		else if (cmd == "quit") { g_quit = true; g_quitRequests = 2; return; }
 		else printf("script: unknown command '%s'\n", cmd.c_str());
 	}
 }
@@ -100,11 +111,13 @@ static void HandleEvent(const SDL_Event &e) {
 	switch (e.type) {
 		case SDL_QUIT:
 			g_quit = true;
+			g_quitRequests++;
 			game.running = 0;
 			break;
 		case SDL_WINDOWEVENT:
 			if (e.window.event == SDL_WINDOWEVENT_CLOSE) {
 				g_quit = true;
+				g_quitRequests++;
 				game.running = 0;
 			} else if (e.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
 				game.Input->HasFocus = 1;
@@ -134,6 +147,10 @@ static void HandleEvent(const SDL_Event &e) {
 	}
 }
 
+// Quit once requested, but let a pending message ("you have been disconnected" ...) be read first;
+// asking twice forces it.
+static bool QuitNow() { return g_quit && (!BCMessagesPending() || g_quitRequests >= 2); }
+
 static void MainLoopIteration() {
 	Uint32 t0 = SDL_GetTicks();
 	SDL_Event e;
@@ -148,7 +165,10 @@ static void MainLoopIteration() {
 	if (t2 - t0 > 100 || ++frames % 120 == 0) printf("frame %d: events %ums, engine %ums\n", frames, t1 - t0, t2 - t1);
 #endif
 #ifdef __EMSCRIPTEN__
-	if (g_quit) emscripten_cancel_main_loop();
+	if (QuitNow()) {
+		emscripten_cancel_main_loop();
+		EM_ASM({ if (window.bcEnded) window.bcEnded(); });
+	}
 #endif
 }
 
@@ -180,6 +200,7 @@ int main(int argc, char *argv[]) {
 		SDL_Quit();
 		return 1;
 	}
+	g_sdlWindow = window;
 	SDL_StartTextInput();
 
 	game.Init((HWND)window, NULL);
@@ -199,7 +220,7 @@ int main(int argc, char *argv[]) {
 #ifdef __EMSCRIPTEN__
 	emscripten_set_main_loop(MainLoopIteration, 0, 1);
 #else
-	while (!g_quit) {
+	while (!QuitNow()) {
 		MainLoopIteration();
 		if (testDialog && frames == 10) {
 			std::string n = testDialog;

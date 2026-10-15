@@ -20,7 +20,7 @@ unsigned long BCGetTicks() { return (unsigned long)SDL_GetTicks(); }
 
 void BCSleep(unsigned int ms) { SDL_Delay(ms); }
 
-int BCMessageBox(HWND parent, const char *text, const char *title, unsigned int flags) {
+int BCMessageBoxNative(HWND parent, const char *text, const char *title, unsigned int flags) {
 	if (flags & MB_YESNO) {
 		const SDL_MessageBoxButtonData buttons[] = {
 			{ SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, "Yes" },

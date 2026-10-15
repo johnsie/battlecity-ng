@@ -8,6 +8,7 @@
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_sdlrenderer2.h>
+#include <deque>
 #include <map>
 #include <vector>
 #include <string>
@@ -58,6 +59,14 @@ std::map<int, Dlg *> g_dialogs;          // dialog id -> persistent instance (ha
 std::map<void *, Dlg *> g_dlgHandles;
 std::map<void *, Ctl *> g_ctlHandles;
 Dlg *g_active = nullptr;
+
+struct Message {
+	std::string title, text;
+	bool yesNo;
+	std::function<void(int)> done;
+	bool opened;
+};
+std::deque<Message> g_messages;
 
 Dlg *AsDlg(HWND h) { auto it = g_dlgHandles.find(h); return it == g_dlgHandles.end() ? nullptr : it->second; }
 Ctl *AsCtl(HWND h) { auto it = g_ctlHandles.find(h); return it == g_ctlHandles.end() ? nullptr : it->second; }
@@ -338,7 +347,23 @@ void BCDialogsShutdown() {
 	g_imguiReady = false;
 }
 
-bool BCDialogsActive() { return g_active != nullptr; }
+bool BCDialogsActive() { return g_active != nullptr || !g_messages.empty(); }
+
+bool BCMessagesPending() { return !g_messages.empty(); }
+
+void BCMessageBoxAsync(const char *text, const char *title, unsigned int flags, std::function<void(int)> done) {
+	if (!g_imguiReady) {
+		int r = BCMessageBoxNative(nullptr, text, title, flags);
+		if (done) done(r);
+		return;
+	}
+	g_messages.push_back({ title ? title : "", text ? text : "", (flags & MB_YESNO) != 0, done, false });
+}
+
+int BCMessageBox(HWND, const char *text, const char *title, unsigned int flags) {
+	BCMessageBoxAsync(text, title, flags, nullptr);
+	return 1;
+}
 
 HWND BCDialogsActiveHandle() { return g_active; }
 
@@ -347,7 +372,7 @@ void BCDialogsCloseActive() {
 }
 
 void BCDialogsProcessEvent(const void *sdlEvent) {
-	if (!g_imguiReady || !g_active) return;
+	if (!g_imguiReady || (!g_active && g_messages.empty())) return;
 	const SDL_Event &e = *(const SDL_Event *)sdlEvent;
 	ImGuiIO &io = ImGui::GetIO();
 	// The dialogs are drawn in output pixels: convert window points (differs from pixels on high-DPI screens)
@@ -494,8 +519,46 @@ void DrawControl(Dlg *d, Ctl &c, int index, float originY) {
 
 } // namespace
 
+// Draws the front message as a modal popup; returns true when it was answered (and removes it)
+static void DrawMessage(float titleH) {
+	Message &m = g_messages.front();
+	std::string id = m.title + "###message";
+	if (!m.opened) { ImGui::OpenPopup(id.c_str()); m.opened = true; }
+	ImGuiIO &io = ImGui::GetIO();
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	ImGui::SetNextWindowSizeConstraints(ImVec2(280.0f * g_scale, 0), ImVec2(420.0f * g_scale, io.DisplaySize.y));
+	int answer = 0;
+	if (ImGui::BeginPopupModal(id.c_str(), nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings)) {
+		ImGui::PushTextWrapPos(400.0f * g_scale);
+		ImGui::TextUnformatted(m.text.c_str());
+		ImGui::PopTextWrapPos();
+		ImGui::Spacing();
+		ImGui::Separator();
+		ImGui::Spacing();
+		float w = 80.0f * g_scale;
+		if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+		if (m.yesNo) {
+			if (ImGui::Button("Yes", ImVec2(w, 0))) answer = 1;
+			ImGui::SameLine();
+			if (ImGui::Button("No", ImVec2(w, 0))) answer = 2;
+		} else {
+			if (ImGui::Button("OK", ImVec2(w, 0))) answer = 1;
+		}
+		// Keyboard: Enter = Yes/OK, Escape = No/OK
+		if (!answer && (ImGui::IsKeyPressed(ImGuiKey_Enter) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter))) answer = 1;
+		if (!answer && ImGui::IsKeyPressed(ImGuiKey_Escape)) answer = m.yesNo ? 2 : 1;
+		if (answer) ImGui::CloseCurrentPopup();
+		ImGui::EndPopup();
+	}
+	if (answer) {
+		std::function<void(int)> done = m.done;
+		g_messages.pop_front();
+		if (done) done(answer);
+	}
+}
+
 void BCDialogsRender() {
-	if (!g_imguiReady || !g_active) return;
+	if (!g_imguiReady || (!g_active && g_messages.empty())) return;
 	Dlg *d = g_active;
 
 	// Draw at native output resolution (not scaled up from the game's logical 1024x768) so text stays sharp
@@ -527,11 +590,12 @@ void BCDialogsRender() {
 #endif
 
 	float titleH = ImGui::GetFrameHeight();
+	bool keepOpen = true;
+	if (d) {
 	ImVec2 size(d->def->w * DLU_X * g_scale, d->def->h * DLU_Y * g_scale + titleH);
 	ImGui::SetNextWindowPos(ImVec2((ImGui::GetIO().DisplaySize.x - size.x) / 2, (ImGui::GetIO().DisplaySize.y - size.y) / 2), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(size, ImGuiCond_Always);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-	bool keepOpen = true;
 	ImGuiWindowFlags flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings |
 	                         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
 	if (ImGui::Begin((std::string(d->def->caption) + "###dlg").c_str(), d->def->sysmenu ? &keepOpen : nullptr, flags)) {
@@ -540,6 +604,9 @@ void BCDialogsRender() {
 	ImGui::End();
 	ImGui::PopStyleVar();
 	if (!keepOpen && d->open && d->proc) d->proc(d, WM_CLOSE, 0, 0);   // title-bar close button
+	}   // if (d)
+
+	if (!g_messages.empty()) DrawMessage(titleH);
 
 	ImGui::Render();
 	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), g_renderer);

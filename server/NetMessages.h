@@ -23,6 +23,7 @@
 #ifndef __MSGS__
 #define __MSGS__
 
+#include <stdint.h>   // fixed-width types: the wire format must not depend on the platform's long size
 enum ServerMessages {
     SMTCP,
     smLoginCorrect,
@@ -115,11 +116,11 @@ struct sSMItem
 
 struct sSMFinance
 {
-    unsigned long Cash;
-    unsigned long Income;
-    unsigned long Research;
-    unsigned long Items;
-    unsigned long Hospital;
+    uint32_t Cash;
+    uint32_t Income;
+    uint32_t Research;
+    uint32_t Items;
+    uint32_t Hospital;
 };
 
 struct sSMItemCount

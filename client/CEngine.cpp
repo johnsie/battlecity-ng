@@ -50,6 +50,7 @@ void CEngine::Init() {
 /// <summary>   One iteration of the game loop (called from the main loop) </summary>
 void CEngine::Frame() {
 	char FPSString[20];
+	bool slowWarningDue = false;
 	if (p->running != 1) return;
 
 	// Open any dialog that the game state asked for
@@ -133,6 +134,23 @@ void CEngine::Frame() {
 			if (p->State == STATE_GAME) {
 				p->InGame->RefreshArea();
 			}
+            //  Slow-machine warning: judged once per second, only after a few seconds in the game, only while the window
+            //  is focused (a throttled background tab is not a slow computer), at most once per session. Never in the
+            //  browser, where the browser decides how often frames run.
+			static int secondsInGame = 0;
+			static bool warned = false;
+			slowWarningDue = false;
+			if (p->State == STATE_GAME && p->Input->HasFocus) {
+				secondsInGame++;
+#ifndef __EMSCRIPTEN__
+				if (!warned && secondsInGame > 5 && p->Engine->FPS < 10 && lastFPS < 10 && lastlastFPS < 10) {
+					warned = true;
+					slowWarningDue = true;
+				}
+#endif
+			} else {
+				secondsInGame = 0;
+			}
             //  Set lastlastFPS to lastFPS
 			lastlastFPS = lastFPS;
             //  Set lastFPS to Engine->FPS
@@ -158,9 +176,9 @@ void CEngine::Frame() {
             //  Upon verifying that FPS is greater than 60 set next frame to time interval plus 8
             //  Upon verifying that FPS is greater than 70 set next frame to time interval plus 10
             //  Otherwise set next time to time interval plus 12
-			if (p->Engine->FPS < 10 && lastFPS < 10 && lastlastFPS < 10 && p->State == STATE_GAME) {
-				MessageBox(p->hWnd, "Your computer is running too slow to play BattleCity.  Try closing some other programs or updating your video card drivers.", "BattleCity", 0);
-				lastFPS = lastlastFPS = 60;   // do not nag every frame
+			if (slowWarningDue) {
+				slowWarningDue = false;
+				BCMessageBox(p->hWnd, "Your computer is running too slow to play BattleCity.  Try closing some other programs or updating your video card drivers.", "BattleCity", 0);
 				NextFrame = p->Tick + 12;
 			} else if (p->Engine->FPS < 30 && lastFPS < 30 && lastlastFPS < 30) {
 				NextFrame = p->Tick + 1;
@@ -240,10 +258,11 @@ void CEngine::ThreadMessage(std::string MsgText) {
 void CEngine::ThreadMessageQuit() {
 	if (this->MsgUp == 1) return;
 	this->MsgUp = 1;
-	int response = MessageBox(p->hWnd, "Leave BattleCity?", "BattleCity", MB_YESNO | MB_ICONQUESTION);
-	if (response == 1) {
-		p->State = STATE_MEETING;
-		p->Meeting->ShowMeetingDlg();
-	}
-	this->MsgUp = 0;
+	BCMessageBoxAsync("Leave BattleCity?", "BattleCity", MB_YESNO, [this](int response) {
+		if (response == 1) {
+			p->State = STATE_MEETING;
+			p->Meeting->ShowMeetingDlg();
+		}
+		this->MsgUp = 0;
+	});
 }
