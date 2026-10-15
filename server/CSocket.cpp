@@ -117,6 +117,10 @@ void CSocket::InitTCP() {
         perror("Unable to change listener to LISTEN state.");
         exit(1);
     }
+#ifndef WIN32
+    //  Never let accept() block the game loop
+    fcntl(listener, F_SETFL, fcntl(listener, F_GETFL, 0) | O_NONBLOCK);
+#endif
     //  Set listener to &master file descriptor set
     FD_SET(listener, &master);
 }
@@ -196,9 +200,21 @@ void CSocket::TCPCycle() {
     CPlayer* player;
     //  Copy master file descriptor set (listener) to read file descriptor set   
     read_fds = master;
+    //  Non-blocking poll
+    this->timev.tv_sec = 0;
+    this->timev.tv_usec = 0;
     //  Determines status for available file descriptor sets; otherwise, print error message
     //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms740141(v=vs.85).aspx
-    if (select(0, &read_fds, 0, 0, &timev) == -1)  {
+    //  NOTE: the first argument is ignored by Winsock but on Linux it must be the highest
+    //  descriptor + 1. Passing 0 there made select() check nothing, so the listener always looked
+    //  ready and the blocking accept() below stalled the whole game loop until someone connected.
+    if (select((int)this->listener + 1, &read_fds, 0, 0, &timev) == -1)  {
+#ifndef WIN32
+        //  A signal (e.g. SIGTERM) interrupted select: just try again next cycle
+        if (errno == EINTR) {
+            return;
+        }
+#endif
         perror("Unable to monitor file descriptor set");
         exit(1);
     }
@@ -211,11 +227,16 @@ void CSocket::TCPCycle() {
         //  and "addrlen" with incoming connection values; Test return value for failure
         //  then print error message
         //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms737526(v=vs.85).aspx
+        this->addrlen = sizeof(this->remoteaddr);
+        newfd = (int)accept(listener, (struct sockaddr *)&remoteaddr, &addrlen);
+        bool acceptNothingPending = false;
 #ifndef WIN32
-        if ((newfd = accept(listener, (struct sockaddr *)&remoteaddr, &addrlen)) == -1) { 
-#else
-        if ((newfd = (int)accept(listener, (struct sockaddr *)&remoteaddr, &addrlen)) == -1)  { 
+        //  The listener is non-blocking: "nothing to accept" is not an error
+        acceptNothingPending = (newfd == -1) && (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR);
 #endif
+        if (acceptNothingPending) {
+            //  nothing to do
+        } else if (newfd == -1)  {
             perror("Unable to accept incoming connection.");
             cout << "CSocket @ TCPCycle was unable to accept incoming connection.";
         } else  {
