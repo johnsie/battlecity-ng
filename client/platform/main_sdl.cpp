@@ -3,6 +3,9 @@
  * Replaces the Win32 WinMain/WndProc: creates the window, translates SDL events into the
  * calls the game already understands, and runs the game loop.
  */
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include "CGame.h"
 #include "platform/input_compat.h"
 #include <SDL.h>

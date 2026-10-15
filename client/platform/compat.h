@@ -31,6 +31,9 @@
 	#include <windows.h>
 	#include <mmsystem.h>
 	// the game's own wrappers below replace these Win32 functions
+	// the dialog layer hands out pointers to its own objects as window handles
+	typedef void *BCHWND;
+	#define HWND BCHWND
 	#undef Sleep
 	#undef GetTickCount
 	#undef timeGetTime
