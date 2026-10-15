@@ -64,6 +64,9 @@ private:
 	CGame *p;
 	BCAudio *audio;
 	BCSample *LoadSample(const char *file, bool loop);
+public:
+	void LoadMusicAssets();
+private:
 	void Play(BCSample *sample, int channel, float left, float right);
 protected:
 

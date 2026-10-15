@@ -47,5 +47,7 @@ if(EMSCRIPTEN)
     -sEXIT_RUNTIME=0 -sASSERTIONS=1
     --preload-file ${BC_WEB_DATA}@/
     --shell-file ${CMAKE_CURRENT_SOURCE_DIR}/../web/shell.html)
+  add_custom_command(TARGET bc-client POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../data/TimGM6mb.sf2 $<TARGET_FILE_DIR:bc-client>/TimGM6mb.sf2)
   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/platform/main_sdl.cpp PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../web/shell.html)
 endif()

@@ -31,7 +31,7 @@ cmake --build "$BUILD" -j"$(nproc)"
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
-for f in index.html index.js index.wasm index.data; do
+for f in index.html index.js index.wasm index.data TimGM6mb.sf2; do
   cp "$BUILD/client/$f" "$OUT/$f"
 done
 ls -l "$OUT"

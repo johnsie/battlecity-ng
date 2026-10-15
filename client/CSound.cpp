@@ -25,6 +25,9 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #define TSF_IMPLEMENTATION
 #include "../external/tinysoundfont/tsf.h"
@@ -38,6 +41,10 @@ const int FIRST_FREE_VOICE = 16;     // 0-15: fixed channels used by the game (1
 const int SONG_COUNT = 7;
 const char *SONG_FILES[SONG_COUNT] = { "midi/Bc1.mid", "midi/Bc2.mid", "midi/Bc3.mid", "midi/Bc5.mid", "midi/Bc6.mid", "midi/Bc8.mid", "midi/Bc9.mid" };
 }
+
+#ifdef __EMSCRIPTEN__
+static CSound *g_soundForDownload = NULL;
+#endif
 
 /// <summary> Interleaved stereo, 44.1 kHz, signed 16-bit </summary>
 struct BCSample {
@@ -205,14 +212,6 @@ void CSound::Init()
 	s_cloak = LoadSample("cloak.wav", false);
 	s_flare = LoadSample("flare.wav", false);
 
-	audio->font = tsf_load_filename("TimGM6mb.sf2");
-	if (audio->font) {
-		tsf_set_output(audio->font, TSF_STEREO_INTERLEAVED, MIX_RATE, 0.0f);
-		for (int i = 0; i < SONG_COUNT; i++) audio->songs[i] = tml_load_filename(SONG_FILES[i]);
-	} else {
-		p->Engine->logerror("Unable to load the sound font TimGM6mb.sf2: music disabled");
-	}
-
 	SDL_AudioSpec want, have;
 	SDL_zero(want);
 	want.freq = MIX_RATE;
@@ -230,6 +229,35 @@ void CSound::Init()
 
 	srand((unsigned int)p->Tick);
 	this->MIDIndex = rand() % 6;
+
+#ifdef __EMSCRIPTEN__
+	// The soundfont is ~6 MB: download it in the background so the game can start immediately
+	g_soundForDownload = this;
+	emscripten_async_wget("TimGM6mb.sf2", "/TimGM6mb.sf2",
+		[](const char *) { if (g_soundForDownload) g_soundForDownload->LoadMusicAssets(); },
+		[](const char *) { printf("music: soundfont download failed, music disabled\n"); });
+#else
+	LoadMusicAssets();
+#endif
+}
+
+/// <summary> Loads the soundfont and the MIDI files, then starts the music. Safe to call once the soundfont file exists. </summary>
+void CSound::LoadMusicAssets()
+{
+	if (!audio || audio->font) return;
+	tsf *font = tsf_load_filename("TimGM6mb.sf2");
+	if (!font) {
+		p->Engine->logerror("Unable to load the sound font TimGM6mb.sf2: music disabled");
+		return;
+	}
+	tsf_set_output(font, TSF_STEREO_INTERLEAVED, MIX_RATE, 0.0f);
+	tml_message *songs[SONG_COUNT];
+	for (int i = 0; i < SONG_COUNT; i++) songs[i] = tml_load_filename(SONG_FILES[i]);
+	if (audio->device) SDL_LockAudioDevice(audio->device);
+	for (int i = 0; i < SONG_COUNT; i++) audio->songs[i] = songs[i];
+	audio->font = font;
+	if (audio->device) SDL_UnlockAudioDevice(audio->device);
+	printf("music: soundfont loaded, starting song %d\n", MIDIndex);
 	PlaYMID(MIDIndex);
 }
 
