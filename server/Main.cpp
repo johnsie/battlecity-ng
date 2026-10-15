@@ -45,6 +45,9 @@ static void HandleShutdownSignal(int) {
 /// <param name="argv">Argument Vector</param>
 /// <returns></returns>
 int main(int argc, char *argv[]) {
+	// Log lines must reach the file/journal immediately, also when the process dies
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
     //  Last bullet time interval
 	float LastBulletTick = 0;
     //  Item time interval
