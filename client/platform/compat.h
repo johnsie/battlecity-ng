@@ -20,29 +20,6 @@
 	#define _stricmp strcasecmp
 #endif
 
-#ifdef _WIN32
-	// Use the real Win32 types: SDL itself includes <windows.h>, so redefining them here would conflict
-	#ifndef WIN32_LEAN_AND_MEAN
-		#define WIN32_LEAN_AND_MEAN
-	#endif
-	#ifndef NOMINMAX
-		#define NOMINMAX
-	#endif
-	#include <windows.h>
-	#include <mmsystem.h>
-	// the game's own wrappers below replace these Win32 functions
-	#undef Sleep
-	#undef GetTickCount
-	#undef timeGetTime
-	#undef MessageBox
-	#undef CreateDirectory
-	#undef GetCurrentDirectory
-	#undef GetPrivateProfileString
-	#undef GetPrivateProfileInt
-	#undef WritePrivateProfileString
-	#undef timeBeginPeriod
-	#undef timeEndPeriod
-#else
 typedef uint32_t COLORREF;
 typedef uint32_t DWORD;
 typedef uint16_t WORD;
@@ -59,8 +36,6 @@ typedef void *HBRUSH;
 typedef void *HDC;
 typedef const char *LPWSTR;   // (the game passes narrow strings through it)
 
-#endif
-
 #ifndef TRUE
 #define TRUE 1
 #endif
@@ -68,10 +43,8 @@ typedef const char *LPWSTR;   // (the game passes narrow strings through it)
 #define FALSE 0
 #endif
 
-#ifndef _WIN32
 struct RECT  { LONG left, top, right, bottom; };
 struct POINT { LONG x, y; };
-#endif
 
 // COLORREF layout is 0x00BBGGRR, exactly as in Win32
 #define RGB(r, g, b) ((COLORREF)(((BYTE)(r)) | ((WORD)((BYTE)(g)) << 8) | (((DWORD)(BYTE)(b)) << 16)))
