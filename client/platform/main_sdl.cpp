@@ -4,6 +4,7 @@
  * calls the game already understands, and runs the game loop.
  */
 #include "CGame.h"
+#include "platform/input_compat.h"
 #include <SDL.h>
 #include <string>
 
@@ -44,6 +45,46 @@ static bool FindAndEnterDataDir() {
 		}
 	}
 	return false;
+}
+
+// ---- Test script runner: BC_TEST_SCRIPT=<file> drives the dialogs/keys headlessly (used for automated checks) ----
+//   wait <frames> | text <controlId> <text> | click <controlId> | check <controlId> | key up|down|left|right on|off
+//   | shot <file> | print <text> | quit
+#include <fstream>
+#include <sstream>
+static std::vector<std::string> g_script;
+static size_t g_scriptPos = 0;
+static int g_scriptWait = 0;
+
+static void RunScript() {
+	if (g_scriptPos >= g_script.size()) return;
+	if (g_scriptWait > 0) { g_scriptWait--; return; }
+	while (g_scriptPos < g_script.size()) {
+		std::istringstream line(g_script[g_scriptPos++]);
+		std::string cmd;
+		line >> cmd;
+		if (cmd.empty() || cmd[0] == '#') continue;
+		if (cmd == "wait") { line >> g_scriptWait; return; }
+		HWND dlg = BCDialogsActiveHandle();
+		if (cmd == "text") { int id; line >> id; std::string rest; std::getline(line, rest); if (!rest.empty()) rest.erase(0, 1); if (dlg) SetDlgItemText(dlg, id, rest.c_str()); else printf("script: no dialog for text %d\n", id); }
+		else if (cmd == "click") { int id; line >> id; if (dlg) SendMessage(dlg, WM_COMMAND, MAKELONG(id, BN_CLICKED), 0); else printf("script: no dialog for click %d\n", id); }
+		else if (cmd == "select") { int id, index; line >> id >> index; if (dlg) SendDlgItemMessage(dlg, id, LB_SETCURSEL, index, 0); }
+		else if (cmd == "dbl") { int id; line >> id; if (dlg) SendDlgItemMessage(dlg, id, WM_LBUTTONDBLCLK, 0, 0); }
+		else if (cmd == "pos") {
+			CPlayer *me = g_game->Player[g_game->Winsock->MyIndex];
+			printf("script: state=%d me=%d pos=%.0f,%.0f moving=%d turning=%d dead=%d frozen=%d dir=%d\n", g_game->State, g_game->Winsock->MyIndex, (float)me->X, (float)me->Y, (int)me->isMoving, (int)me->isTurning, (int)me->isDead, (int)me->isFrozen, (int)me->Direction);
+		}
+		else if (cmd == "check") { int id; line >> id; if (dlg) CheckDlgButton(dlg, id, 1); }
+		else if (cmd == "key") {
+			std::string which, state; line >> which >> state;
+			int dik = which == "up" ? DIK_UP : which == "down" ? DIK_DOWN : which == "left" ? DIK_LEFT : DIK_RIGHT;
+			BCTestSetKey(dik, state == "on");
+		}
+		else if (cmd == "shot") { std::string path; line >> path; g_game->DDraw->SaveScreenshot(path.c_str()); }
+		else if (cmd == "print") { std::string rest; std::getline(line, rest); printf("script:%s\n", rest.c_str()); }
+		else if (cmd == "quit") { g_quit = true; return; }
+		else printf("script: unknown command '%s'\n", cmd.c_str());
+	}
 }
 
 static void HandleEvent(const SDL_Event &e) {
@@ -98,6 +139,7 @@ static void MainLoopIteration() {
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) HandleEvent(e);
 	Uint32 t1 = SDL_GetTicks();
+	RunScript();
 	if (g_game->running == 1) g_game->Engine->Frame();
 	else g_game->Engine->IdleFrame();
 #ifdef BC_FRAME_TIMING
@@ -125,13 +167,14 @@ int main(int argc, char *argv[]) {
 	CGame &game = *g_game;
 
 	Uint32 flags = SDL_WINDOW_SHOWN;
-#ifndef __EMSCRIPTEN__
-	// (In the browser the canvas keeps a fixed 1024x768 buffer and CSS scales it; a resizable SDL window would
-	// follow the canvas CSS size instead, stretching the image and breaking the mouse mapping.)
+	// Resizable + high-DPI: the game scales to the window, and the dialogs render at the real pixel size.
+	// (In the browser the canvas buffer follows the canvas's CSS size.)
+	flags |= SDL_WINDOW_ALLOW_HIGHDPI;
 	if (game.Options->fullscreen == 0) flags |= SDL_WINDOW_RESIZABLE;
-#endif
+	int windowW = game.ResolutionX, windowH = game.ResolutionY;
+	if (const char *size = getenv("BC_WINDOW_SIZE")) sscanf(size, "%dx%d", &windowW, &windowH);   // used by tests
 	SDL_Window *window = SDL_CreateWindow("Battle City", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-	                                      game.ResolutionX, game.ResolutionY, flags);
+	                                      windowW, windowH, flags);
 	if (!window) {
 		BCMessageBox(NULL, SDL_GetError(), "Battle City: cannot create window", 0);
 		SDL_Quit();
@@ -142,6 +185,10 @@ int main(int argc, char *argv[]) {
 	game.Init((HWND)window, NULL);
 	BCDialogsInit(window, game.DDraw->Renderer);
 
+	if (const char *scriptPath = getenv("BC_TEST_SCRIPT")) {
+		std::ifstream in(scriptPath);
+		for (std::string l; std::getline(in, l); ) g_script.push_back(l);
+	}
 	// Optional: BC_SCREENSHOT=<file> BC_SCREENSHOT_FRAMES=<n> saves a frame and exits (used by automated tests)
 	const char *shotPath = getenv("BC_SCREENSHOT");
 	int shotFrames = getenv("BC_SCREENSHOT_FRAMES") ? atoi(getenv("BC_SCREENSHOT_FRAMES")) : 30;

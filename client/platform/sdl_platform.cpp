@@ -188,6 +188,9 @@ char *BCStrlwr(char *s) {
 // ---------------------------------------------------------------------------------------------
 #include "input_compat.h"
 
+static bool g_testKeys[256];
+void BCTestSetKey(int dik, bool down) { if (dik >= 0 && dik < 256) g_testKeys[dik] = down; }
+
 void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int *mouseWindowY) {
 	static const struct { SDL_Scancode sdl; int dik; } map[] = {
 		{ SDL_SCANCODE_1, DIK_1 }, { SDL_SCANCODE_2, DIK_2 }, { SDL_SCANCODE_3, DIK_3 },
@@ -204,6 +207,7 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 	for (const auto &m : map) {
 		if (state[m.sdl]) keyboard[m.dik] = (char)0x80;
 	}
+	for (int i = 0; i < 256; i++) if (g_testKeys[i]) keyboard[i] = (char)0x80;
 	int x = 0, y = 0;
 	Uint32 buttons = SDL_GetMouseState(&x, &y);
 	memset(mouse, 0, sizeof(*mouse));

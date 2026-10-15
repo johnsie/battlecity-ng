@@ -241,6 +241,11 @@ void CWinsock::ProcessBuffer() {
 			p->Process->ProcessData(&ValidPacket[2]);
 		}
 		else {
+			if (getenv("BC_DEBUG_NET")) {
+				printf("DROPPED packet: length=%d id=%d checksum(received)=%d checksum(computed)=%d bytes:", packetlength, (unsigned char)ValidPacket[2], checksum, checksum2);
+				for (int k = 0; k < packetlength && k < 32; k++) printf(" %02x", (unsigned char)ValidPacket[k]);
+				printf("\n");
+			}
 			p->Engine->logerror("Packet Dropped TCP - Invalid Checksum");
 		}
 	}

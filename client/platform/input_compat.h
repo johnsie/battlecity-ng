@@ -33,6 +33,9 @@ struct DIMOUSESTATE {
 };
 
 // Fills buffer[256] (bit 7 = pressed) and the mouse state (position in window pixels).
+// Test hook: force a key to read as pressed/released regardless of the real keyboard
+void BCTestSetKey(int dik, bool down);
+
 void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int *mouseWindowY);
 
 #endif
