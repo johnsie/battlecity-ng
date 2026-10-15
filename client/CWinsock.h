@@ -46,7 +46,7 @@ public:
 
 	bool hasData(bc_socket sock);
 	void Cycle();
-	void RecvTCP();
+	bool RecvTCP();      // false = the connection was lost
 	void ProcessBuffer();
 
 	char Buffer[2048];

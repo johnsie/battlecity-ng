@@ -177,8 +177,14 @@ void CWinsock::Cycle() {
 		return;
 	}
 
-	if (hasData(Socket)) {
-		RecvTCP();	
+	// Read everything that is waiting, not one message per call: in the browser every packet the server sends can
+	// arrive as its own WebSocket message, and the burst sent at join is hundreds of them. Reading one per cycle took
+	// seconds to catch up, long enough for sector requests to look lost. A time budget keeps a frame from stalling.
+	unsigned long start = BCGetTicks();
+	for (int reads = 0; reads < 1024 && this->BufferLength < 2048 && hasData(Socket); reads++) {
+		if (!RecvTCP()) return;
+		ProcessBuffer();
+		if (BCGetTicks() - start > 6) break;
 	}
 
 	ProcessBuffer();
@@ -197,25 +203,47 @@ bool CWinsock::hasData(bc_socket sock) {
 	return false;
 }
 
-void CWinsock::RecvTCP() {
+bool CWinsock::RecvTCP() {
 	int nbytes = 0;
 	nbytes = recv(Socket, this->Buffer + this->BufferLength, 2048 - this->BufferLength, 0);
 	if (nbytes < 0 && bc_would_block()) {
-		return;   // nothing to read after all
+		return true;   // nothing to read after all
 	}
 	if (nbytes <= 0) {
 		p->Process->ProcessEvent(3); //Disconnected
+		return false;
 	}
 	else {
 		this->BufferLength += nbytes;
+		// Test hook: BC_TEST_JUNK=1 puts one stray byte in front of the stream once, as damage would
+		static bool junkDone = getenv("BC_TEST_JUNK") == NULL;
+		if (!junkDone && this->BufferLength > 4 && this->BufferLength < 2047) {
+			junkDone = true;
+			memmove(this->Buffer + 1, this->Buffer, this->BufferLength);
+			this->Buffer[0] = 0;
+			this->BufferLength++;
+		}
+#ifdef BC_FRAME_TIMING
+		static unsigned long lastReport = 0, calls = 0, bytes = 0, biggest = 0;
+		calls++; bytes += nbytes; if ((unsigned long)nbytes > biggest) biggest = nbytes;
+		if (BCGetTicks() - lastReport > 1000) { printf("net: %lu recv calls, %lu bytes in the last second (avg %lu, max %lu per call)\n", calls, bytes, calls ? bytes / calls : 0, biggest); calls = bytes = biggest = 0; lastReport = BCGetTicks(); }
+#endif
 	}
+	return true;
 }
 
 void CWinsock::ProcessBuffer() {
 	while (this->BufferLength > 0) {
 		int packetlength = (unsigned char)this->Buffer[0] + 1;
 
-		if (packetlength > this->BufferLength || packetlength < 3) break;
+		if (packetlength < 3) {
+			// Not a valid packet start (damaged or out of step): skip a byte and look again instead of stalling forever
+			memmove(this->Buffer, this->Buffer + 1, this->BufferLength - 1);
+			this->BufferLength--;
+			p->Engine->lognote("Receive buffer out of step, resynchronising");
+			continue;
+		}
+		if (packetlength > this->BufferLength) break;     // the rest of this packet has not arrived yet
 
 		char ValidPacket[256];
 		memset(ValidPacket, 0, 256);
@@ -254,7 +282,7 @@ void CWinsock::ProcessBuffer() {
 			                    (unsigned char)ValidPacket[2], packetlength, checksum, checksum2, unsignedSum % 71, this->BufferLength);
 			for (int k = 0; k < packetlength && k < 24 && used < (int)sizeof(detail) - 4; k++)
 				used += snprintf(detail + used, sizeof(detail) - used, " %02x", (unsigned char)ValidPacket[k]);
-			p->Engine->logerror(detail);
+			p->Engine->lognote(detail);
 		}
 	}
 }

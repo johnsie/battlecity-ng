@@ -40,6 +40,8 @@ public:
     void IdleFrame();
 
     void logerror(std::string error);
+    /// <summary> Diagnostic note: goes to debug.log and (rate limited) the server log, never into the chat window. </summary>
+    void lognote(std::string note);
 
     int loops;
     int FPS;

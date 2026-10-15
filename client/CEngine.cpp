@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CEngine.h"
+#include <map>
 /// <summary>   Game engine: one Frame() per main-loop iteration </summary>
 ///
 /// <param name="pParam">   [in,out] If non-null, the parameter. </param>
@@ -265,4 +266,21 @@ void CEngine::ThreadMessageQuit() {
 		}
 		this->MsgUp = 0;
 	});
+}
+
+/// <summary> Diagnostic note: debug.log + the server log (at most one note per kind every 20 s); never chat, never mutes sound </summary>
+void CEngine::lognote(std::string note) {
+	FILE *file = fopen("debug.log", "a");
+	if (file) {
+		fprintf(file, "\n%s", note.c_str());
+		fclose(file);
+	}
+	static std::map<std::string, unsigned long> lastSent;
+	std::string kind = note.substr(0, 24);
+	unsigned long now = BCGetTicks();
+	if (lastSent.count(kind) && now - lastSent[kind] < 20000) return;
+	lastSent[kind] = now;
+	char text[255];
+	snprintf(text, sizeof(text), "%s", note.c_str());
+	if (p->Winsock->Connected) p->Winsock->SendData(cmCrash, text);
 }

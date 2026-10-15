@@ -555,7 +555,8 @@ void CInGame::RefreshArea() {
                 // only once, ever, so one bad packet left the player stranded at the edge of the loaded area.
                 int sx = p->Player[me]->SectorX + i;
                 int sy = p->Player[me]->SectorY + j;
-                bool stale = this->RequestedSector[sx][sy] && (p->Tick - this->RequestedAt[sx][sy] > SECTOR_REQUEST_TIMEOUT);
+                bool stale = this->RequestedSector[sx][sy] && (p->Tick - this->RequestedAt[sx][sy] > SECTOR_REQUEST_TIMEOUT)
+                             && !p->Winsock->hasData(p->Winsock->Socket) && p->Winsock->BufferLength == 0;   // not while replies are still waiting to be read
                 if (
                     (! this->HasSector[sx][sy])
                     &&
@@ -567,7 +568,7 @@ void CInGame::RefreshArea() {
                     sector.y = sy;
 
                     if (stale) {
-                        p->Engine->logerror("Sector request timed out, asking again");
+                        p->Engine->lognote("Sector request timed out, asking again");
                     }
                     ClearSector(sector.x, sector.y);
                     this->RequestedSector[sector.x][sector.y] = true;
