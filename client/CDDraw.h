@@ -110,6 +110,8 @@ private:
     BCImage *LoadImage(const char *file, bool useColorKey, COLORREF colorKey);
     void FreeImage(BCImage *&img);
     void CreateRenderer(HWND hWnd);
+    void UpdateScaleMode();
+    int lastOutputW, lastOutputH;
 
     SDL_Window *Window;
     BCImage *Font;

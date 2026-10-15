@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace {
@@ -45,6 +46,10 @@ struct Dlg {
 	bool open = false;
 	bool focusFirst = false;
 };
+
+const float FONT_PIXELS = 11.5f;     // font size at scale 1 (1024x768 output)
+float g_scale = 0.0f;                // output pixels per logical pixel; the UI is laid out and rasterised at this scale
+ImGuiStyle g_baseStyle;
 
 SDL_Window *g_window = nullptr;
 SDL_Renderer *g_renderer = nullptr;
@@ -247,6 +252,7 @@ LRESULT BCSendMessage(HWND target, UINT msg, WPARAM wParam, LPARAM lParam) {
 			case BM_GETCHECK: return c->check;
 			case BM_SETCHECK: CheckDlgButton(c->dlg, c->def->id, (UINT)wParam); return 0;
 			case WM_VSCROLL: c->scrollToBottom = true; return 0;
+			case WM_LBUTTONDBLCLK: return c->subclass ? c->subclass(c, msg, wParam, lParam) : 0;
 			default: return 0;
 		}
 	}
@@ -283,6 +289,27 @@ WNDPROC BCSetControlProc(HWND control, WNDPROC proc) {
 // ---------------------------------------------------------------------------------------------
 // Dear ImGui front end
 // ---------------------------------------------------------------------------------------------
+// (Re)builds the font at the right pixel size and scales the style, so text is rasterised 1:1 on screen
+static void ApplyScale(float k) {
+	ImGuiIO &io = ImGui::GetIO();
+	io.Fonts->Clear();
+	ImFontConfig cfg;
+	cfg.PixelSnapH = true;
+	cfg.OversampleH = 1;
+	cfg.OversampleV = 1;
+	float pixels = std::max(8.0f, FONT_PIXELS * k);
+	if (!io.Fonts->AddFontFromFileTTF("Vera.ttf", pixels, &cfg)) {
+		cfg.SizePixels = pixels;
+		io.Fonts->AddFontDefault(&cfg);
+	}
+	io.Fonts->Build();
+	ImGui_ImplSDLRenderer2_DestroyDeviceObjects();     // the font texture is recreated on the next frame
+	ImGuiStyle &style = ImGui::GetStyle();
+	style = g_baseStyle;
+	style.ScaleAllSizes(k);
+	g_scale = k;
+}
+
 void BCDialogsInit(void *sdlWindow, void *sdlRenderer) {
 	g_window = (SDL_Window *)sdlWindow;
 	g_renderer = (SDL_Renderer *)sdlRenderer;
@@ -293,11 +320,11 @@ void BCDialogsInit(void *sdlWindow, void *sdlRenderer) {
 	io.IniFilename = nullptr;
 	io.LogFilename = nullptr;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-	if (!io.Fonts->AddFontFromFileTTF("Vera.ttf", 11.5f)) io.Fonts->AddFontDefault();
 	ImGui::StyleColorsLight();
 	ImGuiStyle &style = ImGui::GetStyle();
 	style.WindowRounding = 0; style.FrameRounding = 0; style.ScrollbarRounding = 0; style.GrabRounding = 0;
 	style.WindowBorderSize = 1;
+	g_baseStyle = style;
 	ImGui_ImplSDL2_InitForSDLRenderer(g_window, g_renderer);
 	ImGui_ImplSDLRenderer2_Init(g_renderer);
 	g_imguiReady = true;
@@ -313,6 +340,8 @@ void BCDialogsShutdown() {
 
 bool BCDialogsActive() { return g_active != nullptr; }
 
+HWND BCDialogsActiveHandle() { return g_active; }
+
 void BCDialogsCloseActive() {
 	if (g_active) { g_active->open = false; g_active = nullptr; }
 }
@@ -321,11 +350,12 @@ void BCDialogsProcessEvent(const void *sdlEvent) {
 	if (!g_imguiReady || !g_active) return;
 	const SDL_Event &e = *(const SDL_Event *)sdlEvent;
 	ImGuiIO &io = ImGui::GetIO();
-	// The game is drawn at a fixed logical size that SDL scales to the window: translate mouse positions ourselves
+	// The dialogs are drawn in output pixels: convert window points (differs from pixels on high-DPI screens)
 	auto toLogical = [&](int x, int y) {
-		float lx = (float)x, ly = (float)y;
-		SDL_RenderWindowToLogical(g_renderer, x, y, &lx, &ly);
-		return ImVec2(lx, ly);
+		int ww = 1, wh = 1, ow = 1, oh = 1;
+		SDL_GetWindowSize(g_window, &ww, &wh);
+		SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
+		return ImVec2(x * (float)ow / (float)std::max(ww, 1), y * (float)oh / (float)std::max(wh, 1));
 	};
 	switch (e.type) {
 		case SDL_MOUSEMOTION: { ImVec2 p = toLogical(e.motion.x, e.motion.y); io.AddMousePosEvent(p.x, p.y); break; }
@@ -347,8 +377,8 @@ namespace {
 void DrawControl(Dlg *d, Ctl &c, int index, float originY) {
 	const BCControlDef &def = *c.def;
 	ImGui::PushID(index);
-	ImVec2 pos(def.x * DLU_X, originY + def.y * DLU_Y);
-	ImVec2 size(def.w * DLU_X, def.h * DLU_Y);
+	ImVec2 pos(def.x * DLU_X * g_scale, originY + def.y * DLU_Y * g_scale);
+	ImVec2 size(def.w * DLU_X * g_scale, def.h * DLU_Y * g_scale);
 	ImGui::SetCursorPos(pos);
 
 	switch (def.kind) {
@@ -468,14 +498,20 @@ void BCDialogsRender() {
 	if (!g_imguiReady || !g_active) return;
 	Dlg *d = g_active;
 
+	// Draw at native output resolution (not scaled up from the game's logical 1024x768) so text stays sharp
+	int lw = 0, lh = 0, ow = 0, oh = 0;
+	SDL_RenderGetLogicalSize(g_renderer, &lw, &lh);
+	SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
+	if (lw <= 0 || lh <= 0) { lw = ow; lh = oh; }
+	float k = std::min(ow / (float)lw, oh / (float)lh);
+	k = std::max(0.5f, std::floor(k * 16.0f + 0.5f) / 16.0f);          // quantised so it does not thrash while resizing
+	if (std::fabs(k - g_scale) > 0.001f) ApplyScale(k);
+	SDL_RenderSetLogicalSize(g_renderer, 0, 0);
+
 	ImGui_ImplSDLRenderer2_NewFrame();
 	ImGui_ImplSDL2_NewFrame();
-	int lw = 0, lh = 0;
-	SDL_RenderGetLogicalSize(g_renderer, &lw, &lh);
-	if (lw > 0 && lh > 0) {
-		ImGui::GetIO().DisplaySize = ImVec2((float)lw, (float)lh);
-		ImGui::GetIO().DisplayFramebufferScale = ImVec2(1, 1);
-	}
+	ImGui::GetIO().DisplaySize = ImVec2((float)ow, (float)oh);
+	ImGui::GetIO().DisplayFramebufferScale = ImVec2(1, 1);
 	ImGui::NewFrame();
 #ifdef BC_FRAME_TIMING
 	{
@@ -491,7 +527,7 @@ void BCDialogsRender() {
 #endif
 
 	float titleH = ImGui::GetFrameHeight();
-	ImVec2 size(d->def->w * DLU_X, d->def->h * DLU_Y + titleH);
+	ImVec2 size(d->def->w * DLU_X * g_scale, d->def->h * DLU_Y * g_scale + titleH);
 	ImGui::SetNextWindowPos(ImVec2((ImGui::GetIO().DisplaySize.x - size.x) / 2, (ImGui::GetIO().DisplaySize.y - size.y) / 2), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(size, ImGuiCond_Always);
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -507,4 +543,5 @@ void BCDialogsRender() {
 
 	ImGui::Render();
 	ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), g_renderer);
+	SDL_RenderSetLogicalSize(g_renderer, lw, lh);     // back to the game's logical resolution
 }

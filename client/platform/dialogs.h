@@ -92,7 +92,8 @@ void BCDialogsInit(void *sdlWindow, void *sdlRenderer);   // SDL_Window*, SDL_Re
 void BCDialogsProcessEvent(const void *sdlEvent);   // SDL_Event*, feeds Dear ImGui
 void BCDialogsRender();                              // draws the active dialog on top of the frame
 void BCDialogsCloseActive();                         // closes the open dialog (if any) without calling its procedure
-bool BCDialogsActive();                              // true while a dialog is open (game ignores input)
+bool BCDialogsActive();
+HWND BCDialogsActiveHandle();                        // the open dialog (for tests), or NULL                              // true while a dialog is open (game ignores input)
 void BCDialogsShutdown();
 
 #endif

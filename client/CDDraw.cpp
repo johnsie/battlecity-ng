@@ -30,6 +30,7 @@ CDDraw::CDDraw(CGame *game)
     TextWidth = 8;
     Renderer = NULL;
     Window = NULL;
+    lastOutputW = lastOutputH = 0;
     Font = NULL;
     imgArrowsRed = NULL;
     imgArrows = NULL;
@@ -189,6 +190,7 @@ void CDDraw::LoadSurfaces()
     FreeImage(Font);
     Font = LoadImage("imgFont.bmp", true, RGB(0,0,0));
     TextWidth = 8;
+    lastOutputW = lastOutputH = 0;     // re-apply the scale mode to the new textures
 }
 
 void CDDraw::DestroySurfaces()
@@ -236,6 +238,19 @@ void CDDraw::DestroySurfaces()
     }
 }
 
+/// <summary> Pixel art stays crisp when enlarged (nearest) and smooth when shrunk (linear) </summary>
+void CDDraw::UpdateScaleMode()
+{
+    int ow = 0, oh = 0;
+    SDL_GetRendererOutputSize(Renderer, &ow, &oh);
+    if (ow == lastOutputW && oh == lastOutputH) return;
+    lastOutputW = ow;
+    lastOutputH = oh;
+    SDL_ScaleMode mode = (ow < p->ResolutionX || oh < p->ResolutionY) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
+    BCImage **all[] = { &imgArrows, &imgArrowsRed, &imgBCLogo, &imgBlackNumbers, &imgBtnStaff, &imgBuildIcons, &imgBuildings, &imgBullets, &imgCompany, &imgCursor, &imgDemolish, &imgGround, &imgHealth, &imgInterface, &imgInterfaceBottom, &imgInventorySelection, &imgItems, &imgLava, &imgLoading, &imgLExplosion, &imgMiniMapColors, &imgMoneyBox, &imgMoneyDown, &imgMoneyUp, &imgMuzzleFlash, &imgPopulation, &imgRadarColors, &imgResearch, &imgResearchComplete, &imgRocks, &imgSExplosion, &imgSmoke, &imgStar, &imgTanks, &imgTurretBase, &imgTurretHead };
+    for (BCImage **img : all) if (*img && (*img)->texture) SDL_SetTextureScaleMode((*img)->texture, mode);
+}
+
 void CDDraw::Clear()
 {
     if (!Renderer) return;
@@ -246,6 +261,7 @@ void CDDraw::Clear()
 void CDDraw::Flip()
 {
     if (!Renderer) return;
+    UpdateScaleMode();
     BCDialogsRender();   // Dear ImGui dialogs are drawn on top of the game frame
     SDL_RenderPresent(Renderer);
 }
@@ -340,11 +356,11 @@ void CDDraw::WindowToGame(int wx, int wy, int *gx, int *gy)
 bool CDDraw::SaveScreenshot(const char *path)
 {
     if (!Renderer) return false;
-    int w = p->ResolutionX, h = p->ResolutionY;
+    int w = 0, h = 0;
+    SDL_GetRendererOutputSize(Renderer, &w, &h);     // the real output, which can be larger than the logical size
     SDL_Surface *shot = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_BGR24);
     if (!shot) return false;
-    SDL_Rect area = { 0, 0, w, h };
-    bool ok = SDL_RenderReadPixels(Renderer, &area, SDL_PIXELFORMAT_BGR24, shot->pixels, shot->pitch) == 0
+    bool ok = SDL_RenderReadPixels(Renderer, NULL, SDL_PIXELFORMAT_BGR24, shot->pixels, shot->pitch) == 0
               && SDL_SaveBMP(shot, path) == 0;
     SDL_FreeSurface(shot);
     return ok;
