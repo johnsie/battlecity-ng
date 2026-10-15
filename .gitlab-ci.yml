@@ -47,15 +47,43 @@ deploy:production:
   script:
     - ci/deploy.sh dist/battlecity-server-*-linux-x86_64.tar.gz "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
 
-# Static web front end (https://bc.outiva.com via Apache). Runs only when something under web/ changes.
+# Browser client (https://bc.outiva.com via Apache). Built with Emscripten, then published to the web root.
+# Runs when the client, its data or the web files change.
+.web-changes: &web-changes
+  changes:
+    - client/**/*
+    - web/**/*
+    - tools/stage-web-data.sh
+    - external/imgui/**/*
+    - data/*.bmp
+    - data/*.ttf
+    - data/*.dat
+    - data/wav/*
+    - data/midi/*
+    - CMakeLists.txt
+    - ci/build-web.sh
+    - ci/deploy-web.sh
+
+build:web:
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "sdl2-client"
+      <<: *web-changes
+  script:
+    - ci/build-web.sh build-web dist-web
+  artifacts:
+    paths: [dist-web/]
+    expire_in: 4 weeks
+
 deploy:web:
   stage: deploy
+  needs: [build:web]
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
-      changes: [web/**/*]
+      <<: *web-changes
   resource_group: production-web
   environment:
     name: production-web
     url: https://bc.outiva.com
   script:
-    - ci/deploy-web.sh web "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+    - ci/deploy-web.sh dist-web "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
