@@ -45,7 +45,6 @@ using namespace std;
 	#include <termios.h>
 	#include <string>
 	#include <arpa/inet.h>
-	#include <pthread.h>
 	#include <errno.h>
 	#include <signal.h>
 	#include <fcntl.h>
@@ -62,8 +61,6 @@ using namespace std;
 	#include <mmsystem.h>
 	#include <tchar.h>
 	#include <conio.h>
-#define HAVE_STRUCT_TIMESPEC
-	#include "pthread.h"
 #endif
 
 #ifndef WIN32

@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CEmail.h"
+#include <thread>
 
 void *CEmailPointer;
 
@@ -61,17 +62,12 @@ CEMail::~CEMail() {
  * @param Address
  **************************************************************/
 void CEMail::SendWelcome(string Address) {
-	pthread_t thread;
-	int rc = 0;
 
 	// Fill the temp variables
 	tmpEmail = Address;
 
 	// Spawn a thread to send the email
-    rc = pthread_create(&thread, NULL, SendWelcomeEmail, (void *)0);
-    if (rc) {
-		cout << "SendWelcome - ERROR: return code from pthread_create() is " << rc << endl;
-    }
+    std::thread(SendWelcomeEmail, (void *)0).detach();
 }
 
 /***************************************************************
@@ -82,8 +78,6 @@ void CEMail::SendWelcome(string Address) {
  * @param Password
  **************************************************************/
 void CEMail::SendPassword(string Email, string User, string Password) {
-	pthread_t thread;
-	int rc = 0;
 
 	// Fill the temp variables
 	tmpEmail = Email;
@@ -91,10 +85,7 @@ void CEMail::SendPassword(string Email, string User, string Password) {
 	tmpUser = User;
 
 	// Spawn a thread to send the email
-    rc = pthread_create(&thread, NULL, SendPasswordEmail, (void *)0);
-    if (rc) {
-		cout << "SendPassword - ERROR: return code from pthread_create() is " << rc << endl;
-    }
+    std::thread(SendPasswordEmail, (void *)0).detach();
 }
 
 /***************************************************************
@@ -122,7 +113,6 @@ void *SendWelcomeEmail(void *threadarg) {
 	}
 
 	// Exit the thread
-	pthread_exit(NULL);
 	return 0;
 }
 
@@ -155,7 +145,6 @@ void *SendPasswordEmail(void *threadarg) {
 	}
 
 	// Exit the thread
-	pthread_exit(NULL);
 	return 0;
 }
 

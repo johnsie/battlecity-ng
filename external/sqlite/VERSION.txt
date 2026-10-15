@@ -1,0 +1,1 @@
+SQLite 3.46.1 amalgamation (public domain) - https://www.sqlite.org/2024/sqlite-amalgamation-3460100.zip. Used for the Windows server build; Linux uses the system library.
