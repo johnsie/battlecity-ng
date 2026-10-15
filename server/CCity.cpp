@@ -30,6 +30,10 @@ CCity::CCity(CServer *Server, int id) {
 	this->p = Server;
 	this->id = id;
 
+	// resetToDefault() looks at "hiring" before it has ever been set: without this it held whatever the allocator
+	// handed out (zero on Linux, so a stray send to player 0; arbitrary on Windows, so a crash)
+	this->hiring = -1;
+
 	this->resetToDefault();
 }
 
@@ -62,7 +66,7 @@ void CCity::resetToDefault() {
 	this->hadOrbFactory = false;
 
 	// If the mayor had an applicant, tell any applicants that the mayor changed
-	if (hiring > -1) {
+	if (hiring > -1 && hiring < MAX_PLAYERS) {
 		p->Winsock->SendData(hiring, smMayorChanged, " ");
 	}
 	this->hiring = -1;

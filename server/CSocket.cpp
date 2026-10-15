@@ -133,6 +133,7 @@ void CSocket::InitTCP() {
 /// <param name="payload">Data payload</param>
 /// <param name="payloadLength">Data payload length</param>
 void CSocket::SendData(int playerId, unsigned char packetId, char payload[255], int payloadLength) {
+    if (playerId < 0 || playerId >= MAX_PLAYERS) return;      // never index outside the player table
     //  Set empty variable with 256 length
     char SendString[256];
     //  Populate SendString with zeros
@@ -173,6 +174,7 @@ void CSocket::SendData(int playerId, unsigned char packetId, char payload[255], 
 /// <param name="payload">Data payload</param>
 /// <param name="payloadLength">Data payload length</param>
 void CSocket::SendRaw(int playerId, char payload[255], int payloadLength) {
+    if (playerId < 0 || playerId >= MAX_PLAYERS) return;
     this->QueueSend(playerId, payload, payloadLength);
 }
 
