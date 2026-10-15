@@ -14,6 +14,18 @@ Your goals are to keep your city safe and to take on the cities of other players
 
 Battle City was first released in the 2000s. It is open source (GPLv3), so the game belongs to its community and will stay free.
 
+## How orbs work
+
+Orbs are the way to destroy another player's city, and the biggest prize in the game.
+
+* **Making one.** A city with an Orb Factory can build orbs, one at a time. Orbs are a special item: the factory is expensive, so only well-established cities have one.
+* **Delivering one.** Someone picks the orb up in their tank and has to carry it across the map to an enemy city, then drop it on that city's command centre (the building at its heart). Everyone in the enemy city will be trying to stop you, so orbers usually go in as a team, with other tanks clearing the way.
+* **Which cities can be orbed.** A new, small city is protected. A city becomes a target once it has grown to about 21 buildings, or as soon as it builds an Orb Factory or Bomb Factory itself. If you build big, you are in the game.
+* **What happens.** The orbed city is destroyed and everyone in it is thrown out, and its mayor and citizens have to start again. The command centre becomes free for someone else to found a new city.
+* **Points.** Everyone in the city that delivered the orb earns points: the player who dropped it gets credit for an orb, and the rest of the team get an assist. Bigger targets are worth more: from 10 points for a city with a bomb factory, up to 50 for a really large city.
+
+Because of this, a city is only as safe as its defences. Turrets, walls, a watchful team and friendly neighbours all help keep your city standing.
+
 ## Where is the project going?
 
 This version of the game, "Battle City NG", is about making Battle City easy to play anywhere again:
@@ -30,6 +42,10 @@ The steps, and how far along each is, are on the [roadmap](ROADMAP.md).
 
 * Browser: [bc.outiva.com](https://bc.outiva.com)
 * Downloads for Windows and Linux will appear under [Releases](https://github.com/johnsie/battlecity-ng/releases) once the first version of the new clients is published.
+
+## Join the community
+
+Come and chat, find a team, report problems or suggest ideas on the Battle City Discord server: **[discord.gg/4YTgAtFSJq](https://discord.gg/4YTgAtFSJq)**
 
 ## For developers
 
