@@ -24,9 +24,14 @@
 #include "CServer.h"
 #include <exception> 
 
+void InstallCrashHandler();
+
 /// <summary>
 /// Construct CServer object
 /// </summary>
+// Installed before the server object is constructed, so a crash during start-up is reported too
+static struct CrashReportingInstaller { CrashReportingInstaller() { InstallCrashHandler(); } } g_crashReportingInstaller;
+
 CServer Server;
 
 #ifndef WIN32

@@ -18,7 +18,8 @@ endif()
 
 if(MSVC)
   target_compile_definitions(bc-server PRIVATE _CRT_SECURE_NO_WARNINGS _WINSOCK_DEPRECATED_NO_WARNINGS NOMINMAX)
-  target_compile_options(bc-server PRIVATE /utf-8 /wd4996 /wd4244 /wd4267 /wd4018 /wd4101 /wd4305)
+  target_compile_options(bc-server PRIVATE /utf-8 /Zi /wd4996 /wd4244 /wd4267 /wd4018 /wd4101 /wd4305)
+  target_link_options(bc-server PRIVATE /DEBUG)      # keep the .pdb so crash reports show function names and lines
 elseif(NOT WIN32)
   # The packet checksum adds `char` values: pin signedness so every platform (incl. ARM) agrees
   target_compile_options(bc-server PRIVATE -fsigned-char)
