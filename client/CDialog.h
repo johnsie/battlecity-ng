@@ -37,6 +37,8 @@ public:
     DLGPROC DialogProcessor;
 
     void Start();
+    /// <summary> Opens the dialog requested through StartDialog, if none is open. Called once per frame. </summary>
+    void Cycle();
 private:
     CGame *p;
 protected:

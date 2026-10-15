@@ -38,7 +38,7 @@ int CALLBACK InterviewDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				p->Interview->EditWnd = GetDlgItem(hwnd,IDSEND);
 				p->Interview->ChatWnd = GetDlgItem(hwnd,IDCHAT);
 				SendDlgItemMessage(hwnd, IDSEND, EM_LIMITTEXT, 200, 0);
-				wpOrigIntEditProc = (WNDPROC) SetWindowLong(p->Interview->EditWnd, GWL_WNDPROC, (LONG)&MyIntEditProc); 
+				wpOrigIntEditProc = (WNDPROC) SetWindowLong(p->Interview->EditWnd, GWL_WNDPROC, &MyIntEditProc); 
 				return 1;
 			}
         case WM_COMMAND:

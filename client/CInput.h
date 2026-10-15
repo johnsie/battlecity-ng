@@ -24,6 +24,7 @@
 #define _CINPUT
 
 #include "CGame.h"
+#include "platform/input_compat.h"
 
 class CGame;
 
@@ -48,9 +49,7 @@ class CInput {
     private:
         CGame *p;
 
-        LPDIRECTINPUT8         lpDI;
-        LPDIRECTINPUTDEVICE8   m_Keyboard;
-        LPDIRECTINPUTDEVICE8   m_Mouse;
+        bool                   started;
         POINT Mouse;
         POINT oMouse;
         DIMOUSESTATE oMouseState;

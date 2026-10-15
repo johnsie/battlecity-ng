@@ -34,7 +34,7 @@ int CALLBACK ManageDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam
         case WM_INITDIALOG:
 			p->Manage->hWnd = hwnd;
 			p->Manage->CommandoWnd = GetDlgItem(hwnd, IDLIST);
-			wpCommandoListProc = (WNDPROC)SetWindowLong(p->Manage->CommandoWnd, GWL_WNDPROC, (LONG)&CommandoListProc);
+			wpCommandoListProc = (WNDPROC)SetWindowLong(p->Manage->CommandoWnd, GWL_WNDPROC, &CommandoListProc);
 			p->Manage->DisplayCommandos();
 			return 1;
 			break;

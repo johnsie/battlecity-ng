@@ -21,12 +21,9 @@
 ===============================================================================
 */
 #include "CEngine.h"
-/// <summary>   Engine thread </summary>
+/// <summary>   Game engine: one Frame() per main-loop iteration </summary>
 ///
 /// <param name="pParam">   [in,out] If non-null, the parameter. </param>
-void _cdecl thrEngine(void * pParam);
-void _cdecl thrMessageBox(void * pParam);
-void _cdecl thrMessageQuit(void * pParam);
 /// <summary>   Constructor. Sets default values to variables </summary>
 ///
 /// <param name="game"> [in,out] If non-null, the game. </param>
@@ -37,33 +34,33 @@ CEngine::CEngine(CGame *game) {
 	this->loops = 0;
 	this->MsgUp = 0;
 	this->MsgQueue = 0;
+	this->NextFrame = 0;
+	this->lastFPS = 0;
+	this->lastlastFPS = 0;
 }
 /// <summary>   Destructor. </summary>
 CEngine::~CEngine() {
 
 }
-/// <summary>   Starts the engine thread </summary>
+/// <summary>   Prepares the engine </summary>
 void CEngine::Init() {
-	_beginthread(thrEngine,0,p);
+	// The engine used to run on its own thread; it now runs from the main loop via Frame()
+	this->NextFrame = 0;
 }
-/// <summary>   Thread engine code </summary>
-///
-/// <param name="pParam">   [in,out] If non-null, the parameter. </param>
-void _cdecl thrEngine(void * pParam) {
-    //  Prepare p to CGame object
-	CGame * p;
-    //  Assign pParam to p as CGame object
-	p = (CGame *)pParam;
-    //  Set character variable with twenty spaces
+/// <summary>   One iteration of the game loop (called from the main loop) </summary>
+void CEngine::Frame() {
 	char FPSString[20];
-    //  Set NextFrame as zero
-	float NextFrame = 0;
-    //  Set last frame per second as zero
-	int lastFPS = 0;
-    //  Set last, last frame per second as zero
-	int lastlastFPS = 0;
-    //  Game loop while p->running is true
-	do {
+	if (p->running != 1) return;
+
+	// Open any dialog that the game state asked for
+	p->Dialog->Cycle();
+
+	// Not time for the next frame yet: keep the network serviced and come back
+	if (p->Timer->GetTime() < NextFrame) {
+		p->Winsock->Cycle();
+		return;
+	}
+
         //  Update last time interval with current time interval
 		p->lastTick = p->Tick;
         //  Set current time interval with new time interval
@@ -105,7 +102,6 @@ void _cdecl thrEngine(void * pParam) {
                 //  Perform bit blocking transfer
 				p->DDraw->Flip();
                 //  Slow down refresh since joining can take time to finish
-				Sleep(10);
 				break;			
 			case 0:
 			case STATE_LOGIN:
@@ -122,7 +118,6 @@ void _cdecl thrEngine(void * pParam) {
 				p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2)-320, (p->ResolutionY/2)-240, 320, 240);
 				p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2), (p->ResolutionY/2), 320, 240);
 				p->DDraw->Flip();
-				Sleep(10);
 				break;
 
 			default:
@@ -150,7 +145,7 @@ void _cdecl thrEngine(void * pParam) {
 			p->Engine->loops = 0;
 		}
         //  Update the 3d sound engine
-		FSOUND_Update();
+		p->Sound->Update();
         //  Increase loops by one
 		p->Engine->loops++;
         //  Verify limitfps is defined
@@ -165,7 +160,8 @@ void _cdecl thrEngine(void * pParam) {
             //  Otherwise set next time to time interval plus 12
 			if (p->Engine->FPS < 10 && lastFPS < 10 && lastlastFPS < 10 && p->State == STATE_GAME) {
 				MessageBox(p->hWnd, "Your computer is running too slow to play BattleCity.  Try closing some other programs or updating your video card drivers.", "BattleCity", 0);
-				break;
+				lastFPS = lastlastFPS = 60;   // do not nag every frame
+				NextFrame = p->Tick + 12;
 			} else if (p->Engine->FPS < 30 && lastFPS < 30 && lastlastFPS < 30) {
 				NextFrame = p->Tick + 1;
 			} else if (p->Engine->FPS < 50 && lastFPS < 50) {
@@ -177,24 +173,10 @@ void _cdecl thrEngine(void * pParam) {
 			} else {
 				NextFrame = p->Tick + 12;
 			}
-            //  Loop while current time interval is less than NextFrame time interval
-			while (p->Timer->GetTime() < NextFrame) {
-                //  Perform Winsock cycle
-				p->Winsock->Cycle();
-                //  Perform thread sleep
-				Sleep(p->Options->sleep);
-			}
-		} else {
-            //  Perform thread sleep
-			Sleep(p->Options->sleep);
+            //  (the wait until NextFrame happens at the top of Frame(), without blocking)
 		}
-	}
-	while (p->running == 1);
-    //  Perform thread sleep before ending
-	Sleep(100);
-    //  End thread
-	_endthread();
 }
+
 /// <summary>   Log errors to debug.log </summary>
 ///
 /// <param name="error">    The error. </param>
@@ -235,39 +217,22 @@ void CEngine::logerror(std::string error) {
 	error.clear();
 }
 
-void _cdecl thrMessageBox(void * pParam) {
-	CGame * p;
-	p = (CGame *)pParam;
-
-	p->Engine->MsgUp = 1;
-
-	MessageBox(p->hWnd, p->Engine->MsgText.c_str(), "BattleCity", 0);
-
-	p->Engine->MsgUp = 0;
-	p->Engine->MsgQueue = 0;
-}
-
 void CEngine::ThreadMessage(std::string MsgText) {
 	if (this->MsgUp == 1) return;
 	this->MsgText = MsgText;
-	_beginthread(thrMessageBox, 0, p);
+	this->MsgUp = 1;
+	MessageBox(p->hWnd, this->MsgText.c_str(), "BattleCity", 0);
+	this->MsgUp = 0;
+	this->MsgQueue = 0;
 }
 
 void CEngine::ThreadMessageQuit() {
-	_beginthread(thrMessageQuit, 0, p);
-}
-
-void _cdecl thrMessageQuit(void * pParam) {
-	CGame * p;
-	p = (CGame *)pParam;
-
-	p->Engine->MsgUp = 1;
-
-	int response = MessageBox(p->hWnd, "Leave BattleCity?", "BattleCity", MB_YESNO || MB_ICONQUESTION);
+	if (this->MsgUp == 1) return;
+	this->MsgUp = 1;
+	int response = MessageBox(p->hWnd, "Leave BattleCity?", "BattleCity", MB_YESNO | MB_ICONQUESTION);
 	if (response == 1) {
 		p->State = STATE_MEETING;
 		p->Meeting->ShowMeetingDlg();
 	}
-
-	p->Engine->MsgUp = 0;
+	this->MsgUp = 0;
 }

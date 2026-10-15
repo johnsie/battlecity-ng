@@ -24,7 +24,19 @@
 #define _CDDRAW
 
 #include "CGame.h"
+#include <SDL.h>
 
+/// <summary> A loaded bitmap: a texture plus its size. </summary>
+struct BCImage {
+    SDL_Texture *texture;
+    int width;
+    int height;
+};
+
+/// <summary>
+/// 2D renderer. Historically DirectDraw (hence the name); now backed by SDL2 so the same
+/// drawing code runs on Windows, Linux and the web.
+/// </summary>
 class CDDraw
 {
 public:
@@ -35,71 +47,75 @@ public:
 
     void Clear();
     void Flip();
-    void Draw(IDirectDrawSurface7* Surface, int X, int Y, int width, int height, int _sX = 0, int _sY = 0, int _clipwidth = -1, int _clipheight = -1);
-    void DDrawText(IDirectDrawSurface7* Surface, string Text, int X, int Y, int width, int height, int _flags = 0);
+    void Draw(BCImage* Surface, int X, int Y, int width, int height, int _sX = 0, int _sY = 0, int _clipwidth = -1, int _clipheight = -1);
     void DTextOut(int X, int Y, string text, COLORREF ColorVal);
     void DFillRect(int X, int Y, int width, int height);
-    
-    IDirectDrawSurface7 *Back;
 
-    IDirectDrawSurface7 *imgArrows;
-    IDirectDrawSurface7 *imgArrowsRed;
-    IDirectDrawSurface7 *imgBCLogo;
-    IDirectDrawSurface7 *imgBlackNumbers;
-    IDirectDrawSurface7 *imgBtnStaff;
-    IDirectDrawSurface7 *imgBuildIcons;
-    IDirectDrawSurface7 *imgBuildings;
-    IDirectDrawSurface7 *imgBullets;
-    IDirectDrawSurface7 *imgCompany;
-    IDirectDrawSurface7 *imgCursor;
-    IDirectDrawSurface7 *imgDemolish;
-    IDirectDrawSurface7 *imgGround;
-    IDirectDrawSurface7 *imgHealth;
-    IDirectDrawSurface7 *imgInterface;
-    IDirectDrawSurface7 *imgInterfaceBottom;
-    IDirectDrawSurface7 *imgInventorySelection;
-    IDirectDrawSurface7 *imgItems;
-    IDirectDrawSurface7 *imgLava;
-    IDirectDrawSurface7 *imgLoading;
-    IDirectDrawSurface7 *imgLExplosion;
-    IDirectDrawSurface7 *imgMiniMapColors;
-    IDirectDrawSurface7 *imgMoneyBox;
-    IDirectDrawSurface7 *imgMoneyDown;
-    IDirectDrawSurface7 *imgMoneyUp;
-    IDirectDrawSurface7 *imgMuzzleFlash;
-    IDirectDrawSurface7 *imgPopulation;
-    IDirectDrawSurface7 *imgRadarColors;
-    IDirectDrawSurface7 *imgResearch;
-    IDirectDrawSurface7 *imgResearchComplete;
-    IDirectDrawSurface7 *imgRocks;
-    IDirectDrawSurface7 *imgSExplosion;
-    IDirectDrawSurface7 *imgSmoke;
-    IDirectDrawSurface7 *imgStar;
-    IDirectDrawSurface7 *imgTanks;
-    IDirectDrawSurface7 *imgTurretBase;
-    IDirectDrawSurface7 *imgTurretHead;
-    
+    /// <summary> Convert window pixel coordinates to game coordinates (the game is drawn at a fixed logical size). </summary>
+    void WindowToGame(int wx, int wy, int *gx, int *gy);
+    /// <summary> Save the current frame as a BMP (used by tests and screenshots). </summary>
+    bool SaveScreenshot(const char *path);
+
+    SDL_Renderer *Renderer;
+
+    BCImage *imgArrowsRed;
+    BCImage *imgArrows;
+    BCImage *imgBCLogo;
+    BCImage *imgBlackNumbers;
+    BCImage *imgBtnStaff;
+    BCImage *imgBuildIcons;
+    BCImage *imgBuildings;
+    BCImage *imgBullets;
+    BCImage *imgCompany;
+    BCImage *imgCursor;
+    BCImage *imgDemolish;
+    BCImage *imgGround;
+    BCImage *imgHealth;
+    BCImage *imgInterface;
+    BCImage *imgInterfaceBottom;
+    BCImage *imgInventorySelection;
+    BCImage *imgItems;
+    BCImage *imgLava;
+    BCImage *imgLoading;
+    BCImage *imgLExplosion;
+    BCImage *imgMiniMapColors;
+    BCImage *imgMoneyBox;
+    BCImage *imgMoneyDown;
+    BCImage *imgMoneyUp;
+    BCImage *imgMuzzleFlash;
+    BCImage *imgPopulation;
+    BCImage *imgRadarColors;
+    BCImage *imgResearch;
+    BCImage *imgResearchComplete;
+    BCImage *imgRocks;
+    BCImage *imgSExplosion;
+    BCImage *imgSmoke;
+    BCImage *imgStar;
+    BCImage *imgTanks;
+    BCImage *imgTurretBase;
+    BCImage *imgTurretHead;
+
     CDDraw(CGame *game);
     ~CDDraw();
 
     char FullScreen;
-    
+
+    // Kept from the DirectDraw days (window frame offsets); always 0 with SDL.
     int XOff;
     int YOff;
 
     int TextWidth;
 
-    IDirectDraw7 *DirectDraw;
 private:
-    IDirectDrawSurface7 *Primary;
-    IDirectDrawClipper *Clipper;
+    BCImage *LoadImage(const char *file, bool useColorKey, COLORREF colorKey);
+    void FreeImage(BCImage *&img);
+    void CreateRenderer(HWND hWnd);
 
-    RECT dest;
-    HWND hWnd;
+    SDL_Window *Window;
+    BCImage *Font;
 
     CGame *p;
 protected:
 };
 
 #endif
-

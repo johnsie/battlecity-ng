@@ -39,6 +39,10 @@ CInput::CInput(CGame *Game) {
 	this->MouseOverInfo = 0;
 	this->DemolishTimer = 0;
 	this->lastRefresh = 0;
+	this->started = false;
+	this->HasFocus = 1;
+	memset(&this->oMouseState, 0, sizeof(this->oMouseState));
+	this->Mouse.x = this->Mouse.y = this->oMouse.x = this->oMouse.y = 0;
 }
 
 /// <summary>   Demolishes CInput </summary>
@@ -46,24 +50,10 @@ CInput::~CInput() {
 
 }
 
-/// <summary>   Release DirectInput devices </summary>
-void CInput::ReleaseDInput() 
+/// <summary>   Release input devices (nothing to release with SDL) </summary>
+void CInput::ReleaseDInput()
 {
-    if(lpDI != NULL)
-    {
-        lpDI->Release();
-    }
-    if(m_Keyboard != NULL)
-    {
-        m_Keyboard->Unacquire();
-        m_Keyboard->Release();
-    }
-    if(m_Mouse != NULL)
-    {
-        m_Mouse->Unacquire();
-        m_Mouse->Release();
-    }
-    return;
+    started = false;
 }
 
 
@@ -905,57 +895,32 @@ void CInput::endMouseDown(DIMOUSESTATE mouse_state, bool setNeedRelease) {
 	}
 }
 
-/// <summary>   Binds input devices using DirectInput </summary>
+/// <summary>   Starts reading input (SDL needs no device setup) </summary>
 void CInput::StartDInput() {
-    //  Creates a DirectInput object interface at lpDI
-    //  http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.reference.directinput8create(v=vs.85).aspx
-	DirectInput8Create(p->hInst, DIRECTINPUT_VERSION, IID_IDirectInput8, (void**)&lpDI, NULL);
-    //  Creates and initializes the keyboard at m_Keyboard
-    //  http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.idirectinput8.idirectinput8.createdevice(v=vs.85).aspx
-	lpDI->CreateDevice(GUID_SysKeyboard, &m_Keyboard, NULL);
-    //  Sets the data format for the DirectInput device
-    //  http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.idirectinputdevice8.idirectinputdevice8.setdataformat(v=vs.85).aspx
-	m_Keyboard->SetDataFormat(&c_dfDIKeyboard);
-    //  Establishes the cooperative level for the instance of the device.
-    //  http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.idirectinputdevice8.idirectinputdevice8.setcooperativelevel(v=vs.85).aspx
-	m_Keyboard->SetCooperativeLevel(p->hWnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
-    //  Obtains access to the input device
-    //  http://msdn.microsoft.com/en-us/library/windows/desktop/microsoft.directx_sdk.idirectinputdevice8.idirectinputdevice8.acquire(v=vs.85).aspx
-	m_Keyboard->Acquire();
-    //  Create and initialize mouse input device
-	lpDI->CreateDevice(GUID_SysMouse, &m_Mouse, NULL);
-    //  Set the data format for mouse
-	m_Mouse->SetDataFormat(&c_dfDIMouse);
-    //  Establishes the cooperative level for the mouse
-	m_Mouse->SetCooperativeLevel(p->hWnd, DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
-    //  Obtain access to the mouse
-	m_Mouse->Acquire();
+	started = true;
 }
 
 /***************************************************************
  * Function: Cycle
  *
- * Uses DirectInput to acquire input devices
+ * Reads the keyboard and mouse (SDL) and dispatches input
  **************************************************************/
 void CInput::Cycle() {
 
 	// If we're missing any input devices, or the window doesn't have focus, return
-	if ((!m_Keyboard) || (!m_Mouse) || (!HasFocus)) {
+	if ((!started) || (!HasFocus) || BCDialogsActive()) {
 		return;
 	}
 
 	char buffer[256];
 	DIMOUSESTATE mouse_state;
 	
-	m_Keyboard->GetDeviceState(sizeof(buffer),&buffer);
-	m_Mouse->GetDeviceState(sizeof(DIMOUSESTATE),&mouse_state);
-
-    RECT R1;
-    GetWindowRect(p->hWnd, &R1);
-    POINT tMouse;
-    GetCursorPos(&tMouse);
-    Mouse.x = tMouse.x - R1.left;
-    Mouse.y = tMouse.y - R1.top;
+	int windowX = 0, windowY = 0, gameX = 0, gameY = 0;
+	BCReadInput(buffer, &mouse_state, &windowX, &windowY);
+	// The game is drawn at a fixed logical resolution that SDL scales to the window
+	p->DDraw->WindowToGame(windowX, windowY, &gameX, &gameY);
+	Mouse.x = gameX;
+	Mouse.y = gameY;
 
 	// If the mouse has moved, call MouseMove and store the new position
 	if ((Mouse.x != oMouse.x) || (Mouse.y != oMouse.y)) {

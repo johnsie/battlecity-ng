@@ -28,18 +28,12 @@
 class CTime
 {
 private:
-	__int64       frequency;							// Timer Frequency
-	float         resolution;							// Timer Resolution
-	unsigned long mm_timer_start;							// Multimedia Timer Start Value
-	unsigned long mm_timer_elapsed;						// Multimedia Timer Elapsed Time
-	bool		performance_timer;						// Using The Performance Timer?
-	__int64       performance_timer_start;					// Performance Timer Start Value
-	__int64       performance_timer_elapsed;					// Performance Timer Elapsed Time
+	unsigned long start;							// SDL tick count when the timer was initialised
 
 public:
 	CTime();
 	void Update();
-	float GetTime() const;
+	float GetTime() const;							// Milliseconds since Initialize()
 	void Initialize();
 };
 

@@ -38,7 +38,7 @@ int CALLBACK PersonnelDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPa
 				p->Personnel->EditWnd = GetDlgItem(hwnd,IDSEND);
 				p->Personnel->ChatWnd = GetDlgItem(hwnd,IDCHAT);
 				SendDlgItemMessage(hwnd, IDSEND, EM_LIMITTEXT, 200, 0);
-				wpOrigPersEditProc = (WNDPROC) SetWindowLong(p->Personnel->EditWnd, GWL_WNDPROC, (LONG)&MyPersEditProc); 
+				wpOrigPersEditProc = (WNDPROC) SetWindowLong(p->Personnel->EditWnd, GWL_WNDPROC, &MyPersEditProc); 
 				SCROLLINFO si;
 				si.cbSize = sizeof (si);
 				si.fMask  = SIF_ALL;

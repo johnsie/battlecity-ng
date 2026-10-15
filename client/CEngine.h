@@ -34,6 +34,8 @@ public:
     ~CEngine();
 
     void Init();
+    /// <summary> Runs one iteration of the game loop (draw, input, network). Called from the main loop. </summary>
+    void Frame();
 
     void logerror(std::string error);
 
@@ -47,6 +49,9 @@ public:
     void ThreadMessageQuit();
     std::string MsgText;
 private:
+    float NextFrame;
+    int lastFPS;
+    int lastlastFPS;
     CGame *p;
 protected:
 

@@ -126,7 +126,6 @@ CGame::~CGame() {
     //  http://msdn.microsoft.com/en-us/library/windows/desktop/dd757626(v=vs.85).aspx
 	timeEndPeriod(1);
     //  Destruct the DirectDraw object
-	DDraw->~CDDraw();
 }
 
 /// <summary>   Initialize CGame object </summary>
@@ -378,35 +377,9 @@ int CGame::SilentCheckFile(string file)
 /// <summary>   Method will go through all assets and rename files accordingly </summary>
 void CGame::Restructure()
 {
-	if (SilentCheckFile("data//imgArrows.bmp") == 1) rename("data//imgArrows.bmp", "imgArrows.bmp");
-	if (SilentCheckFile("data//imgArrowsRed.bmp") == 1) rename("data//imgArrowsRed.bmp", "imgArrowsRed.bmp");
-	if (SilentCheckFile("data//imgBCLogo.bmp") == 1) rename("data//imgBCLogo.bmp", "imgBCLogo.bmp");
-	if (SilentCheckFile("data//imgBlackNumbers.bmp") == 1) rename("data//imgBlackNumbers.bmp", "imgBlackNumbers.bmp");
-	if (SilentCheckFile("data//imgBtnStaff.bmp") == 1) rename("data//imgBtnStaff.bmp", "imgBtnStaff.bmp");
-	if (SilentCheckFile("data//imgBuildIcons.bmp") == 1) rename("data//imgBuildIcons.bmp", "imgBuildIcons.bmp");
-	if (SilentCheckFile("data//imgBuildings.bmp") == 1) rename("data//imgBuildings.bmp", "imgBuildings.bmp");
-	if (SilentCheckFile("data//imgBullets.bmp") == 1) rename("data//imgBullets.bmp", "imgBullets.bmp");
-	if (SilentCheckFile("data//imgCompany.bmp") == 1) rename("data//imgCompany.bmp", "imgCompany.bmp");
-	if (SilentCheckFile("data//imgCursor.bmp") == 1) rename("data//imgCursor.bmp", "imgCursor.bmp");
-	if (SilentCheckFile("data//imgDemolish.bmp") == 1) rename("data//imgDemolish.bmp", "imgDemolish.bmp");
-	if (SilentCheckFile("data//imgGround.bmp") == 1) rename("data//imgGround.bmp", "imgGround.bmp");
-	if (SilentCheckFile("data//imgHealth.bmp") == 1) rename("data//imgHealth.bmp", "imgHealth.bmp");
-	if (SilentCheckFile("data//imgInterface.bmp") == 1) rename("data//imgInterface.bmp", "imgInterface.bmp");
-	if (SilentCheckFile("data//imgInterfaceBottom.bmp") == 1) rename("data//imgInterfaceBottom.bmp", "imgInterfaceBottom.bmp");
-	if (SilentCheckFile("data//imgInventorySelection.bmp") == 1) rename("data//imgInventorySelection.bmp", "imgInventorySelection.bmp");
-	if (SilentCheckFile("data//imgItems.bmp") == 1) rename("data//imgItems.bmp", "imgItems.bmp");
-	if (SilentCheckFile("data//imgLava.bmp") == 1) rename("data//imgLava.bmp", "imgLava.bmp");
-	if (SilentCheckFile("data//imgLExplosion.bmp") == 1) rename("data//imgLExplosion.bmp", "imgLExplosion.bmp");
-	if (SilentCheckFile("data//imgLoading.bmp") == 1) rename("data//imgLoading.bmp", "imgLoading.bmp");
-	if (SilentCheckFile("data//imgMiniMapColors.bmp") == 1) rename("data//imgMiniMapColors.bmp", "imgMiniMapColors.bmp");
-	if (SilentCheckFile("data//imgMuzzleFlash.bmp") == 1) rename("data//imgMuzzleFlash.bmp", "imgMuzzleFlash.bmp");
-	if (SilentCheckFile("data//imgPopulation.bmp") == 1) rename("data//imgPopulation.bmp", "imgPopulation.bmp");
-	if (SilentCheckFile("data//imgRadarColors.bmp") == 1) rename("data//imgRadarColors.bmp", "imgRadarColors.bmp");
-	if (SilentCheckFile("data//imgRocks.bmp") == 1) rename("data//imgRocks.bmp", "imgRocks.bmp");
-	if (SilentCheckFile("data//imgSExplosion.bmp") == 1) rename("data//imgSExplosion.bmp", "imgSExplosion.bmp");
-	if (SilentCheckFile("data//imgSmoke.bmp") == 1) rename("data//imgSmoke.bmp", "imgSmoke.bmp");
-	if (SilentCheckFile("data//imgTurretBase.bmp") == 1) rename("data//imgTurretBase.bmp", "imgTurretBase.bmp");
-	if (SilentCheckFile("data//imgTurretHead.bmp") == 1) rename("data//imgTurretHead.bmp", "imgTurretHead.bmp");
+	// Historically moved the game's images out of data/ into the working directory.
+	// The client now runs with the data directory as its working directory, so there is nothing to move
+	// (and renaming files out of a source checkout would be destructive).
 }
 
 /***************************************************************
@@ -606,7 +579,6 @@ void CGame::handleGameKey(WPARAM wParam) {
 		if (this->Tick > this->Input->lastRefresh) {
 			this->Input->lastRefresh = this->Tick + TIMER_RELOAD_SURFACES;
 			this->DDraw->LoadSurfaces();
-			this->DDraw->DirectDraw->RestoreAllSurfaces();
 			this->InGame->AppendChat("The game's surfaces were reloaded.", COLOR_SYSTEM);
 		}
 	}

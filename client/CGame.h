@@ -23,21 +23,15 @@
 #ifndef _CGAME
 #define _CGAME
 
-#define WIN32_LEAN_AND_MEAN
-#include <winsock2.h>
-#include <windows.h>
-#include <process.h>
-#include <direct.h>
+#include "platform/compat.h"
+#include "platform/net.h"
+#include "platform/dialogs.h"
 #include <stdio.h>
 #include <math.h>
-#include <mmsystem.h>
 #include <string>
 #include <sstream>
 #include <iostream> 
 #include <fstream>
-#define DIRECTINPUT_VERSION 0X0800
-#include <ddraw.h>
-#include <dinput.h>
 using namespace std;
 #include "resource.h"
 

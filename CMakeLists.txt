@@ -8,7 +8,12 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(BC_BUILD_SERVER "Build the game server" ON)
+option(BC_BUILD_CLIENT "Build the game client (SDL2)" ON)
 
 if(BC_BUILD_SERVER)
   add_subdirectory(server)
+endif()
+
+if(BC_BUILD_CLIENT)
+  add_subdirectory(client)
 endif()

@@ -27,7 +27,6 @@
 
 class CGame;
 
-typedef int socklen_t;
 
 class CWinsock
 {
@@ -44,7 +43,7 @@ public:
 	void SendData(unsigned char PacketID, char *TheData, int len = -1);
 	int SendAll(char *SendString, int SendLength);
 
-	bool hasData(SOCKET sock);
+	bool hasData(bc_socket sock);
 	void Cycle();
 	void RecvTCP();
 	void ProcessBuffer();
@@ -55,7 +54,7 @@ public:
 	bool Connected;
 	int MyIndex;
 
-	SOCKET Socket;
+	bc_socket Socket;
 
 	sockaddr_in server;
 	sockaddr_in addr;

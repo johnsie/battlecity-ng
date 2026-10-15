@@ -76,15 +76,15 @@ int CALLBACK MeetDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) 
 			p->Meeting->ChatWnd = GetDlgItem(hwnd,IDCHAT);
 			p->Meeting->NewsWnd = GetDlgItem(hwnd,IDNEWS);
 			SendDlgItemMessage(hwnd, IDSEND, EM_LIMITTEXT, 200, 0);
-			wpOrigEditProc = (WNDPROC) SetWindowLong(p->Meeting->EditWnd, GWL_WNDPROC, (LONG)&MyEditProc); 
+			wpOrigEditProc = (WNDPROC) SetWindowLong(p->Meeting->EditWnd, GWL_WNDPROC, &MyEditProc); 
 			p->Meeting->RedrawList();
 
 			SetDlgItemText(hwnd, IDNEWS, p->Meeting->News.c_str());
-			wpOrigNewsProc = (WNDPROC) SetWindowLong(p->Meeting->NewsWnd, GWL_WNDPROC, (LONG)&MyNewsProc); 
-			wpOrigChatProc = (WNDPROC) SetWindowLong(p->Meeting->ChatWnd, GWL_WNDPROC, (LONG)&MyChatProc); 
+			wpOrigNewsProc = (WNDPROC) SetWindowLong(p->Meeting->NewsWnd, GWL_WNDPROC, &MyNewsProc); 
+			wpOrigChatProc = (WNDPROC) SetWindowLong(p->Meeting->ChatWnd, GWL_WNDPROC, &MyChatProc); 
 
 			p->Meeting->CityWnd = GetDlgItem(hwnd, IDAPPLYLIST);
-			wpOrigListProc = (WNDPROC) SetWindowLong(p->Meeting->CityWnd, GWL_WNDPROC, (LONG)&MyListProc); 
+			wpOrigListProc = (WNDPROC) SetWindowLong(p->Meeting->CityWnd, GWL_WNDPROC, &MyListProc); 
 
 			return 1;
 		}

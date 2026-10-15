@@ -26,7 +26,7 @@ CWinsock::CWinsock(CGame *game)  {
 	p = game;
 	Connected = false;
 	MyIndex = 0;
-	closesocket(Socket);
+	Socket = BC_INVALID_SOCKET;
 
 	BufferLength = 0;
 	memset(Buffer, 0, 2048);
@@ -51,7 +51,9 @@ void CWinsock::StartTCP() {
     host_entry = gethostbyname(ServerIP);
 	if(host_entry==NULL)
     {
-        MessageBox(p->hWnd,ServerIP,0,0);
+        MessageBox(p->hWnd, (std::string("Unable to find the game server: ") + ServerIP).c_str(), "BattleCity", 0);
+        p->Process->ProcessEvent(1);
+        return;
     }
     //  Establish socket address object
     //  http://msdn.microsoft.com/en-us/library/aa917469.aspx
@@ -62,15 +64,18 @@ void CWinsock::StartTCP() {
     //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms738557(v=vs.85).aspx
 	sockAddr.sin_port = htons(TCPPORT);
     //  Sets IP address to sin_addr in network byte order
-	sockAddr.sin_addr.s_addr = *(unsigned long*) host_entry->h_addr;
+	memset(&sockAddr, 0, sizeof(sockAddr));
+	sockAddr.sin_family = AF_INET;
+	sockAddr.sin_port = htons(TCPPORT);
+	memcpy(&sockAddr.sin_addr, host_entry->h_addr, sizeof(sockAddr.sin_addr));
     //  Initialize socket 
 	Socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     //  Non-blocking socket
-    ioctlsocket(Socket,FIONBIO,(u_long *) 1);
+
 
     //  Upon verifying Socket connection failed display message box with an error message
-	if (Socket == -1) {
+	if (Socket == BC_INVALID_SOCKET) {
 		MessageBox(p->hWnd, "Invalid Socket!", 0, 0);
 	} 
 
@@ -88,16 +93,17 @@ void CWinsock::StartTCP() {
 }
 
 void CWinsock::StartWinsock() {
-	WSADATA WsaDat;
-	WSAStartup(MAKEWORD(2, 2), &WsaDat);
+	bc_net_startup();
 }
-
 void CWinsock::CloseWinsock() {
-	closesocket(Socket);
+	if (Socket != BC_INVALID_SOCKET) {
+		bc_close_socket(Socket);
+		Socket = BC_INVALID_SOCKET;
+	}
 	Connected = false;
 	MyIndex = 0;
 	Sleep(5);
-	WSACleanup();
+	bc_net_shutdown();
 }
 
 void CWinsock::SendData(unsigned char PacketID, char *TheData, int len) {
@@ -133,7 +139,8 @@ void CWinsock::Cycle() {
 	ProcessBuffer();
 }
 
-bool CWinsock::hasData(SOCKET sock) {
+bool CWinsock::hasData(bc_socket sock) {
+	if (sock == BC_INVALID_SOCKET) return false;
 	timeval timev;
 	timev.tv_sec = 0;
 	timev.tv_usec = 0;

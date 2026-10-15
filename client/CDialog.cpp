@@ -22,7 +22,6 @@
 */
 #include "CDialog.h"
 
-void _cdecl thrDialog(void * pParam);
 
 CDialog::CDialog(CGame *game)
 {
@@ -38,32 +37,13 @@ CDialog::~CDialog()
 /// <summary>   Starts the Dialog by creating a thread for thrDialog with zero stack size, and CGame as argument </summary>
 void CDialog::Start()
 {
-    //  Creates a thread
-    //  http://msdn.microsoft.com/en-us/library/kdzttdcb(v=vs.100).aspx
-	_beginthread(thrDialog,0,p);
+	// Dialogs used to be driven by a thread; they are now opened from Cycle() on the main thread
 }
 
-/// <summary>   Dialog thread with default calling convention </summary>
-///
-/// <param name="pParam">   Parameter points to any type </param>
-void _cdecl thrDialog(void * pParam)
+void CDialog::Cycle()
 {
-    //  Only allocate memory upon usage
-	CGame * p;
-    //  Set pParam to p as CGame
-	p = (CGame *)pParam;
-    //  Start loop while true
-	while (1)
+	if (this->StartDialog > 0 && this->DialogProcessor != 0 && !BCDialogsActive())
 	{
-        //  Upon verifying StartDialog is less than zero execute DialogBox
-		if (p->Dialog->StartDialog > 0)
-		{
-            //  Initializes dialog box using instance handle
-			DialogBox(p->hInst, MAKEINTRESOURCE(p->Dialog->StartDialog), p->hWnd, p->Dialog->DialogProcessor);
-		}
-        //  Pause loop for five milliseconds
-		Sleep(5);
+		DialogBox(p->hInst, MAKEINTRESOURCE(this->StartDialog), p->hWnd, this->DialogProcessor);
 	}
-    //  End thread
-	_endthread();
 }

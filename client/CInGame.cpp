@@ -495,31 +495,9 @@ void CInGame::CheckRefVariables() {
  *
  **************************************************************/
 void CInGame::CheckCheatTools() {
-	HWND wnd = 0;
-	wnd = FindWindow(0 , "WPE PRO");
-	if (wnd > 0) {
-		p->Winsock->SendData(cmBan, "wsckpkedtrpro");
-		p->Process->ProcessKicked();
-	}
-
-	wnd = FindWindow(0 , "TSearch");
-	if (wnd > 0) {
-		p->Winsock->SendData(cmBan, "tsch");
-		p->Process->ProcessKicked();
-	}
-
-	wnd = FindWindow(0 , "Cheat Engine 5.3");
-	if (wnd > 0) {
-		p->Winsock->SendData(cmBan, "Cheat Engine");
-		p->Process->ProcessKicked();
-	}
-
-	wnd = FindWindow(0 , "Cheat Engine 5.4");
-	if (wnd > 0) {
-		p->Winsock->SendData(cmBan, "Cheat Engine");
-		p->Process->ProcessKicked();
-	}
-
+	// The original looked for the window titles of known cheat tools (WPE PRO, TSearch, Cheat Engine)
+	// using the Win32 FindWindow API and reported a ban to the server. That only works on Windows, so
+	// it is disabled in the cross-platform client. Cheat detection needs to be done server-side.
 }
 
 

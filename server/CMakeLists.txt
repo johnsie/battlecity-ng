@@ -8,6 +8,8 @@ add_executable(bc-server ${BC_SERVER_SOURCES})
 target_include_directories(bc-server PRIVATE ${SQLite3_INCLUDE_DIRS})
 target_link_libraries(bc-server PRIVATE Threads::Threads ${SQLite3_LIBRARIES})
 if(NOT MSVC)
+  # The packet checksum adds `char` values: pin signedness so every platform (incl. ARM) agrees
+  target_compile_options(bc-server PRIVATE -fsigned-char)
   target_compile_options(bc-server PRIVATE -Wall -Wno-unused-variable -Wno-sign-compare -Wno-write-strings)
 endif()
 
