@@ -6,7 +6,7 @@ For the plan and status of the work, see the [roadmap](../ROADMAP.md). For serve
 
 | Path | Contents |
 |------|----------|
-| `server/` | The game server (C++14). One process, one UDP-free TCP listener (default port 9680, `BC_PORT` overrides). |
+| `server/` | The game server (C++14). One process with a single TCP listener (default port 9680, `BC_PORT` overrides). |
 | `client/` | The game client (C++14, SDL2, Dear ImGui). `client/platform/` holds the SDL2 layer that replaced the old Win32/DirectX/FMOD code. |
 | `data/` | Game assets: bitmaps, sounds, MIDI, fonts, the map (`map.dat`), default `options.ini`. |
 | `web/`, `deploy/web/` | Browser page shell, Apache virtual host and the WebSocket-to-TCP gateway service. |
