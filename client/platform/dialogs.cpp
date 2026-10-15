@@ -348,6 +348,11 @@ void BCDialogsInit(void *sdlWindow, void *sdlRenderer) {
 	io.IniFilename = nullptr;
 	io.LogFilename = nullptr;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+#ifdef __EMSCRIPTEN__
+	// SDL's browser cursor changes can hide the pointer while an ImGui text field is active.
+	// Let the browser keep control of the visible cursor instead.
+	io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+#endif
 	ImGui::StyleColorsLight();
 	ImGuiStyle &style = ImGui::GetStyle();
 	style.WindowRounding = 0; style.FrameRounding = 0; style.ScrollbarRounding = 0; style.GrabRounding = 0;
