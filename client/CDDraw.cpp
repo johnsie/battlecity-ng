@@ -78,7 +78,12 @@ CDDraw::~CDDraw()
 void CDDraw::CreateRenderer(HWND hWnd)
 {
     Window = (SDL_Window *)hWnd;
+#ifdef __EMSCRIPTEN__
+    // requestAnimationFrame paces the browser build; asking SDL for vsync here would configure a main loop that does not exist yet
+    Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED);
+#else
     Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+#endif
     if (!Renderer) {
         // No GPU / headless: fall back to the software renderer
         Renderer = SDL_CreateRenderer(Window, -1, SDL_RENDERER_SOFTWARE);

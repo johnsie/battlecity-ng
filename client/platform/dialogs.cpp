@@ -477,6 +477,18 @@ void BCDialogsRender() {
 		ImGui::GetIO().DisplayFramebufferScale = ImVec2(1, 1);
 	}
 	ImGui::NewFrame();
+#ifdef BC_FRAME_TIMING
+	{
+		static int n = 0;
+		if (++n % 60 == 0) {
+			int ww = 0, wh = 0; SDL_GetWindowSize(g_window, &ww, &wh);
+			int ow = 0, oh = 0; SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
+			ImGuiIO &dio = ImGui::GetIO();
+			printf("imgui: display %.0fx%.0f logical %dx%d window %dx%d output %dx%d mouse %.0f,%.0f down=%d wantCapture=%d\n",
+			       dio.DisplaySize.x, dio.DisplaySize.y, lw, lh, ww, wh, ow, oh, dio.MousePos.x, dio.MousePos.y, (int)dio.MouseDown[0], (int)dio.WantCaptureMouse);
+		}
+	}
+#endif
 
 	float titleH = ImGui::GetFrameHeight();
 	ImVec2 size(d->def->w * DLU_X, d->def->h * DLU_Y + titleH);

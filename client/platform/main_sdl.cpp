@@ -48,6 +48,11 @@ static bool FindAndEnterDataDir() {
 
 static void HandleEvent(const SDL_Event &e) {
 	CGame &game = *g_game;
+#ifdef BC_FRAME_TIMING
+	if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) printf("mouse button %d type %d at %d,%d (dialog active: %d)\n", e.button.button, e.type, e.button.x, e.button.y, BCDialogsActive());
+	else if (e.type == SDL_MOUSEMOTION) { static int n = 0; if (++n % 10 == 1) printf("mouse move %d,%d\n", e.motion.x, e.motion.y); }
+	else if (e.type == SDL_WINDOWEVENT) printf("window event %d\n", e.window.event);
+#endif
 	BCDialogsProcessEvent(&e);
 	bool dialog = BCDialogsActive();
 
@@ -89,10 +94,17 @@ static void HandleEvent(const SDL_Event &e) {
 }
 
 static void MainLoopIteration() {
+	Uint32 t0 = SDL_GetTicks();
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) HandleEvent(e);
+	Uint32 t1 = SDL_GetTicks();
 	if (g_game->running == 1) g_game->Engine->Frame();
 	else g_game->Engine->IdleFrame();
+#ifdef BC_FRAME_TIMING
+	Uint32 t2 = SDL_GetTicks();
+	static int frames = 0;
+	if (t2 - t0 > 100 || ++frames % 120 == 0) printf("frame %d: events %ums, engine %ums\n", frames, t1 - t0, t2 - t1);
+#endif
 #ifdef __EMSCRIPTEN__
 	if (g_quit) emscripten_cancel_main_loop();
 #endif
@@ -113,7 +125,11 @@ int main(int argc, char *argv[]) {
 	CGame &game = *g_game;
 
 	Uint32 flags = SDL_WINDOW_SHOWN;
+#ifndef __EMSCRIPTEN__
+	// (In the browser the canvas keeps a fixed 1024x768 buffer and CSS scales it; a resizable SDL window would
+	// follow the canvas CSS size instead, stretching the image and breaking the mouse mapping.)
 	if (game.Options->fullscreen == 0) flags |= SDL_WINDOW_RESIZABLE;
+#endif
 	SDL_Window *window = SDL_CreateWindow("Battle City", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
 	                                      game.ResolutionX, game.ResolutionY, flags);
 	if (!window) {
