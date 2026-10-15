@@ -51,3 +51,7 @@ if(EMSCRIPTEN)
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/../data/TimGM6mb.sf2 $<TARGET_FILE_DIR:bc-client>/TimGM6mb.sf2)
   set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/platform/main_sdl.cpp PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../web/shell.html)
 endif()
+
+if(WIN32)
+  target_link_libraries(bc-client PRIVATE ws2_32 winmm)
+endif()

@@ -1,0 +1,83 @@
+# Builds and tests on every push and pull request. Linux builds the client; Windows builds the client (MSYS2/MinGW) and the server (MSVC).
+name: build
+
+on:
+  push:
+    branches: [master, main, windows-port]
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev libsqlite3-dev
+      - name: Build client and server
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Server smoke test
+        run: ci/smoke-test.sh build/server/bc-server data/map.dat
+      - name: Client smoke test
+        run: ci/smoke-test-client.sh build/client/bc-client data
+
+  # Server built with AddressSanitizer/UBSan: out-of-range indexing (the Windows crash class) fails here on Linux
+  linux-sanitizers:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake libsqlite3-dev
+      - name: Build server with sanitizers
+        run: |
+          cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DBC_BUILD_CLIENT=OFF \
+                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+          cmake --build build-asan -j"$(nproc)"
+      - name: Server smoke test
+        run: ci/smoke-test.sh build-asan/server/bc-server data/map.dat
+
+  windows-server:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build server (MSVC)
+        run: |
+          cmake -S . -B build -A x64 -DBC_BUILD_CLIENT=OFF
+          cmake --build build --config Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-windows-x64
+          path: |
+            build/server/Release/bc-server.exe
+            build/server/Release/bc-server.pdb
+
+  windows-client:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            zip
+      - name: Build client
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_SERVER=OFF
+          cmake --build build
+      - name: Package (checks the executable and DLLs are found)
+        run: ci/package-client.sh build/client/bc-client.exe ci-${GITHUB_SHA::7} windows-x64 dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: client-windows-x64
+          path: dist/*

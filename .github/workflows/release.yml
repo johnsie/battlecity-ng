@@ -1,0 +1,90 @@
+# Publishes a GitHub Release when a version tag is pushed (vMAJOR.MINOR.PATCH): Linux and Windows clients, Windows server.
+# The Linux server and the web client are deployed by GitLab CI from the same tag.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  linux-client:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev
+      - name: Build
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_SERVER=OFF
+          cmake --build build -j"$(nproc)"
+      - name: Smoke test
+        run: ci/smoke-test-client.sh build/client/bc-client data
+      - name: Package
+        run: ci/package-client.sh build/client/bc-client "${GITHUB_REF_NAME#v}" linux-x86_64 dist
+      - uses: actions/upload-artifact@v4
+        with: { name: dist-linux-client, path: dist/* }
+
+  windows-client:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-SDL2
+            zip
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_SERVER=OFF
+          cmake --build build
+      - name: Package
+        run: ci/package-client.sh build/client/bc-client.exe "${GITHUB_REF_NAME#v}" windows-x64 dist
+      - uses: actions/upload-artifact@v4
+        with: { name: dist-windows-client, path: dist/* }
+
+  windows-server:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (MSVC)
+        run: |
+          cmake -S . -B build -A x64 -DBC_BUILD_CLIENT=OFF
+          cmake --build build --config Release
+      - name: Package
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          $d = "battlecity-server-$v"
+          New-Item -ItemType Directory -Force $d, dist | Out-Null
+          Copy-Item build/server/Release/bc-server.exe, build/server/Release/bc-server.pdb, data/map.dat, LICENSE.txt $d
+          Set-Content "$d/VERSION" $v
+          Compress-Archive -Path $d -DestinationPath "dist/$d-windows-x64.zip"
+      - uses: actions/upload-artifact@v4
+        with: { name: dist-windows-server, path: dist/* }
+
+  publish:
+    needs: [linux-client, windows-client, windows-server]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        run: cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

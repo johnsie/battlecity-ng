@@ -43,9 +43,17 @@ test:client-smoke:
   script:
     - ci/smoke-test-client.sh build-client/client/bc-client data
 
+# Same server built with AddressSanitizer/UBSan: out-of-range indexing (the Windows crash class) fails here, before deploy
+test:server-sanitizers:
+  stage: test
+  script:
+    - cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DBC_BUILD_CLIENT=OFF -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+    - cmake --build build-asan -j"$(nproc)"
+    - ci/smoke-test.sh build-asan/server/bc-server data/map.dat
+
 package:server-linux:
   stage: package
-  needs: [build:server-linux, test:server-smoke]
+  needs: [build:server-linux, test:server-smoke, test:server-sanitizers]
   script:
     - ci/package-server.sh build "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" dist
   artifacts:
