@@ -84,6 +84,7 @@ deploy:production:
 build:web:
   stage: build
   rules:
+    - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "sdl2-client"
       <<: *web-changes
   script:
@@ -96,6 +97,7 @@ deploy:web:
   stage: deploy
   needs: [build:web]
   rules:
+    - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == "master"
       <<: *web-changes
   resource_group: production-web
