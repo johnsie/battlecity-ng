@@ -164,7 +164,7 @@ void CServer::PlatformSleep(int ms) {
 	#ifdef WIN32
 		Sleep(ms);
 	#else
-		sleep(ms);
+		usleep(ms * 1000);
 	#endif
 }
 
@@ -219,13 +219,13 @@ void CServer::LoadNews() {
 /// </summary>
 void CServer::CheckFilesAndPaths() {
 	#ifndef WIN32
-		mkdir("dat", 777);
-		mkdir("logs", 777);
-			mkdir("logs//orb", 777);
-			mkdir("logs//chat", 777);
-			mkdir("logs//debug", 777);
-			mkdir("logs//account", 777);
-			mkdir("logs//admin", 777);
+		mkdir("dat", 0755);
+		mkdir("logs", 0755);
+			mkdir("logs//orb", 0755);
+			mkdir("logs//chat", 0755);
+			mkdir("logs//debug", 0755);
+			mkdir("logs//account", 0755);
+			mkdir("logs//admin", 0755);
 	#else
 		mkdir("dat");
 		mkdir("logs");

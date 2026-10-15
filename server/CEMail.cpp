@@ -20,7 +20,7 @@
     along with Battle City.  If not, see <http://www.gnu.org/licenses/>.
 ===============================================================================
 */
-#include "CEMail.h"
+#include "CEmail.h"
 
 void *CEmailPointer;
 

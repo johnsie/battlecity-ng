@@ -29,6 +29,7 @@
  **************************************************************/
 CPlayer::CPlayer(CServer *Server, int id) {
 	this->p = Server;
+	this->Socket = -1;
 
 	// Reset the player stats
 	this->ResetPlayer();

@@ -40,6 +40,9 @@ CSocket::CSocket(CServer *Server) {
     this->timev.tv_usec = 0;
     //  Address length for remote address
     this->addrlen = sizeof(this->remoteaddr);
+#ifndef WIN32
+    signal(SIGPIPE, SIG_IGN);
+#endif
 #ifdef WIN32
     // Method must be tested in order to initialize
     WSADATA WsaDat;
@@ -81,7 +84,8 @@ void CSocket::InitTCP() {
     }
     //  Set options on listener; otherwise, print error message
     //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms740476(v=vs.85).aspx
-    if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, "1", sizeof(int)) == -1) {
+    int reuse = 1;
+    if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse, sizeof(reuse)) == -1) {
         perror("Unable to set socket options on listener.");
         exit(1);
     }
@@ -89,7 +93,15 @@ void CSocket::InitTCP() {
     this->myaddr.sin_family = AF_INET;
     this->myaddr.sin_addr.s_addr = INADDR_ANY;
     //  TCPPORT defined in CSocket.h
-    this->myaddr.sin_port = htons(TCPPORT);
+    int port = TCPPORT;
+    if (const char *envPort = getenv("BC_PORT")) {
+        int parsed = atoi(envPort);
+        if (parsed > 0 && parsed < 65536) {
+            port = parsed;
+        }
+    }
+    cout << "CSocket @ InitTCP [ Listening on port " << port << " ]" << endl;
+    this->myaddr.sin_port = htons(port);
     //  Padding to match size of SOCKADDR structure
     //  http://msdn.microsoft.com/en-us/library/1fdeehz6(v=vs.100).aspx
     memset(&(this->myaddr.sin_zero), '\0', sizeof(this->myaddr.sin_zero));
@@ -219,8 +231,12 @@ void CSocket::TCPCycle() {
             player->State = State_Connected;
             //  Set blocking mode to non-blocking
             //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms738573(v=vs.85).aspx
+#ifdef WIN32
             u_long nNoBlock = 1;
             ioctlsocket(newfd, FIONBIO, &nNoBlock);
+#else
+            fcntl(newfd, F_SETFL, fcntl(newfd, F_GETFL, 0) | O_NONBLOCK);
+#endif
             cout << "CSocket @ TCPCycle [ Player connected @ " << player->IPAddress << " " << " Allocated Index: " << freeplayer << " ]" << endl;
         }
     }
@@ -301,7 +317,11 @@ void CSocket::ProcessBuffer(int playerId) {
         memset(ValidPacket, 0, 256);
         //  Load player buffer to packet
         //  http://msdn.microsoft.com/en-us/library/wes2t00f(v=vs.80).aspx
+        #ifdef WIN32
         memcpy_s(ValidPacket,256,player->Buffer,packetlength);
+#else
+        memcpy(ValidPacket,player->Buffer,packetlength < 256 ? packetlength : 256);
+#endif
         //  Clear buffer upon verifying that BufferLength equals packetlength
         if (player->BufferLength == packetlength)  {
             //  Clear buffer by populating with zeros

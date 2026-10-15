@@ -29,6 +29,15 @@
 /// </summary>
 CServer Server;
 
+#ifndef WIN32
+/// <summary>
+/// Signal handler: ask the main loop to exit cleanly
+/// </summary>
+static void HandleShutdownSignal(int) {
+	Server.running = 0;
+}
+#endif
+
 /// <summary>
 /// Command-line application
 /// </summary>
@@ -54,6 +63,10 @@ int main(int argc, char *argv[]) {
 	bool printServerInfo = false;
     //  Store crash message
 	stringstream crashMessage;
+#ifndef WIN32
+	signal(SIGTERM, HandleShutdownSignal);
+	signal(SIGINT, HandleShutdownSignal);
+#endif
     //  Initialize the CServer object
 	Server.Init();
     //  Try launching the Server

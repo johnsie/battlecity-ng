@@ -45,6 +45,13 @@ using namespace std;
 	#include <termios.h>
 	#include <string>
 	#include <arpa/inet.h>
+	#include <pthread.h>
+	#include <signal.h>
+	#include <fcntl.h>
+	#include <strings.h>
+	#include <string.h>
+	#include <stdlib.h>
+	#include <sys/time.h>
 #else
 	#define WIN32_LEAN_AND_MEAN
 	#include <winsock2.h>
@@ -56,6 +63,11 @@ using namespace std;
 	#include <conio.h>
 #define HAVE_STRUCT_TIMESPEC
 	#include "pthread.h"
+#endif
+
+#ifndef WIN32
+	// MSVC "secure" memcpy; the bounds check keeps the same behaviour on Linux
+	#define memcpy_s(dest, destSize, src, count) memcpy((dest), (src), ((count) < (destSize) ? (count) : (destSize)))
 #endif
 
 #include "CConstants.h"
@@ -76,7 +88,7 @@ using namespace std;
 #include "CMap.h"
 #include "CTimer.h"
 #include "CLog.h"
-#include "CEMail.h"
+#include "CEmail.h"
 #include "CDatabase.h"
 
 class CSocket;

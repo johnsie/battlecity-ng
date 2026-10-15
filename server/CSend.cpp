@@ -944,7 +944,11 @@ void CSend::ResetStartingCC(bool randomReset) {
 	}
 
 	// Reset the CC
+	#ifdef WIN32
 	srand((int)GetTickCount());
+#else
+	srand((unsigned int)time(NULL));
+#endif
 	startingCityOptionIndex = (rand() % (sizeof(startingCityOptions)/sizeof(int))) ;
 	this->startingCity = startingCityOptions[startingCityOptionIndex];
 

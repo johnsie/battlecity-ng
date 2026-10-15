@@ -62,6 +62,14 @@ void CTime::Initialize() {
 
 	// Set The Elapsed Time To The Current Time
 	mm_timer_elapsed	= mm_timer_start;		
+#else
+	// Monotonic clock, milliseconds
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	this->mm_timer_start = (unsigned long)(ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL);
+	resolution = 1.0f/1000.0f;
+	frequency = 1000;
+	mm_timer_elapsed = mm_timer_start;
 #endif
 }
 
@@ -78,5 +86,10 @@ float CTime::GetTime() const {
 #ifdef WIN32
 	// Get Time In Milliseconds
 	return( (float) ( timeGetTime() - this->mm_timer_start) * this->resolution)*1000.0f;
+#else
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	unsigned long now = (unsigned long)(ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL);
+	return (float)(now - this->mm_timer_start);
 #endif
 }

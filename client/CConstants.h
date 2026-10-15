@@ -3,7 +3,7 @@
 
 #define VERSION "3.5.7"
 
-static const int TCPPORT = 5643;
+static const int TCPPORT = 9680;
 //static const int TCPPORT = 6643;
 
 // Constants

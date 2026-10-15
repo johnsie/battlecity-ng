@@ -25,7 +25,7 @@
 //  Methods from CServer inherited
 #include "CServer.h"
 //  Default listening port for server application
-#define TCPPORT 5643
+#define TCPPORT 9680
 #ifdef WIN32
 //  WS2tcpip.h requires socklen_t as integer
 #define socklen_t int
