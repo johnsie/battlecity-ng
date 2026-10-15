@@ -180,7 +180,17 @@ void CPlayer::ResetPlayer() {
 	this->MonthlyPoints = 0;
 	this->Mayor = 0;
 	this->State = State_Disconnected;
-	shutdown(this->Socket, 2);
+	// Close the socket: shutdown() alone left the descriptor open, so every disconnect leaked one, and after about a
+	// thousand connections select()/FD_SET failed and the server aborted
+	if (this->Socket >= 0) {
+		shutdown(this->Socket, 2);
+#ifdef WIN32
+		closesocket(this->Socket);
+#else
+		close(this->Socket);
+#endif
+		this->Socket = -1;
+	}
 	memset(this->Buffer, 0, 2048);
 	this->BufferLength = 0;
 
