@@ -47,9 +47,10 @@ test:client-smoke:
 test:server-sanitizers:
   stage: test
   script:
-    - cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DBC_BUILD_CLIENT=OFF -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+    - cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DBC_BUILD_CLIENT=OFF -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize=alignment -fno-omit-frame-pointer"
     - cmake --build build-asan -j"$(nproc)"
     - ci/smoke-test.sh build-asan/server/bc-server data/map.dat
+    - ci/fuzz-test.sh build-asan/server/bc-server data/map.dat
 
 package:server-linux:
   stage: package

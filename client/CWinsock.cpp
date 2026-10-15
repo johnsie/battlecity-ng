@@ -171,7 +171,7 @@ void CWinsock::SendData(unsigned char PacketID, char *TheData, int len) {
 
 	SendString[1] = (unsigned char)checksum;
 	SendString[2] = (unsigned char)PacketID;
-	memcpy(&SendString[3], TheData, length);
+	memcpy(&SendString[3], TheData, length - 2);
 
 	SendString[0] = (unsigned char)length;
 	SendAll(SendString, length + 1);

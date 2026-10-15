@@ -24,6 +24,7 @@
 #define _CSERVER
 
 #include <stdio.h>
+#include <stddef.h>
 #include <math.h>
 #include <assert.h>
 #include <string>
@@ -108,6 +109,21 @@ class CTime;
 class CLog;
 class CEMail;
 class CDatabase;
+
+// Doubles single quotes so a client-supplied string cannot end its SQL literal early (queries are built by concatenation).
+// Also stops at an embedded NUL and drops control characters.
+inline std::string SqlEscape(const std::string &in) {
+	std::string out;
+	for (size_t i = 0; i < in.size() && in[i] != '\0'; i++) {
+		if (in[i] == '\'') {
+			out += "''";
+		}
+		else if ((unsigned char)in[i] >= 32) {
+			out += in[i];
+		}
+	}
+	return out;
+}
 
 class CServer {
 

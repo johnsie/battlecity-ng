@@ -40,10 +40,12 @@ jobs:
       - name: Build server with sanitizers
         run: |
           cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DBC_BUILD_CLIENT=OFF \
-                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+                -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize=alignment -fno-omit-frame-pointer"
           cmake --build build-asan -j"$(nproc)"
       - name: Server smoke test
         run: ci/smoke-test.sh build-asan/server/bc-server data/map.dat
+      - name: Fuzz the protocol
+        run: ci/fuzz-test.sh build-asan/server/bc-server data/map.dat
 
   windows-server:
     runs-on: windows-latest

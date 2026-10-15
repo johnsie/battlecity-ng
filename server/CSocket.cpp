@@ -146,6 +146,8 @@ void CSocket::SendData(int playerId, unsigned char packetId, char payload[255], 
     //  if set; add two to "payloadLength" value
     //  Length extended by two in order to compensate for the header data
     length = (payloadLength == -1) ? (int)(strlen(payload)+2) : (payloadLength +2);
+    //  The length travels in one byte and SendString is 256 bytes
+    if (length < 2 || length > 250) return;
     //  Generate checksum for "payload" by looping through each character in "payload"
     //  and adding each ASCII character value to checksum then adding 3412 finally
     //  dividing the value by 71;
@@ -162,7 +164,8 @@ void CSocket::SendData(int playerId, unsigned char packetId, char payload[255], 
     SendString[2] = (unsigned char)packetId;
     //  Starting at the third byte on SendString pointer populate
     //  with "payload" for the entire lenth.
-    memcpy(&SendString[3], payload, length);
+    //  (length - 2 bytes: the caller's buffer holds only that many; length itself read two bytes past it)
+    memcpy(&SendString[3], payload, length - 2);
     //  Finally submit generated data to player UID
     this->QueueSend(playerId, SendString, length + 1);
 }

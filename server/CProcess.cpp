@@ -43,6 +43,19 @@ CProcess::~CProcess() {
 /// <param name="TheData">Packet data</param>
 /// <param name="playerId">Player UID</param>
 void CProcess::ProcessData(char *TheData, int playerId) {
+    // Packets that only make sense while the player is in a city's game: ignore them from anyone else (a buggy or
+    // hostile client must not be able to reach the game logic before joining)
+    switch ((unsigned char)TheData[0]) {
+        case cmBuild: case cmFired: case cmItemUp: case cmItemDrop: case cmDeath: case cmDemolish: case cmMedKit:
+        case cmHitObject: case cmSuccessor: case cmShoot: case cmUpdate: case cmSetMayor: case cmAutoBuild: case cmCloak:
+            if (!this->p->Player[playerId]->isInGame()) {
+                return;
+            }
+            break;
+        default:
+            break;
+    }
+
     //  TheData[0] identifies the packet type
     switch((unsigned char)TheData[0]) {
         //  cmVersion: Apply sCMVersion structure to TheData[1]
@@ -336,6 +349,13 @@ void CProcess::ProcessBuild(char *TheData, int Index) {
         return;
     }
     city = this->p->City[player->City];
+
+    // Building types are 1..30 (they index canBuild[type - 1]); the position must be on the map
+    if (data->type < 1 || data->type > 30 || data->x >= 512 || data->y >= 512) {
+        return;
+    }
+    // (read the flag as a byte: any other value in a bool is undefined behaviour)
+    data->isAutoBuild = (((unsigned char *)data)[offsetof(sCMBuild, isAutoBuild)] != 0);
 
     // If the player is not an admin, verify that the build request is valid
     if (player->isAdmin() == false ) { 
@@ -1244,7 +1264,7 @@ void CProcess::ProcessAdmin(sCMAdmin *admin, int Index) {
             // If the player is in game, kick the player
             if (playerTarget->isInGame()) {
                 LogAdminString = "Kick ";
-                LogAdminString += playerTarget->Name;
+                LogAdminString += SqlEscape(playerTarget->Name);
                 p->Log->logAdmin(LogAdminString, Index);
                 cout << "Kick::" << playerTarget->Name << "::" << playerTarget->Name << endl;
                 playerTarget->LeaveGame(true);
@@ -1281,7 +1301,7 @@ void CProcess::ProcessAdmin(sCMAdmin *admin, int Index) {
 
             // Warp the player
             LogAdminString = "Warp ";
-            LogAdminString += playerTarget->Name;
+            LogAdminString += SqlEscape(playerTarget->Name);
             p->Log->logAdmin(LogAdminString, Index);
             cout << "Warp::" << player->Name << "::" << playerTarget->Name << endl;
             player->X = playerTarget->X;
@@ -1294,7 +1314,7 @@ void CProcess::ProcessAdmin(sCMAdmin *admin, int Index) {
 
             // Summon the player
             LogAdminString = "Summon ";
-            LogAdminString += playerTarget->Name;
+            LogAdminString += SqlEscape(playerTarget->Name);
             p->Log->logAdmin(LogAdminString, Index);
             cout << "Summon::" << player->Name << "::" << playerTarget->Name << endl;
             playerTarget->X = player->X;
@@ -1306,13 +1326,13 @@ void CProcess::ProcessAdmin(sCMAdmin *admin, int Index) {
             playerTarget = this->p->Player[admin->id];
 
             queryString = "INSERT INTO tBans (Account, IPAddress, Reason, UniqID) VALUES ('";
-            queryString += playerTarget->Name;
+            queryString += SqlEscape(playerTarget->Name);
             queryString += "', '";
-            queryString += playerTarget->IPAddress;
+            queryString += SqlEscape(playerTarget->IPAddress);
             queryString += "', '";
-            queryString += player->Name;
+            queryString += SqlEscape(player->Name);
             queryString += "', '";
-            queryString += playerTarget->UniqID;
+            queryString += SqlEscape(playerTarget->UniqID);
             queryString += "');";
             p->Database->Database.execDML(queryString.c_str());
 
@@ -1422,7 +1442,7 @@ void CProcess::ProcessAdmin(sCMAdmin *admin, int Index) {
                 try {
                     // Delete the ban
                     queryString = "DELETE FROM tBans WHERE Account = '";
-                    queryString += p->Database->Query.getStringField("Account");
+                    queryString += SqlEscape(p->Database->Query.getStringField("Account"));
                     queryString += "';";
                     p->Database->Query.finalize();
                     p->Log->logAdmin(queryString, Index);
@@ -1464,13 +1484,13 @@ void CProcess::ProcessBan(char *TheData, int Index) {
     string DMLString;
 
     DMLString = "INSERT INTO tBans (Account, IPAddress, Reason, UniqID) VALUES ('";
-    DMLString += player->Name;
+    DMLString += SqlEscape(player->Name);
     DMLString += "', '";
-    DMLString += player->IPAddress;
+    DMLString += SqlEscape(player->IPAddress);
     DMLString += "', '";
-    DMLString += TheData;
+    DMLString += SqlEscape(TheData);
     DMLString += "', '";
-    DMLString += player->UniqID;
+    DMLString += SqlEscape(player->UniqID);
     DMLString += "');";
     p->Database->Database.execDML(DMLString.c_str());
     cout << "Ban::" << player->Name << endl;
@@ -1784,19 +1804,19 @@ void CProcess::ProcessAdminEdit(int Index, sCMAdminEdit *adminedit) {
                 DMLString += converter.str();
 
                 DMLString += ", Fullname = '";
-                DMLString += adminedit->FullName;
+                DMLString += SqlEscape(adminedit->FullName);
 
                 DMLString += "', Town = '";
-                DMLString += adminedit->Town;
+                DMLString += SqlEscape(adminedit->Town);
 
                 DMLString += "', State = '";
-                DMLString += adminedit->State;
+                DMLString += SqlEscape(adminedit->State);
 
                 DMLString += "', Password = '";
-                DMLString += adminedit->Pass;
+                DMLString += SqlEscape(adminedit->Pass);
 
                 DMLString += "', Email = '";
-                DMLString += adminedit->Email;
+                DMLString += SqlEscape(adminedit->Email);
 
                 DMLString += "', Tank = ";
                 converter.str("");
@@ -1874,7 +1894,7 @@ void CProcess::ProcessAdminEdit(int Index, sCMAdminEdit *adminedit) {
                 DMLString += converter.str();
 
                 DMLString += " WHERE lower(Account) = lower('";
-                DMLString += adminedit->User;
+                DMLString += SqlEscape(adminedit->User);
                 DMLString += "');";
 
                 p->Log->logAdmin(DMLString, Index);
@@ -1964,7 +1984,7 @@ void CProcess::ProcessAdminEditRequest(int Index, sCMAdminEditRequest *adminedit
             // Try to select the account from the database
             try {
                 QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('";
-                QueryString += admineditrequest->User;
+                QueryString += SqlEscape(admineditrequest->User);
                 QueryString += "');";
                 p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
@@ -1973,7 +1993,7 @@ void CProcess::ProcessAdminEditRequest(int Index, sCMAdminEditRequest *adminedit
                     p->Log->logAdmin(QueryString, Index);
 
                     // Copy the user information into the newedit struct
-                    strcpy(newedit.User, admineditrequest->User);
+                    strncpy(newedit.User, admineditrequest->User, sizeof(newedit.User) - 1);
                     strcpy(newedit.Pass, p->Database->Query.getStringField("Password"));
                     strcpy(newedit.FullName, p->Database->Query.getStringField("Fullname"));
                     strcpy(newedit.Town, p->Database->Query.getStringField("Town"));
@@ -2021,8 +2041,13 @@ void CProcess::ProcessAdminEditRequest(int Index, sCMAdminEditRequest *adminedit
 * @param Clicked
  **************************************************************/
 void CProcess::ProcessClickPlayer(int Index, int Clicked) {
-    CPlayer *playerClicked = this->p->Player[Clicked];
+    CPlayer *playerClicked;
     sSMClickPlayer response;
+
+    if (Clicked < 0 || Clicked >= MAX_PLAYERS) {
+        return;
+    }
+    playerClicked = this->p->Player[Clicked];
 
     // Send the player info back to the clicker
     response.Index = Clicked;
@@ -2131,7 +2156,8 @@ void CProcess::ProcessAutoBuild(int Index, sCMAutoBuild *request) {
 
     // Send the response
     response.isAllowed = isAllowed;
-    strcpy(response.filename, request->filename);
+    memset(response.filename, 0, sizeof(response.filename));
+    strncpy(response.filename, request->filename, sizeof(response.filename) - 1);
     p->Winsock->SendData(Index, smAutoBuild, (char *)&response, sizeof(response));
 }
 

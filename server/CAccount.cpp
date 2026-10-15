@@ -47,7 +47,7 @@ CAccount::~CAccount() {
 int CAccount::CheckAccount(string account) {
 	try {
 		// Select the account from the database, matching by account name
-		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + account + "');";
+		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(account) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 		
 		// If the result set has no rows, return 0
@@ -75,7 +75,7 @@ int CAccount::CheckAccount(string account) {
 int CAccount::CheckEmail(string email) {
 	try {
 		// Select the account from the database, matching by email address
-		string QueryString = "SELECT * FROM tAccounts WHERE lower(Email) = lower('" + email + "');";
+		string QueryString = "SELECT * FROM tAccounts WHERE lower(Email) = lower('" + SqlEscape(email) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If the result set has no rows, return 0
@@ -104,7 +104,7 @@ int CAccount::CheckEmail(string email) {
 int CAccount::CompareEmail(string email, int Index) {
 	try {
 		// Select the account from the database, matching by name
-		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If the result set has any rows,
@@ -136,7 +136,7 @@ int CAccount::CompareEmail(string email, int Index) {
 int CAccount::CheckPassword(string account, string password) {
 	try {
 		// Select the account from the database, matching by name
-		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + account + "');";
+		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(account) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If the result set has any rows,
@@ -181,7 +181,7 @@ int CAccount::NewAccount(string account, string password, string email, string f
 			try {
 				// Build the insert statement
 				string DMLString = "INSERT INTO tAccounts (Account, Password, Email, Fullname, Town, State) ";
-				DMLString += "VALUES ('" + account + "', '" + password + "', '" + email +"', '" + fullname + "', '" + town + "', '" + state + "');";
+				DMLString += "VALUES ('" + SqlEscape(account) + "', '" + SqlEscape(password) + "', '" + SqlEscape(email) +"', '" + SqlEscape(fullname) + "', '" + SqlEscape(town) + "', '" + SqlEscape(state) + "');";
 
 				// Insert the new account
 				p->Database->Database.execDML(DMLString.c_str());
@@ -577,7 +577,7 @@ void CAccount::Sub2Points(int Index) {
  **************************************************************/
 int CAccount::GetMonthlyTop20(int Index) {
 	// Select the account from the database, matching by name
-	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 	
 	// If the player is found, return the player's monthly points
@@ -601,7 +601,7 @@ int CAccount::GetMonthlyTop20(int Index) {
 int CAccount::CheckBan(string UniqID, string IPAddress) {
 	try {
 		// Select the bans from the database, matching by ID
-		string QueryString = "SELECT * FROM tBans WHERE UniqID = '" + UniqID + "';";
+		string QueryString = "SELECT * FROM tBans WHERE UniqID = '" + SqlEscape(UniqID) + "';";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If a ban was found for this ID, return 1
@@ -614,7 +614,7 @@ int CAccount::CheckBan(string UniqID, string IPAddress) {
 		p->Database->Query.finalize();
 
 		// Select the bans from the database, matching by IP
-		QueryString = "SELECT * FROM tBans WHERE IPAddress = '" + IPAddress + "';";
+		QueryString = "SELECT * FROM tBans WHERE IPAddress = '" + SqlEscape(IPAddress) + "';";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If a ban was found for this ID, return 1
@@ -641,7 +641,7 @@ int CAccount::CheckBan(string UniqID, string IPAddress) {
 int CAccount::CheckAccountBan(string account) {
 	try {
 		// Select the bans from the database, matching by account name
-		string QueryString = "SELECT * FROM tBans WHERE lower(Account) = lower('" + account + "');";
+		string QueryString = "SELECT * FROM tBans WHERE lower(Account) = lower('" + SqlEscape(account) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If a ban was found for this account name, return 1
@@ -668,7 +668,7 @@ int CAccount::CheckAccountBan(string account) {
 void CAccount::SendAccountInformation(int Index) {
 	try {
 		// Select the account from the database, matching by account name
-		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+		string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If an account was found,
@@ -763,12 +763,12 @@ int CAccount::UpdateAccount(int Index, string password, string email, string ful
 			cout << "Saving account: " << p->Player[Index]->Name << endl;
 
 			QueryString = "UPDATE tAccounts SET ";
-			QueryString += "Password = '" + password + "', ";
-			QueryString += "Fullname = '" + fullname + "', ";
-			QueryString += "Email = '" + email + "', ";
-			QueryString += "Town = '" + town + "', ";
-			QueryString += "State = '" + state + "' ";
-			QueryString += "WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+			QueryString += "Password = '" + SqlEscape(password) + "', ";
+			QueryString += "Fullname = '" + SqlEscape(fullname) + "', ";
+			QueryString += "Email = '" + SqlEscape(email) + "', ";
+			QueryString += "Town = '" + SqlEscape(town) + "', ";
+			QueryString += "State = '" + SqlEscape(state) + "' ";
+			QueryString += "WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 
 			// Execute the update statement, return 1
 			p->Database->Database.execDML(QueryString.c_str());
@@ -794,7 +794,7 @@ int CAccount::UpdateAccount(int Index, string password, string email, string ful
 int CAccount::RecoverAccount(int Index, string Email) {
 	try {
 		// Select the account from the database, matching by email
-		string QueryString = "SELECT * FROM tAccounts WHERE lower(Email) = lower('" + Email + "');";
+		string QueryString = "SELECT * FROM tAccounts WHERE lower(Email) = lower('" + SqlEscape(Email) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 		// If no account was found, return 0
@@ -825,7 +825,7 @@ void CAccount::GetLoginData(int Index) {
 
 	try {
 		// Select the account from the database, matching by account name
-		string QueryString= "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + player->Name + "');";
+		string QueryString= "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(player->Name) + "');";
 		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 		
 		// If no account was found, return
@@ -942,7 +942,7 @@ void CAccount::AddAssist(int Index) {
  **************************************************************/
 int CAccount::GetDeaths(int Index) {
 	// Select the account from the database, matching by account name
-	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 	// If the account was found, return the Deaths column
@@ -964,7 +964,7 @@ int CAccount::GetDeaths(int Index) {
  **************************************************************/
 int CAccount::GetOrbs(int Index) {
 	// Select the account from the database, matching by account name
-	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 	// If the account was found, return the Orbs column
@@ -986,7 +986,7 @@ int CAccount::GetOrbs(int Index) {
  **************************************************************/
 int CAccount::GetAssists(int Index) {
 	// Select the account from the database, matching by account name
-	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 	
 	// If the account was found, return the Assists column
@@ -1008,7 +1008,7 @@ int CAccount::GetAssists(int Index) {
  **************************************************************/
 void CAccount::GetStats(int Index) {
 	// Select the account from the database, matching by account name
-	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+	string QueryString = "SELECT * FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 	// If the account was found, set the stats on the players
@@ -1056,7 +1056,7 @@ void CAccount::SaveStats(int Index) {
 	Converter << p->Player[Index]->MonthlyPoints;
 	QueryString += "MonthlyTop20 = " + Converter.str() + " ";
 
-	QueryString += " WHERE lower(Account) = lower('" + p->Player[Index]->Name + "');";
+	QueryString += " WHERE lower(Account) = lower('" + SqlEscape(p->Player[Index]->Name) + "');";
 
 	// Execute the update statement
 	p->Database->Database.execDML(QueryString.c_str());

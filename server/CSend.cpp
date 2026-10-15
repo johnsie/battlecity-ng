@@ -313,9 +313,10 @@ void CSend::SendCityList(int Index) {
  **************************************************************/
 void CSend::SendChatMessage(int WhoSent, char Message[255], char global) {
 	char tmpstring[255];
-	int length = (int)strlen(Message);
+	int length = (int)strnlen(Message, 250);
 	tmpstring[0] = (unsigned char)WhoSent;
-	strcpy(&tmpstring[1], Message);
+	memcpy(&tmpstring[1], Message, length);
+	tmpstring[length + 1] = '\0';
 	string outputString;
 	int tmpNum;
 
@@ -900,12 +901,17 @@ void CSend::SendTheCities(int Index) {
  * @param Index
  **************************************************************/
 void CSend::SendWhisper(int WhoSent, sCMWhisper *whisper) {
-	string senderName = p->Player[whisper->Recipient]->Name;
-	string recipientName = p->Player[WhoSent]->Name;
-	string message = whisper->Message;
+	int recipient = (unsigned char)whisper->Recipient;
+	if (recipient >= MAX_PLAYERS || WhoSent < 0 || WhoSent >= MAX_PLAYERS) {
+		return;
+	}
+	string senderName = p->Player[WhoSent]->Name;
+	string recipientName = p->Player[recipient]->Name;
+	string message(whisper->Message, strnlen(whisper->Message, sizeof(whisper->Message)));
 	char tmpstring[128];
+	memset(tmpstring, 0, sizeof(tmpstring));
 	tmpstring[0] = (unsigned char)WhoSent;
-	strcpy(&tmpstring[1], whisper->Message);
+	strncpy(&tmpstring[1], whisper->Message, sizeof(tmpstring) - 2);
 
 	// Log the message
 	string outputString = senderName + " (to " + recipientName + "): " + message;
@@ -913,7 +919,7 @@ void CSend::SendWhisper(int WhoSent, sCMWhisper *whisper) {
 	p->Log->logChat(outputString);
 
 	// Send the message
-	p->Winsock->SendData(whisper->Recipient, smWhisper, tmpstring, sizeof(tmpstring));
+	p->Winsock->SendData(recipient, smWhisper, tmpstring, sizeof(tmpstring));
 }
 
 /***************************************************************
