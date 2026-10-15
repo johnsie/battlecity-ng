@@ -9,7 +9,7 @@ Target: Linux host running the GitLab runner tagged `ubuntu-server`; public name
 3. Make sure the router forwards 9680/tcp to this host if players connect from outside the LAN.
 
 ## Deploying
-Pipeline: build → smoke test → package → **manual** `deploy:production` job (master or tag).
+Pipeline: build → smoke test → package → automatic `deploy:production` job (every push to master, and tags).
 The job installs the release under `/opt/battlecity/releases/<version>`, backs up the database,
 restarts the service and checks port 9680, rolling back automatically if it does not come up.
 
