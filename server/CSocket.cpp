@@ -163,7 +163,7 @@ void CSocket::SendData(int playerId, unsigned char packetId, char payload[255], 
     //  with "payload" for the entire lenth.
     memcpy(&SendString[3], payload, length);
     //  Finally submit generated data to player UID
-    this->SendAll(p->Player[playerId]->Socket, SendString, length + 1);
+    this->QueueSend(playerId, SendString, length + 1);
 }
 
 /// <summary>
@@ -173,13 +173,15 @@ void CSocket::SendData(int playerId, unsigned char packetId, char payload[255], 
 /// <param name="payload">Data payload</param>
 /// <param name="payloadLength">Data payload length</param>
 void CSocket::SendRaw(int playerId, char payload[255], int payloadLength) {
-    this->SendAll(p->Player[playerId]->Socket, payload, payloadLength);
+    this->QueueSend(playerId, payload, payloadLength);
 }
 
 /// <summary>
 /// Perform network cycle
 /// </summary>
 void CSocket::Cycle() {
+    //  Deliver anything the sockets could not take earlier
+    this->FlushQueues();
     //  Handle incoming connections and receive data from existing connections
     this->TCPCycle();
     this->ProcessData();
@@ -250,6 +252,11 @@ void CSocket::TCPCycle() {
             player->IPAddress = inet_ntoa(remoteaddr.sin_addr);
             //  Set CPlayer to enum:State_Connected
             player->State = State_Connected;
+            //  Test hook: BC_TEST_SNDBUF=<bytes> shrinks the send buffer so bursts overflow it even on loopback
+            if (const char *sndbuf = getenv("BC_TEST_SNDBUF")) {
+                int size = atoi(sndbuf);
+                setsockopt(newfd, SOL_SOCKET, SO_SNDBUF, (const char *)&size, sizeof(size));
+            }
             //  Set blocking mode to non-blocking
             //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms738573(v=vs.85).aspx
 #ifdef WIN32
@@ -390,6 +397,28 @@ void CSocket::ProcessBuffer(int playerId) {
 /// <param name="SendString">The send string.</param>
 /// <param name="SendLength">Length of the send.</param>
 /// <returns></returns>
+void CSocket::QueueSend(int playerId, const char *data, int length) {
+    CPlayer *player = p->Player[playerId];
+    if (!player->Out.Send(player->Socket, data, length)) {
+        //  Real connection error: the receive path notices the closed socket and clears the player
+        return;
+    }
+    //  A client that has stopped reading must not make us hold an ever-growing backlog
+    if (player->Out.Pending() > MAX_OUT_QUEUE) {
+        cout << "CSocket @ QueueSend [ Dropping " << player->Name << ": " << player->Out.Pending() << " bytes backlog ]" << endl;
+        player->Clear();
+    }
+}
+
+void CSocket::FlushQueues() {
+    for (int i = 0; i < MAX_PLAYERS; i++) {
+        CPlayer *player = p->Player[i];
+        if (player->Out.Pending() > 0 && player->isConnected()) {
+            player->Out.Flush(player->Socket);
+        }
+    }
+}
+
 int CSocket::SendAll(int Socket, char *SendString, int SendLength) {
     //  Stores the total bytes sent
     int TotalSent = 0;

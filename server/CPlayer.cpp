@@ -162,6 +162,8 @@ void CPlayer::Clear(bool triggerServerReset) {
  **************************************************************/
 void CPlayer::ResetPlayer() {
 
+	this->Out.Clear();
+
 	// Reset the player stats
 	this->City = -1;
 

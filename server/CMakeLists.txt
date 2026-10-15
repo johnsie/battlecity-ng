@@ -14,3 +14,10 @@ if(NOT MSVC)
 endif()
 
 install(TARGETS bc-server RUNTIME DESTINATION bin)
+
+# Unit test for the outgoing queue (no game code involved)
+if(NOT WIN32)
+  add_executable(test-outqueue test/test_outqueue.cpp)
+  target_compile_options(test-outqueue PRIVATE -Wall)
+  add_test(NAME outqueue COMMAND test-outqueue)
+endif()

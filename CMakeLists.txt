@@ -7,6 +7,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+enable_testing()
+
 option(BC_BUILD_SERVER "Build the game server" ON)
 option(BC_BUILD_CLIENT "Build the game client (SDL2)" ON)
 

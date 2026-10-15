@@ -26,6 +26,8 @@
 #include "CServer.h"
 //  Default listening port for server application
 #define TCPPORT 9680
+//  Backlog (bytes) after which a client that is not reading is dropped
+#define MAX_OUT_QUEUE (4 * 1024 * 1024)
 #ifdef WIN32
 //  WS2tcpip.h requires socklen_t as integer
 #define socklen_t int
@@ -45,6 +47,10 @@ class CSocket {
 		void SendData(int i, unsigned char PacketID, char TheData[255], int len = -1);
 		void SendRaw(int i, char *TheData, int len);
 		int SendAll(int Socket, char *SendString, int SendLength);
+		/// <summary> Sends through the player's outgoing queue: never truncates or drops data when the socket is full </summary>
+		void QueueSend(int playerId, const char *data, int length);
+		/// <summary> Sends whatever is still queued for each connected player </summary>
+		void FlushQueues();
 		void ProcessData();
 		void ProcessBuffer(int i);
 		bool hasData(int sock);

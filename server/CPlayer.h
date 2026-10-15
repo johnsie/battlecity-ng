@@ -23,6 +23,7 @@
 #ifndef _CPLAYER
 #define _CPLAYER
 
+#include "COutQueue.h"
 #include "CServer.h"
 
 class CServer;
@@ -74,6 +75,7 @@ class CPlayer {
 		float timeUncloak;
 
 		int Socket;
+		COutQueue Out;               // data the socket could not take yet (slow client)
 		char Buffer[2048];
 		int BufferLength;
 

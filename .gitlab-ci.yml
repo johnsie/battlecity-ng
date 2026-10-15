@@ -16,6 +16,7 @@ build:server-linux:
     # server only: a client problem must never block a server deploy
     - cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBC_BUILD_CLIENT=OFF
     - cmake --build build -j"$(nproc)"
+    - ctest --test-dir build --output-on-failure
   artifacts:
     paths: [build/server/bc-server]
     expire_in: 1 week
