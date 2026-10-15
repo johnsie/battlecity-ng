@@ -89,7 +89,7 @@ static void RunScript() {
 				for (int dy = -1; dy <= 2; dy++) { for (int dx = -1; dx <= 1; dx++) printf("%d ", (int)g_game->Map->map[mx + dx][my + dy]); printf("| "); }
 				printf("\n");
 			}
-			printf("script: drawCalls/frame=%u fps=%d state=%d me=%d pos=%.0f,%.0f moving=%d turning=%d dead=%d frozen=%d dir=%d\n", g_game->DDraw->LastFrameDrawCalls, g_game->Engine->FPS, g_game->State, g_game->Winsock->MyIndex, (float)me->X, (float)me->Y, (int)me->isMoving, (int)me->isTurning, (int)me->isDead, (int)me->isFrozen, (int)me->Direction);
+			printf("script: sectorLoaded=%d drawCalls/frame=%u fps=%d state=%d me=%d pos=%.0f,%.0f moving=%d turning=%d dead=%d frozen=%d dir=%d\n", (int)g_game->InGame->HasSector[(int)me->X / 48 / SectorSize][(int)me->Y / 48 / SectorSize], g_game->DDraw->LastFrameDrawCalls, g_game->Engine->FPS, g_game->State, g_game->Winsock->MyIndex, (float)me->X, (float)me->Y, (int)me->isMoving, (int)me->isTurning, (int)me->isDead, (int)me->isFrozen, (int)me->Direction);
 		}
 		else if (cmd == "check") { int id; line >> id; if (dlg) CheckDlgButton(dlg, id, 1); }
 		else if (cmd == "key") {

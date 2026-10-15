@@ -1535,6 +1535,9 @@ void CProcess::ProcessAdmin(sSMAdmin *admin) {
  * @param TheData
  **************************************************************/
 void CProcess::ProcessSectorSent(sCMSector *sector) {
+	// Test hook: BC_TEST_IGNORE_SECTORSENT=<n> pretends the first n replies were lost
+	static int ignore = getenv("BC_TEST_IGNORE_SECTORSENT") ? atoi(getenv("BC_TEST_IGNORE_SECTORSENT")) : 0;
+	if (ignore > 0) { ignore--; return; }
 	this->p->InGame->HasSector[sector->x][sector->y] = 1;
 	this->p->InGame->RequestedSector[sector->x][sector->y] = false;
 }

@@ -42,6 +42,7 @@ class CInGame {
 
 		unsigned char HasSector[34][34];
 		bool RequestedSector[34][34];
+		float RequestedAt[34][34];            // when each sector was requested (ms), to re-request lost ones
 
 		float lastTick;
 		float updateTick;

@@ -79,6 +79,7 @@ CInGame::CInGame(CGame *game) {
 	}
 
 	memset(this->HasSector, 0, sizeof(this->HasSector));
+	memset(this->RequestedAt, 0, sizeof(this->RequestedAt));
 	memset(this->RequestedSector, 0, sizeof(this->RequestedSector));
 
 }
@@ -549,21 +550,30 @@ void CInGame::RefreshArea() {
 				((p->Player[me]->SectorY+j) <= MaxSectors)
 			) {
 
-				// If the player doesn't have the sector, and hasn't already requested it,
-				if (
-					(! this->HasSector[(p->Player[me]->SectorX+i)][(p->Player[me]->SectorY+j)])
-					&&
-					(! this->RequestedSector[(p->Player[me]->SectorX+i)][(p->Player[me]->SectorY+j)])
-				) {
+				// If the player doesn't have the sector, and hasn't requested it - or asked and never got a complete
+                // answer (a lost or damaged packet): ask again after a few seconds. Previously a sector was requested
+                // only once, ever, so one bad packet left the player stranded at the edge of the loaded area.
+                int sx = p->Player[me]->SectorX + i;
+                int sy = p->Player[me]->SectorY + j;
+                bool stale = this->RequestedSector[sx][sy] && (p->Tick - this->RequestedAt[sx][sy] > SECTOR_REQUEST_TIMEOUT);
+                if (
+                    (! this->HasSector[sx][sy])
+                    &&
+                    (! this->RequestedSector[sx][sy] || stale)
+                ) {
 
-					// Get the bounds of the sector
-					sector.x = p->Player[me]->SectorX + i;
-					sector.y = p->Player[me]->SectorY + j;
+                    // Get the bounds of the sector
+                    sector.x = sx;
+                    sector.y = sy;
 
-					ClearSector(sector.x, sector.y);
-					this->RequestedSector[sector.x][sector.y] = true;
-					p->Winsock->SendData(cmRequestSector, (char *)&sector, sizeof(sector));
-					requestedSector = true;
+                    if (stale) {
+                        p->Engine->logerror("Sector request timed out, asking again");
+                    }
+                    ClearSector(sector.x, sector.y);
+                    this->RequestedSector[sector.x][sector.y] = true;
+                    this->RequestedAt[sector.x][sector.y] = p->Tick;
+                    p->Winsock->SendData(cmRequestSector, (char *)&sector, sizeof(sector));
+                    requestedSector = true;
 				}
 			}
 		}

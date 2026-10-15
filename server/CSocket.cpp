@@ -360,7 +360,7 @@ void CSocket::ProcessBuffer(int playerId) {
             //  Buffer has more data to be processed; therefore,
             //  remove "processed" data by copying "unprocessed" data
             //  to the beginning of the variable
-            memcpy_s(player->Buffer, 2048, &player->Buffer[packetlength], player->BufferLength - packetlength);
+            memmove(player->Buffer, &player->Buffer[packetlength], player->BufferLength - packetlength);   // regions overlap
             player->BufferLength -= packetlength;
         }
         //

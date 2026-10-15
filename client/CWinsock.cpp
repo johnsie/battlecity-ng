@@ -226,7 +226,7 @@ void CWinsock::ProcessBuffer() {
 			this->BufferLength = 0;
 		}
 		else {
-			memcpy(this->Buffer, &this->Buffer[packetlength], this->BufferLength - packetlength);
+			memmove(this->Buffer, &this->Buffer[packetlength], this->BufferLength - packetlength);   // regions overlap
 			this->BufferLength -= packetlength;
 		}
 		
@@ -246,7 +246,15 @@ void CWinsock::ProcessBuffer() {
 				for (int k = 0; k < packetlength && k < 32; k++) printf(" %02x", (unsigned char)ValidPacket[k]);
 				printf("\n");
 			}
-			p->Engine->logerror("Packet Dropped TCP - Invalid Checksum");
+			// Report which packet failed (this text reaches the server log through cmCrash; keep it < 255 chars)
+			int unsignedSum = 3412;
+			for (int j = 0; j < (packetlength - 2); j++) unsignedSum += (unsigned char)ValidPacket[3 + j];
+			char detail[240];
+			int used = snprintf(detail, sizeof(detail), "Packet Dropped TCP - Invalid Checksum id=%d len=%d rx=%d calc=%d calcU=%d buf=%d hex:",
+			                    (unsigned char)ValidPacket[2], packetlength, checksum, checksum2, unsignedSum % 71, this->BufferLength);
+			for (int k = 0; k < packetlength && k < 24 && used < (int)sizeof(detail) - 4; k++)
+				used += snprintf(detail + used, sizeof(detail) - used, " %02x", (unsigned char)ValidPacket[k]);
+			p->Engine->logerror(detail);
 		}
 	}
 }

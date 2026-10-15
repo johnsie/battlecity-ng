@@ -21,6 +21,7 @@ static const int			MAX_CITIES = 64;
 static const int			MAX_HEALTH = 40;					// synchronized with server
 static const int			MAX_PLAYERS = 64;
 static const int			MAX_PLAYERS_PER_CITY = 4;
+static const float			SECTOR_REQUEST_TIMEOUT = 4000.0f;		// ms before an unanswered sector request is repeated
 static const float			MOVEMENT_SPEED_ADMIN = 1.0f;
 static const float			MOVEMENT_SPEED_FLARE = 0.10f;		// TO SYNCH
 static const float			MOVEMENT_SPEED_BULLET = 0.80f;		// synchronized with server
