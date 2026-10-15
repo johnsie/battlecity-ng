@@ -20,19 +20,19 @@ Done:
 - SDL2 client builds on Linux; web build exists (`ci/build-web.sh`, `web/`).
 - Several network fixes: send queue (`COutQueue`), receive drain and resync, sector re-request, fixed-width wire types.
 
-Done since the first draft:
-- **Windows server crash fixed.** Root cause: map start-up creates command centres with city `-1`, and `CBuildingList::newBuilding` called `City[-1]->addBuilding()`. On the Windows memory layout that was a `CPlayer`. All `City[]` accesses driven by a player, building or item city are now bounds-checked, as are player indices taken from packets. The reset trace is removed; the two null guard slots in `CServer.h` stay until the soak test (Workstream 1.7).
-- Topic branches are already merged into `windows-port`, which is now the integration branch (Workstream 0).
-- Audio exists on the SDL2 client (SDL mixer plus TinySoundFont).
-- GitHub Actions workflows added: `.github/workflows/build.yml` and `release.yml`. All jobs pass on `windows-port` (Linux build, sanitizers, Windows server, Windows client).
-- GitLab CI has a sanitizer job that gates the server deploy.
-- Remote tank movement: send on input change plus blend of small corrections (needs two-player testing).
+Done (2026-10-15 and 16):
+- **Windows server crash fixed.** Root cause: map start-up creates command centres with city `-1`, and `CBuildingList::newBuilding` called `City[-1]->addBuilding()`, which on the Windows memory layout was a `CPlayer`. All `City[]` accesses driven by a player, building or item city are now bounds-checked, and so are player indices taken from packets. The two null guard slots in `CServer.h` stay until a long soak (Workstream 1.7).
+- **Protocol fuzzer** (`tools/fuzz_server.py`, `ci/fuzz-test.sh`) found and fixed real bugs: remotely triggerable buffer overflows (unbounded `strcpy` of packet strings, `SendData` reading past its buffer), unvalidated building types and player indices, and **SQL injection** in the account and ban queries (client strings are now escaped). In-game packets from players who are not in a game are ignored. The fuzz test runs under AddressSanitizer and UBSan in both CI systems.
+- **Remote tank smoothness:** `TCP_NODELAY` on both ends, positions carried forward by the one-way delay, 250 ms blend of corrections (chosen with `tools/smoothing_sim.py`: snapping gave visible jumps of 40 to 70 units, the blend about 5), and an immediate update when input changes. `ci/relay-test.sh` (two bots) checks that updates reach the other player at a steady 150 ms rhythm. **Not yet confirmed with two real players.**
+- Topic branches merged into `windows-port` (the integration branch); audio exists on the SDL2 client; docs: `docs/TECHNICAL.md`, `docs/protocol.md`, `deploy/windows/`.
+- CI: all jobs pass on `windows-port` (Linux build and tests, sanitizers plus fuzz plus relay, Windows server, Windows client). `v0.1.0-rc1` was published as a GitHub pre-release with both clients and both servers. The Windows server also passes the smoke, fuzz and relay tests on a real Windows machine.
 
 Known open problems:
-- Default branch: GitLab's is `main`, CI matches `master`.
-- Windows client builds and passes the headless smoke test (MSYS2/MinGW), verified on the Windows test machine and in CI. Windows server builds in CI (MSVC) and also under MinGW; it starts and shuts down cleanly.
-- Client packages ship `options.ini` whose default address is the live server (Workstream 3.4).
-- No automated gameplay or protocol test yet (Workstream 2.3).
+- Default branch: GitLab's is `main`, CI matches `master`. Nothing has been merged to `master`, so GitLab has not run these changes (merging deploys production).
+- The Windows server is built with MSVC in CI but has only been run (smoke, fuzz, relay) from a MinGW build; the MSVC `.exe` itself is untested.
+- Dropped connections still show a message and close the window; there is no automatic reconnect (Workstream 3.3).
+- Client packages ship `options.ini` pointing at the live server by default (`BC_SERVER` overrides it).
+- No 24 hour soak yet, no gameplay-level bot beyond join and drive, web client not re-tested after the movement changes.
 
 ## 2. Workstreams
 
