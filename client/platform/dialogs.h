@@ -12,6 +12,72 @@
 #include "compat.h"
 #include <functional>
 
+#ifdef _WIN32
+	// <windows.h> (pulled in by winsock/SDL) declares the real versions of everything this layer emulates.
+	// Give ours different names; the macros redirect the game's calls to them.
+	#undef SendMessage
+	#undef PostMessage
+	#undef DialogBox
+	#undef GetDlgItemText
+	#undef SetDlgItemText
+	#undef SendDlgItemMessage
+	#undef SetWindowLong
+	#undef CallWindowProc
+	#undef MAKEINTRESOURCE
+	#undef MAKELONG
+	#undef LOWORD
+	#undef HIWORD
+	#undef GWL_WNDPROC
+	#define INT_PTR BCINT_PTR
+	#define DLGPROC BCDLGPROC
+	#define WNDPROC BCWNDPROC
+	#define SCROLLINFO BCSCROLLINFO
+	#define EndDialog BCEndDialog
+	#define GetDlgItem BCGetDlgItem
+	#define GetDlgItemTextA BCGetDlgItemText
+	#define SetDlgItemTextA BCSetDlgItemText
+	#define GetDlgItemInt BCGetDlgItemInt
+	#define SetDlgItemInt BCSetDlgItemInt
+	#define CheckDlgButton BCCheckDlgButton
+	#define IsDlgButtonChecked BCIsDlgButtonChecked
+	#define SendDlgItemMessageA BCSendDlgItemMessage
+	#define GetScrollInfo BCGetScrollInfo
+	#define GetDlgItemText BCGetDlgItemText
+	#define SetDlgItemText BCSetDlgItemText
+	#define SendDlgItemMessage BCSendDlgItemMessage
+	// message/notification constants are macros in windows.h too: drop theirs, ours follow
+	#undef WM_PAINT
+	#undef WM_CLOSE
+	#undef WM_CHAR
+	#undef WM_INITDIALOG
+	#undef WM_COMMAND
+	#undef WM_VSCROLL
+	#undef WM_LBUTTONDBLCLK
+	#undef BM_GETCHECK
+	#undef BM_SETCHECK
+	#undef EM_LIMITTEXT
+	#undef CB_ADDSTRING
+	#undef CB_GETCURSEL
+	#undef CB_GETLBTEXT
+	#undef CB_SETCURSEL
+	#undef LB_ADDSTRING
+	#undef LB_RESETCONTENT
+	#undef LB_SETCURSEL
+	#undef LB_GETCURSEL
+	#undef LB_GETTEXT
+	#undef LB_GETCOUNT
+	#undef LB_ERR
+	#undef BN_CLICKED
+	#undef CBN_SELCHANGE
+	#undef LBN_DBLCLK
+	#undef BST_UNCHECKED
+	#undef BST_CHECKED
+	#undef SB_VERT
+	#undef SB_THUMBTRACK
+	#undef SIF_ALL
+	#undef IDOK
+	#undef IDCANCEL
+#endif
 typedef intptr_t INT_PTR;
 typedef int (CALLBACK *DLGPROC)(HWND, UINT, WPARAM, LPARAM);
 typedef DLGPROC WNDPROC;
