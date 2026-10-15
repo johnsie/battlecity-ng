@@ -1,0 +1,20 @@
+[Unit]
+Description=Battle City browser gateway (WebSocket to game server TCP)
+After=network.target battlecity.service
+
+[Service]
+Type=simple
+User=battlecity
+Group=battlecity
+# Only Apache (same host) talks to this; it is not exposed externally
+ExecStart=/usr/bin/websockify 127.0.0.1:9681 127.0.0.1:9680
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
