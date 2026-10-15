@@ -29,10 +29,11 @@ class CGame;
 
 /// <summary> A decoded sound effect (opaque to callers). </summary>
 struct BCSample;
+struct BCAudio;
 
 /// <summary>
-/// Audio. Sound effects are played by name through PlayWav / Play3dSound.
-/// NOTE: the backend is currently silent (no-op) while the SDL mixer is being written.
+/// Audio: sound effects mixed by a small SDL-driven mixer, MIDI music rendered with TinySoundFont.
+/// Everything runs from one SDL audio callback, so it behaves the same on Linux, Windows and in the browser.
 /// </summary>
 class CSound
 {
@@ -43,20 +44,27 @@ public:
 	BCSample *s_tanklaser, *s_fire, *s_engine, *s_build, *s_die, *s_eXplode, *s_turret, *s_buzz, *s_click, *s_bigturret, *s_demolish, *s_screech, *s_hit, *s_cloak, *s_flare;
 
 	void Init();
-	void PlayWav(int Index, int channel); //0-14 valid (15)
-	void PlaYMID(int Index);
-	void StopWav(int Index);
+	/// <summary> Plays a sound effect by index (0-14). channel -1 = any free channel; otherwise a fixed channel
+	/// (a new sound on a fixed channel cuts the previous one, as with FMOD). </summary>
+	void PlayWav(int Index, int channel);
+	void PlaYMID(int Index);               // 0-6
+	void StopWav(int Index);               // stops a fixed channel
 	void StopMID(int all, int Index);
 
+	/// <summary> Positional sound: volume 0-255; x/y are world coordinates, attenuated and panned
+	/// relative to the local player. </summary>
 	void Play3dSound(BCSample *sound, int volume, float x, float y);
 
-	void Update();      // once per frame
+	void Update();      // once per frame: starts the next song when one ends
 	void Shutdown();
 
 	int MIDIndex;
 	int musicCycle();
 private:
 	CGame *p;
+	BCAudio *audio;
+	BCSample *LoadSample(const char *file, bool loop);
+	void Play(BCSample *sample, int channel, float left, float right);
 protected:
 
 };

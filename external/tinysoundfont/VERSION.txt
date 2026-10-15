@@ -1,0 +1,2 @@
+TinySoundFont (tsf.h) and TinyMidiLoader (tml.h) by Bernhard Schelling - https://github.com/schellingb/TinySoundFont
+MIT License (see the headers). Vendored unmodified from the master branch on 2026-10-15.

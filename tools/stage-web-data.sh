@@ -8,7 +8,7 @@ OUT=$1
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cd "$ROOT/data"
-cp img*.bmp map.dat options.ini Vera.ttf cloak.wav flare.wav "$OUT/"
+cp img*.bmp map.dat options.ini Vera.ttf cloak.wav flare.wav TimGM6mb.sf2 "$OUT/"
 mkdir -p "$OUT/wav" "$OUT/midi"
 cp wav/*.wav "$OUT/wav/"
 cp midi/*.mid "$OUT/midi/"
