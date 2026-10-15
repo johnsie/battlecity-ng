@@ -372,6 +372,7 @@ void CServer::reset() {
 	// Rebuild each possible player
 	cout << " - Rebuilding players" << endl;
 	for (int i = 0; i < MAX_PLAYERS; i++) {
+		cout << "   (clearing player " << i << " at " << (void *)this->Player[i] << ", sizeof(CPlayer)=" << sizeof(CPlayer) << ")" << endl;
 		this->Player[i]->Clear(false);
 	}
 
