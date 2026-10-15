@@ -598,13 +598,23 @@ void CProcess::ProcessUpdate(sCMUpdate *data, int Index) {
         return;
     }
 
-    // If the player is within 300 x and 300 y of the update position, and the Movement timer is up,
+    // A tank can only have travelled as far as its speed allows since the last accepted update. Allow 50% slack
+    // plus a fixed margin for timing jitter. Judging by speed and elapsed time (not a fixed 300 units) means a
+    // legitimate player recovering from a lag spike is not warped back, while a speed hack still is.
+    float elapsed = p->Tick - player->lastMove;
+    if (elapsed < 0) {
+        elapsed = 0;
+    }
+    if (elapsed > 5000) {
+        elapsed = 5000;
+    }
+    float maxDistance = elapsed * (player->isAdmin() ? 1.0f : MOVEMENT_SPEED_PLAYER) * 1.5f + 100.0f;
+
+    // If the update position is a believable distance from the last one,
     if (
-        (abs(int(data->x - player->X)) < 300)
+        (fabsf(data->x - player->X) <= maxDistance)
         &&
-        (abs(int(data->y - player->Y)) < 300)
-        &&
-        ((player->lastMove + 3000) > p->Tick)
+        (fabsf(data->y - player->Y) <= maxDistance)
         ) {
 
         // Reset the Movement timer

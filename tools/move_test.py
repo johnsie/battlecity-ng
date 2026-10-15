@@ -10,7 +10,7 @@ Usage: tools/move_test.py <host> <port> [seconds]
 import socket, struct, sys, time, statistics
 
 CM_VERSION, CM_LOGIN, CM_NEWACCOUNT, CM_SETSTATE, CM_JOBAPP, CM_HIREACCEPT, CM_NEXTSTEP, CM_UPDATE = 1, 2, 3, 5, 6, 8, 21, 28
-SM_STATEGAME, SM_MAYORHIRE, SM_UPDATE = 8, 9, 46
+SM_STATEGAME, SM_MAYORHIRE, SM_UPDATE, SM_WARP = 8, 9, 46, 39
 VERSION = b"3.5.8"
 
 
@@ -34,6 +34,7 @@ class Bot:
         self.x = self.y = None
         self.updates = []        # (arrival time, x, y) of smUpdate packets
         self.hire = False
+        self.warped = False
 
     def send(self, pid, data=b""):
         self.s.sendall(frame(pid, data))
@@ -55,6 +56,8 @@ class Bot:
             self.buf = self.buf[n:]
             if pid == SM_STATEGAME and len(data) >= 4:
                 self.x, self.y = struct.unpack("<HH", data[:4])
+            elif pid == SM_WARP:
+                self.warped = True
             elif pid == SM_MAYORHIRE:
                 self.hire = True
             elif pid == SM_UPDATE and len(data) >= 7:
@@ -119,6 +122,12 @@ def main():
     gaps = [(mine[i][0] - mine[i - 1][0]) * 1000 for i in range(1, len(mine))]
     print(f"updates seen by B: {len(mine)}  interval ms: mean {statistics.mean(gaps):.1f}  stdev {statistics.pstdev(gaps):.1f}  "
           f"min {min(gaps):.1f}  max {max(gaps):.1f}  p95 {sorted(gaps)[int(len(gaps) * 0.95)]:.1f}")
+    # a speed hack (a jump far beyond what a tank can drive) must be refused and the player warped back
+    a.warped = False
+    a.send(CM_UPDATE, struct.pack("<HHBBB", int(x) + 2500, int(y), 1, 1, 8))
+    if not a.wait(lambda: a.warped, timeout=2):
+        raise SystemExit("FAIL: a 2500 unit jump was accepted")
+    print("OK: impossible jump was refused")
     if statistics.pstdev(gaps) > 25 or max(gaps) > 400:
         raise SystemExit("FAIL: updates reach the other player unevenly")
     print("OK: updates arrive steadily")
