@@ -67,7 +67,7 @@ void CPlayer::setMayor(bool isMayor, bool requireInGame) {
 	this->Mayor = isMayor;
 
 	// If requireInGame is false, or player is in game, 
-	if ((!requireInGame) || this->isInGame()) {
+	if (((!requireInGame) || this->isInGame()) && CCity::isValidCityIndex(this->City)) {
 		city = this->p->City[this->City];
 	
 		// If the player is being set mayor
@@ -300,7 +300,13 @@ bool CPlayer::isInGameApplyOrChat() {
 void CPlayer::JoinGame() {
 	sSMStateGame stategame;
 	sSMJoinData join;
-	CCity* city = this->p->City[this->City];
+	CCity* city;
+
+	// A player who is not in a city cannot join the game
+	if (!CCity::isValidCityIndex(this->City)) {
+		return;
+	}
+	city = this->p->City[this->City];
 
 	stategame.City = this->City;
 	stategame.x = city->x;
@@ -354,7 +360,7 @@ void CPlayer::LeaveGame(bool showMessage) {
 void CPlayer::LeaveGame(bool showMessage, bool transferMayor) {
 	char packet[2];
 	bool foundSuccessor = false;
-	CCity* city = this->p->City[this->City];
+	CCity* city = CCity::isValidCityIndex(this->City) ? this->p->City[this->City] : NULL;
 	CPlayer* playerSuccessor;
 
 	// Delete the items the player is holding
@@ -366,7 +372,7 @@ void CPlayer::LeaveGame(bool showMessage, bool transferMayor) {
 	if (transferMayor) {
 
 		// If the player is mayor,
-		if (this->Mayor && (city->Mayor==this->id)) {
+		if (city && this->Mayor && (city->Mayor==this->id)) {
 
 			// If there is a successor,
 			if (city->Successor > -1) {

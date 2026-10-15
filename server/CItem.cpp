@@ -134,7 +134,7 @@ void CItem::drop(int x, int y, int owner) {
 					if ((CalcY == 2) && (CalcX >= 0) && (CalcX <= 2)) {
 
 						// If the city is orbable,
-						if (p->City[i]->isOrbable()) {
+						if (p->City[i]->isOrbable() && CCity::isValidCityIndex(p->Player[owner]->City)) {
 
 							// Make this item belong to the owner's city, in case of admin hijinx
 							this->City = p->Player[owner]->City;
@@ -267,7 +267,9 @@ CItem *CItemList::newItem(int x, int y, int type, int City, unsigned short id) {
 	this->itemListHead = itm;
 
 	// Increment the city's item counter for this item
-	p->City[City]->itemC[type] += 1;
+	if (CCity::isValidCityIndex(City)) {
+		p->City[City]->itemC[type] += 1;
+	}
 
 	// Return a pointer to the new item
 	return itm;
@@ -283,7 +285,9 @@ CItem *CItemList::delItem(CItem *del) {
 	packet.id = del->id;
 
 	// Decrement the city's counter for this item  type
-	p->City[del->City]->itemC[del->type] -= 1;
+	if (CCity::isValidCityIndex(del->City)) {
+		p->City[del->City]->itemC[del->type] -= 1;
+	}
 
 	// If the item is not being held, tell the sector it is gone
 	if (del->holder == -1) {

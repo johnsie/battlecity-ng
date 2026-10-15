@@ -256,7 +256,10 @@ CBuilding *CBuildingList::newBuilding(int x, int y, int type, int City, unsigned
 	this->buildingListHead = bld;
 
 	// Tell the city to add a building
-	this->p->City[City]->addBuilding(bld->type);
+	// (map command centres start with City -1: they belong to no city yet)
+	if (CCity::isValidCityIndex(City)) {
+		this->p->City[City]->addBuilding(bld->type);
+	}
 
 	// Return a pointer to the new building
 	return bld;
@@ -326,7 +329,9 @@ CBuilding *CBuildingList::delBuilding(CBuilding *buildingToDelete) {
 
 	// Building: ALL
 	// Tell the city it can now build this building type MINUS ONE (setCanBuild does its own index++)
-	this->p->City[buildingToDelete->City]->setCanBuild(buildingToDelete->type-1, 1, true);
+	if (CCity::isValidCityIndex(buildingToDelete->City)) {
+		this->p->City[buildingToDelete->City]->setCanBuild(buildingToDelete->type-1, 1, true);
+	}
 
 
 	/************************************************
@@ -460,7 +465,9 @@ CBuilding *CBuildingList::remBuilding(CBuilding *del) {
 	}
 	
 	// Tell the city it is subtracting a building
-	this->p->City[del->City]->subtractBuilding(del->type);
+	if (CCity::isValidCityIndex(del->City)) {
+		this->p->City[del->City]->subtractBuilding(del->type);
+	}
 
 	// Delete the building
 	delete del;
@@ -590,7 +597,7 @@ void CBuildingList::cycle() {
 		 * Money timer
 		 ************************************************/
 		// If the money timer is up,
-		if (this->p->Tick > bld->MoneyTick) {
+		if (this->p->Tick > bld->MoneyTick && CCity::isValidCityIndex(bld->City)) {
 
 			// Reset the money timer,
 			bld->MoneyTick = p->Tick + 7000;

@@ -124,7 +124,7 @@ void CProcess::ProcessData(char *TheData, int playerId) {
         case cmComms:
 
             // If the player is hiring,
-            if (this->p->City[this->p->Player[playerId]->City]->hiring > -1) {
+            if (this->p->Player[playerId]->City >= 0 && this->p->City[this->p->Player[playerId]->City]->hiring > -1) {
                 TheData[0] = playerId;
                 this->p->Winsock->SendData(this->p->City[this->p->Player[playerId]->City]->hiring, smComms, TheData, (int)strlen(&TheData[1]) + 1);
             }
@@ -134,8 +134,8 @@ void CProcess::ProcessData(char *TheData, int playerId) {
         case cmFired:
 
             // If the player is the one getting fired, leave
-            if ( (this->p->Player[playerId]->Mayor == 1) && (this->p->Player[playerId]->City == this->p->Player[TheData[1]]->City) ) {
-                this->p->Player[TheData[1]]->LeaveGame(true);
+            if ( (unsigned char)TheData[1] < MAX_PLAYERS && (this->p->Player[playerId]->Mayor == 1) && (this->p->Player[playerId]->City == this->p->Player[(unsigned char)TheData[1]]->City) ) {
+                this->p->Player[(unsigned char)TheData[1]]->LeaveGame(true);
                 this->p->Winsock->SendData(TheData[1], smFired, " ");
             }
             break;
@@ -248,15 +248,15 @@ void CProcess::ProcessData(char *TheData, int playerId) {
         case cmSetMayor:
 
             // If the player is in game, in the city, and mayor,
-            if ( (this->p->Player[TheData[1]]->isInGame())
+            if ( ((unsigned char)TheData[1] < MAX_PLAYERS) && (this->p->Player[(unsigned char)TheData[1]]->isInGame())
                 &&
-                (this->p->Player[TheData[1]]->City == this->p->Player[playerId]->City)
+                (this->p->Player[(unsigned char)TheData[1]]->City == this->p->Player[playerId]->City)
                 &&
                 (this->p->Player[playerId]->Mayor)
                 ) {
 
                 // Un-mayor this player and mayor the other guy
-                this->p->Player[TheData[1]]->setMayor(true);
+                this->p->Player[(unsigned char)TheData[1]]->setMayor(true);
                 this->p->Player[playerId]->setMayor(false);
             }
             break;
@@ -329,7 +329,13 @@ void CProcess::ProcessBuild(char *TheData, int Index) {
     sSMBuild bd;
     bool allowBuild;
     CPlayer* player = this->p->Player[Index];
-    CCity* city = this->p->City[player->City];
+    CCity* city;
+
+    // A player who is not in a city cannot build
+    if (!CCity::isValidCityIndex(player->City)) {
+        return;
+    }
+    city = this->p->City[player->City];
 
     // If the player is not an admin, verify that the build request is valid
     if (player->isAdmin() == false ) { 
@@ -494,8 +500,13 @@ void CProcess::ProcessCancelJob(char *TheData, int Index) {
  **************************************************************/
 void CProcess::ProcessAccept(char *TheData, int Index) {
     CPlayer* player = this->p->Player[Index];
-    CCity* city = this->p->City[player->City];
+    CCity* city;
     CPlayer* applicant;
+
+    if (!CCity::isValidCityIndex(player->City)) {
+        return;
+    }
+    city = this->p->City[player->City];
 
     // If the player is mayor,
     if (player->Mayor) {
@@ -527,7 +538,12 @@ void CProcess::ProcessAccept(char *TheData, int Index) {
  **************************************************************/
 void CProcess::ProcessDeny(int Index) {
     CPlayer* player = this->p->Player[Index];
-    CCity* city = this->p->City[player->City];
+    CCity* city;
+
+    if (!CCity::isValidCityIndex(player->City)) {
+        return;
+    }
+    city = this->p->City[player->City];
 
     // If the player is mayor,
     if (player->Mayor) {
@@ -1159,7 +1175,12 @@ void CProcess::ProcessNextStep(char TheStep, int Index) {
  **************************************************************/
 void CProcess::ProcessSuccessor(char successorIndex, int Index) {
     CPlayer* player = this->p->Player[Index];
-    CPlayer* successor = this->p->Player[successorIndex];
+    CPlayer* successor;
+
+    if ((unsigned char)successorIndex >= MAX_PLAYERS) {
+        return;
+    }
+    successor = this->p->Player[(unsigned char)successorIndex];
 
     // If the player is not mayor, return
     if (! player->Mayor) {
@@ -1177,6 +1198,9 @@ void CProcess::ProcessSuccessor(char successorIndex, int Index) {
     }
 
     // Set the successor
+    if (!CCity::isValidCityIndex(player->City)) {
+        return;
+    }
     this->p->City[player->City]->Successor = successorIndex;
 }
 
@@ -1688,8 +1712,13 @@ void CProcess::ProcessRequestInfo(int Index) {
  * @param Index
  **************************************************************/
 void CProcess::ProcessRightClickCity(int cityIndex, int Index) {
-    CCity* city = this->p->City[cityIndex];
+    CCity* city;
     sSMRightClickCity response;
+
+    if (!CCity::isValidCityIndex(cityIndex)) {
+        return;
+    }
+    city = this->p->City[cityIndex];
 
     // Send the city's building count and orb points
     response.BuildingCount = city->currentBuildingCount;
@@ -2078,8 +2107,13 @@ void CProcess::ProcessChangeTank(int Index, int tankIndex) {
 void CProcess::ProcessAutoBuild(int Index, sCMAutoBuild *request) {
     sSMAutoBuild response;
     CPlayer *player = this->p->Player[Index];
-    CCity *city = this->p->City[player->City];
+    CCity *city;
     bool isAllowed = true;
+
+    if (!CCity::isValidCityIndex(player->City)) {
+        return;
+    }
+    city = this->p->City[player->City];
 
     // If the player is not an admin,
     if (player->isAdmin() == false) {
