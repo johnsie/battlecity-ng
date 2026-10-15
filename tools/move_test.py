@@ -119,6 +119,9 @@ def main():
     gaps = [(mine[i][0] - mine[i - 1][0]) * 1000 for i in range(1, len(mine))]
     print(f"updates seen by B: {len(mine)}  interval ms: mean {statistics.mean(gaps):.1f}  stdev {statistics.pstdev(gaps):.1f}  "
           f"min {min(gaps):.1f}  max {max(gaps):.1f}  p95 {sorted(gaps)[int(len(gaps) * 0.95)]:.1f}")
+    if statistics.pstdev(gaps) > 25 or max(gaps) > 400:
+        raise SystemExit("FAIL: updates reach the other player unevenly")
+    print("OK: updates arrive steadily")
 
 
 if __name__ == "__main__":

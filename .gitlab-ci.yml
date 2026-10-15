@@ -51,6 +51,7 @@ test:server-sanitizers:
     - cmake --build build-asan -j"$(nproc)"
     - ci/smoke-test.sh build-asan/server/bc-server data/map.dat
     - ci/fuzz-test.sh build-asan/server/bc-server data/map.dat
+    - ci/relay-test.sh build-asan/server/bc-server data/map.dat
 
 package:server-linux:
   stage: package

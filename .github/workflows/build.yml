@@ -46,6 +46,8 @@ jobs:
         run: ci/smoke-test.sh build-asan/server/bc-server data/map.dat
       - name: Fuzz the protocol
         run: ci/fuzz-test.sh build-asan/server/bc-server data/map.dat
+      - name: Movement relay test
+        run: ci/relay-test.sh build-asan/server/bc-server data/map.dat
 
   windows-server:
     runs-on: windows-latest
