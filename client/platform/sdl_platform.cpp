@@ -188,6 +188,29 @@ char *BCStrlwr(char *s) {
 // ---------------------------------------------------------------------------------------------
 #include "input_compat.h"
 
+static SDL_Window *g_mouseWindow = NULL;
+static int g_mouseRefW = 0, g_mouseRefH = 0;
+
+void BCSetMouseReference(void *sdlWindow, int createdWidth, int createdHeight) {
+	g_mouseWindow = (SDL_Window *)sdlWindow;
+	g_mouseRefW = createdWidth;
+	g_mouseRefH = createdHeight;
+}
+
+void BCFixMouse(int *x, int *y) {
+#ifdef __EMSCRIPTEN__
+	if (!g_mouseWindow || g_mouseRefW <= 0 || g_mouseRefH <= 0) return;
+	int w = 0, h = 0;
+	SDL_GetWindowSize(g_mouseWindow, &w, &h);
+	if (w > 0 && h > 0) {
+		*x = (int)((double)*x * w / g_mouseRefW + 0.5);
+		*y = (int)((double)*y * h / g_mouseRefH + 0.5);
+	}
+#else
+	(void)x; (void)y;
+#endif
+}
+
 static bool g_testKeys[256];
 void BCTestSetKey(int dik, bool down) { if (dik >= 0 && dik < 256) g_testKeys[dik] = down; }
 
@@ -210,6 +233,7 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 	for (int i = 0; i < 256; i++) if (g_testKeys[i]) keyboard[i] = (char)0x80;
 	int x = 0, y = 0;
 	Uint32 buttons = SDL_GetMouseState(&x, &y);
+	BCFixMouse(&x, &y);
 	memset(mouse, 0, sizeof(*mouse));
 	if (buttons & SDL_BUTTON(SDL_BUTTON_LEFT))  mouse->rgbButtons[0] = 0x80;
 	if (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) mouse->rgbButtons[1] = 0x80;

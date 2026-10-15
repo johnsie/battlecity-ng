@@ -33,6 +33,12 @@ struct DIMOUSESTATE {
 };
 
 // Fills buffer[256] (bit 7 = pressed) and the mouse state (position in window pixels).
+// In the browser SDL scales mouse coordinates by the size the window was CREATED with, not its current size
+// (the canvas follows the page layout), so every click lands off target. These convert SDL's coordinates to
+// the current window's coordinate space. No-ops on desktop platforms.
+void BCSetMouseReference(void *sdlWindow, int createdWidth, int createdHeight);
+void BCFixMouse(int *x, int *y);
+
 // Test hook: force a key to read as pressed/released regardless of the real keyboard
 void BCTestSetKey(int dik, bool down);
 

@@ -110,6 +110,8 @@ static void HandleEvent(const SDL_Event &e) {
 	if (e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) printf("mouse button %d type %d at %d,%d (dialog active: %d)\n", e.button.button, e.type, e.button.x, e.button.y, BCDialogsActive());
 	else if (e.type == SDL_MOUSEMOTION) { static int n = 0; if (++n % 10 == 1) printf("mouse move %d,%d\n", e.motion.x, e.motion.y); }
 	else if (e.type == SDL_WINDOWEVENT) printf("window event %d\n", e.window.event);
+	else if (e.type == SDL_TEXTINPUT) printf("text input '%s' (dialog active: %d)\n", e.text.text, BCDialogsActive());
+	else if (e.type == SDL_KEYDOWN) printf("key down sym=%d (dialog active: %d)\n", (int)e.key.keysym.sym, BCDialogsActive());
 #endif
 	BCDialogsProcessEvent(&e);
 	bool dialog = BCDialogsActive();
@@ -207,6 +209,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	g_sdlWindow = window;
+	BCSetMouseReference(window, windowW, windowH);
 	SDL_StartTextInput();
 
 	game.Init((HWND)window, NULL);

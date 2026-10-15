@@ -4,6 +4,7 @@
  */
 #include "dialogs.h"
 #include "dialogs_defs.h"
+#include "input_compat.h"
 #include <SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -384,7 +385,7 @@ void BCMessageBoxAsync(const char *text, const char *title, unsigned int flags, 
 		if (done) done(r);
 		return;
 	}
-	g_messages.push_back({ title ? title : "", text ? text : "", (flags & MB_YESNO) != 0, done, false });
+	g_messages.push_back({ (title && *title) ? title : "BattleCity", text ? text : "", (flags & MB_YESNO) != 0, done, false });
 }
 
 int BCMessageBox(HWND, const char *text, const char *title, unsigned int flags) {
@@ -403,10 +404,17 @@ void BCDialogsProcessEvent(const void *sdlEvent) {
 	const SDL_Event &e = *(const SDL_Event *)sdlEvent;
 	ImGuiIO &io = ImGui::GetIO();
 	switch (e.type) {
-		case SDL_MOUSEMOTION: io.AddMousePosEvent(e.motion.x * g_mouseScaleX, e.motion.y * g_mouseScaleY); break;
+		case SDL_MOUSEMOTION: {
+			int mx = e.motion.x, my = e.motion.y;
+			BCFixMouse(&mx, &my);
+			io.AddMousePosEvent(mx * g_mouseScaleX, my * g_mouseScaleY);
+			break;
+		}
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP: {
-			io.AddMousePosEvent(e.button.x * g_mouseScaleX, e.button.y * g_mouseScaleY);
+			int bx = e.button.x, by = e.button.y;
+			BCFixMouse(&bx, &by);
+			io.AddMousePosEvent(bx * g_mouseScaleX, by * g_mouseScaleY);
 			// Let the SDL backend track button state and mouse source (mouse vs touch emulation).
 			// Some browser SDL events have no registered window ID, so retain the direct
 			// fallback for those events after giving the backend a chance to handle them.
@@ -617,8 +625,8 @@ void BCDialogsRender() {
 			int ww = 0, wh = 0; SDL_GetWindowSize(g_window, &ww, &wh);
 			int ow = 0, oh = 0; SDL_GetRendererOutputSize(g_renderer, &ow, &oh);
 			ImGuiIO &dio = ImGui::GetIO();
-			printf("imgui: display %.0fx%.0f logical %dx%d window %dx%d output %dx%d mouse %.0f,%.0f down=%d wantCapture=%d\n",
-			       dio.DisplaySize.x, dio.DisplaySize.y, lw, lh, ww, wh, ow, oh, dio.MousePos.x, dio.MousePos.y, (int)dio.MouseDown[0], (int)dio.WantCaptureMouse);
+			printf("imgui: display %.0fx%.0f logical %dx%d window %dx%d output %dx%d mouse %.0f,%.0f down=%d wantCapture=%d wantText=%d textActive=%d anyActive=%d\n",
+			       dio.DisplaySize.x, dio.DisplaySize.y, lw, lh, ww, wh, ow, oh, dio.MousePos.x, dio.MousePos.y, (int)dio.MouseDown[0], (int)dio.WantCaptureMouse, (int)dio.WantTextInput, (int)SDL_IsTextInputActive(), (int)ImGui::IsAnyItemActive());
 		}
 	}
 #endif
