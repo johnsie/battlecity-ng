@@ -24,13 +24,13 @@ Done since the first draft:
 - **Windows server crash fixed.** Root cause: map start-up creates command centres with city `-1`, and `CBuildingList::newBuilding` called `City[-1]->addBuilding()`. On the Windows memory layout that was a `CPlayer`. All `City[]` accesses driven by a player, building or item city are now bounds-checked, as are player indices taken from packets. The reset trace is removed; the two null guard slots in `CServer.h` stay until the soak test (Workstream 1.7).
 - Topic branches are already merged into `windows-port`, which is now the integration branch (Workstream 0).
 - Audio exists on the SDL2 client (SDL mixer plus TinySoundFont).
-- GitHub Actions workflows added: `.github/workflows/build.yml` and `release.yml`. **Not yet run**: the Windows jobs (MSVC server, MSYS2 client) are untested.
+- GitHub Actions workflows added: `.github/workflows/build.yml` and `release.yml`. All jobs pass on `windows-port` (Linux build, sanitizers, Windows server, Windows client).
 - GitLab CI has a sanitizer job that gates the server deploy.
 - Remote tank movement: send on input change plus blend of small corrections (needs two-player testing).
 
 Known open problems:
 - Default branch: GitLab's is `main`, CI matches `master`.
-- Windows client has never been built from CMake; it is expected to need fixes on its first CI run.
+- Windows client builds and passes the headless smoke test (MSYS2/MinGW), verified on the Windows test machine and in CI. Windows server builds in CI (MSVC) and also under MinGW; it starts and shuts down cleanly.
 - Client packages ship `options.ini` whose default address is the live server (Workstream 3.4).
 - No automated gameplay or protocol test yet (Workstream 2.3).
 
