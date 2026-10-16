@@ -591,6 +591,7 @@ void CProcess::ProcessDeny(int Index) {
 void CProcess::ProcessUpdate(sCMUpdate *data, int Index) {
     sSMUpdate update;
     sSMStateGame game;
+    memset(&update, 0, sizeof(update));   // the struct has a padding byte after id that goes on the wire: do not leak stack contents
     CPlayer* player = this->p->Player[Index];
 
     // If the player is dead, return

@@ -52,6 +52,7 @@ test:server-sanitizers:
     - ci/smoke-test.sh build-asan/server/bc-server data/map.dat
     - ci/fuzz-test.sh build-asan/server/bc-server data/map.dat
     - ci/relay-test.sh build-asan/server/bc-server data/map.dat
+    - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 
 package:server-linux:
   stage: package

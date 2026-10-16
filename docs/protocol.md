@@ -15,7 +15,7 @@ Every packet, in either direction:
 | 2 | packet id (`sm*` from the server, `cm*` from the client) |
 | 3... | payload: a packed struct of fixed size, or a zero-terminated string |
 
-A receiver reads one length byte, waits until the whole packet has arrived, verifies the checksum and drops the packet on mismatch. Payloads are zero-padded on receipt, so a short packet reads as zeros. Integers are little-endian; structs use the widths in the header (`uint32_t`, `unsigned short`, ...), never `long`.
+A receiver reads one length byte, waits until the whole packet has arrived, verifies the checksum and drops the packet on mismatch. Not every struct is packed: `sSMUpdate` has one padding byte after `id` (so `x` starts at payload offset 2). Payloads are zero-padded on receipt, so a short packet reads as zeros. Integers are little-endian; structs use the widths in the header (`uint32_t`, `unsigned short`, ...), never `long`.
 
 ## Rules the server enforces
 

@@ -32,6 +32,7 @@ class Bot:
         self.buf = b""
         self.name = name
         self.x = self.y = None
+        self.last_by_id = {}     # newest smUpdate position per player id
         self.updates = []        # (arrival time, x, y) of smUpdate packets
         self.hire = False
         self.warped = False
@@ -60,9 +61,11 @@ class Bot:
                 self.warped = True
             elif pid == SM_MAYORHIRE:
                 self.hire = True
-            elif pid == SM_UPDATE and len(data) >= 7:
-                _id, x, y = struct.unpack("<BHH", data[:5])
+            elif pid == SM_UPDATE and len(data) >= 8:
+                # sSMUpdate is not packed: one padding byte follows the id
+                _id, x, y = struct.unpack("<BxHH", data[:6])
                 self.updates.append((now, x, y))
+                self.last_by_id[_id] = (x, y)
 
     def wait(self, cond, timeout=5):
         end = time.time() + timeout
