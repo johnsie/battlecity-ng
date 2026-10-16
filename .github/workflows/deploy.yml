@@ -1,0 +1,39 @@
+# Deploys a published release to the LAN production host (game server + website).
+# Runs automatically after a release is published, and by hand (Actions > deploy > Run workflow) to redeploy or roll back
+# to any earlier tag. The job runs on the self-hosted runner on the production host (see deploy/github-runner/README.md);
+# GitHub's own runners cannot reach the LAN. The `lan-production` environment can require an approval click.
+name: deploy
+
+on:
+  workflow_call:
+    inputs:
+      tag: { required: true, type: string }
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy, for example v0.3.0 (an earlier tag rolls back)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lan-production      # never two deploys at once
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, linux, lan-deploy]
+    environment:
+      name: lan-production
+      url: https://bc.outiva.com
+    timeout-minutes: 15
+    steps:
+      # The deploy scripts come from the tag being deployed, not from whatever is on a branch
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Deploy ${{ inputs.tag }}
+        run: ci/deploy-release.sh "${{ inputs.tag }}" "${{ github.repository }}"

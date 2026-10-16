@@ -6,6 +6,13 @@ on:
     branches: ['**']
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
     runs-on: ubuntu-22.04
@@ -96,4 +103,22 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: client-windows-x64
+          path: dist/*
+
+  # The browser client builds with Emscripten (the SDK is cached between runs)
+  web-client:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/bc-emsdk
+          key: emsdk-3.1.74-${{ runner.os }}
+      - name: Build (Emscripten)
+        run: ci/build-web.sh build-web dist-web
+      - name: Package
+        run: ci/package-web.sh dist-web ci-${GITHUB_SHA::7} dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-client
           path: dist/*

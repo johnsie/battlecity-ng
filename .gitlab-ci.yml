@@ -1,5 +1,6 @@
-# Battle City CI. Every push to master (and every tag) deploys to production once the tests pass. Linux jobs run on the runner tagged `ubuntu-server` (shell executor,
-# on the same host that runs the game server).
+# Battle City CI on the LAN (fast feedback). Releases are built, packaged and published by GitHub Actions and deployed by the
+# GitHub runner on the production host (see docs/deploy.md). The deploy jobs here remain only as a MANUAL fallback.
+# Linux jobs run on the runner tagged `ubuntu-server` (shell executor, on the same host that runs the game server).
 # Required on that host: build-essential cmake libsqlite3-dev  (see deploy/README.md)
 
 stages: [build, test, package, deploy]
@@ -67,16 +68,8 @@ deploy:production:
   stage: deploy
   needs: [package:server-linux]
   rules:
-    # Only changes that affect the running server redeploy it (a restart disconnects every player)
-    - if: $CI_COMMIT_BRANCH == "master"
-      changes:
-        - server/**/*
-        - data/map.dat
-        - ci/**/*
-        - deploy/**/*
-        - CMakeLists.txt
-        - external/sqlite/**/*
-    - if: $CI_COMMIT_TAG
+    - when: manual      # fallback only: GitHub's `deploy` workflow is the normal path
+      allow_failure: true
   resource_group: production      # never run two deploys at once
   environment:
     name: production
@@ -104,9 +97,10 @@ deploy:production:
 build:web:
   stage: build
   rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH == "master" || $CI_COMMIT_BRANCH == "sdl2-client"
+    - if: $CI_COMMIT_BRANCH == "master"
       <<: *web-changes
+    - when: manual
+      allow_failure: true
   script:
     - ci/build-web.sh build-web dist-web
   artifacts:
@@ -117,9 +111,8 @@ deploy:web:
   stage: deploy
   needs: [build:web]
   rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH == "master"
-      <<: *web-changes
+    - when: manual      # fallback only: GitHub's `deploy` workflow is the normal path
+      allow_failure: true
   resource_group: production-web
   environment:
     name: production-web
