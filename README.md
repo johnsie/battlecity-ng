@@ -51,6 +51,7 @@ Come and chat, find a team, report problems or suggest ideas on the Battle City 
 
 * [Technical overview](docs/TECHNICAL.md): how the code is organised, how the network protocol works, how to build and test.
 * [Roadmap](ROADMAP.md): plan, status and milestones.
+* [Building](docs/building.md) and [releasing and deploying](docs/deploy.md)
 * [Deploying the server](deploy/README.md)
 
 License: GPLv3
