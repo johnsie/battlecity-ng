@@ -292,7 +292,7 @@ void BCSetCommandLine(int argc, char **argv) { g_argc = argc; g_argv = argv; }
 
 void BCRestartApplication() {
 #ifdef __EMSCRIPTEN__
-	emscripten_run_script("location.reload()");
+	EM_ASM({ location.reload(); });   // not emscripten_run_script: it uses eval(), which the site's Content-Security-Policy forbids
 #elif defined(_WIN32)
 	char path[MAX_PATH];
 	if (GetModuleFileNameA(NULL, path, MAX_PATH)) {
