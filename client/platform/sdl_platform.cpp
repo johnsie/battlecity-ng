@@ -197,14 +197,42 @@ void BCSetMouseReference(void *sdlWindow, int createdWidth, int createdHeight) {
 	g_mouseRefH = createdHeight;
 }
 
+#ifdef __EMSCRIPTEN__
+// SDL's own scaling of browser mouse coordinates depends on what size it believes the canvas is, which goes
+// wrong as soon as the page layout, zoom or device pixel ratio changes. Track the pointer ourselves as a
+// fraction of the canvas's on-screen rectangle instead; that is correct at any size and resolution.
+#include <emscripten.h>
+EM_JS(void, bc_track_mouse, (), {
+	if (Module.bcMouse) return;
+	Module.bcMouse = { fx: -1, fy: -1 };
+	var update = function (e) {
+		var c = Module['canvas'];
+		if (!c) return;
+		var r = c.getBoundingClientRect();
+		if (r.width > 0 && r.height > 0) {
+			Module.bcMouse.fx = (e.clientX - r.left) / r.width;
+			Module.bcMouse.fy = (e.clientY - r.top) / r.height;
+		}
+	};
+	window.addEventListener('mousemove', update, true);
+	window.addEventListener('mousedown', update, true);
+	window.addEventListener('mouseup', update, true);
+});
+EM_JS(double, bc_mouse_frac_x, (), { return Module.bcMouse ? Module.bcMouse.fx : -1; });
+EM_JS(double, bc_mouse_frac_y, (), { return Module.bcMouse ? Module.bcMouse.fy : -1; });
+#endif
+
 void BCFixMouse(int *x, int *y) {
 #ifdef __EMSCRIPTEN__
-	if (!g_mouseWindow || g_mouseRefW <= 0 || g_mouseRefH <= 0) return;
+	if (!g_mouseWindow) return;
+	bc_track_mouse();
+	double fx = bc_mouse_frac_x(), fy = bc_mouse_frac_y();
+	if (fx < 0 || fy < 0) return;    // no browser mouse event seen yet: keep SDL's value
 	int w = 0, h = 0;
 	SDL_GetWindowSize(g_mouseWindow, &w, &h);
 	if (w > 0 && h > 0) {
-		*x = (int)((double)*x * w / g_mouseRefW + 0.5);
-		*y = (int)((double)*y * h / g_mouseRefH + 0.5);
+		*x = (int)(fx * w);
+		*y = (int)(fy * h);
 	}
 #else
 	(void)x; (void)y;
