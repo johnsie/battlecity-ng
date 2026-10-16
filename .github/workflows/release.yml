@@ -1,5 +1,5 @@
 # Publishes a GitHub Release when a version tag is pushed (vMAJOR.MINOR.PATCH): Linux and Windows clients and servers.
-# GitLab CI separately builds and deploys the production Linux server and the web client from the same tag.
+# Nothing is deployed from GitHub: the LAN host pulls the published release itself (see docs/deploy.md).
 name: release
 
 on:
@@ -131,12 +131,3 @@ jobs:
           files: dist/*
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-
-  # Deploy the release that was just published to the LAN host (a self-hosted runner there does the work)
-  deploy:
-    needs: publish
-    permissions:
-      contents: read
-    uses: ./.github/workflows/deploy.yml
-    with:
-      tag: ${{ github.ref_name }}

@@ -47,7 +47,7 @@ Known open problems:
 
 Decisions (2026-10-16):
 - **GitLab is the source of truth** for code, tags and releases. GitHub is a mirror and the place native client packages are published.
-- **GitHub builds, packages and releases everything and deploys to the LAN** (decided 2026-10-16): all five deliverables are built once per tag, published with checksums and provenance attestations, then deployed by a self-hosted runner on the LAN host through a protected `lan-production` environment. Only tagged releases reach production; GitLab CI keeps running tests and has manual-only deploy jobs as a fallback. See `docs/deploy.md`. Status: workflows and scripts written; the runner and the GitHub environment still have to be set up (`deploy/github-runner/README.md`).
+- **GitHub builds, tests, packages and releases everything; it never deploys to the LAN** (decided 2026-10-16). The LAN host pulls a published release (GitLab job `deploy:release`, manual, checksums verified) and installs the Linux server and the website. Only tagged releases reach production. See `docs/deploy.md`. Status: done, but untested until the next tag.
 - **The Windows machine on the LAN is for testing only**, never production.
 - **Protocol changes force clients to update.** There is no overlap period: the server rejects a mismatched `VERSION` (message F), the web client reloads itself, native clients are told to download the new version.
 

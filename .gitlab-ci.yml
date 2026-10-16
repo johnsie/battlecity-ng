@@ -1,5 +1,5 @@
-# Battle City CI on the LAN (fast feedback). Releases are built, packaged and published by GitHub Actions and deployed by the
-# GitHub runner on the production host (see docs/deploy.md). The deploy jobs here remain only as a MANUAL fallback.
+# Battle City CI on the LAN (fast feedback). Releases are built, packaged and published by GitHub Actions; the production host
+# pulls and deploys them from here (job deploy:release). See docs/deploy.md.
 # Linux jobs run on the runner tagged `ubuntu-server` (shell executor, on the same host that runs the game server).
 # Required on that host: build-essential cmake libsqlite3-dev  (see deploy/README.md)
 
@@ -55,67 +55,18 @@ test:server-sanitizers:
     - ci/relay-test.sh build-asan/server/bc-server data/map.dat
     - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 
-package:server-linux:
-  stage: package
-  needs: [build:server-linux, test:server-smoke, test:server-sanitizers]
-  script:
-    - ci/package-server.sh build "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}" dist
-  artifacts:
-    paths: [dist/]
-    expire_in: 4 weeks
-
-deploy:production:
+# Production deploy: PULLS the release that GitHub Actions built, tested and published for this tag (nothing is rebuilt here,
+# and GitHub never reaches into the LAN). Waits for the release, verifies SHA256SUMS, then installs the Linux server and the
+# website. Manual: click "play" on the tag's pipeline when you want players restarted onto the new version.
+deploy:release:
   stage: deploy
-  needs: [package:server-linux]
   rules:
-    - when: manual      # fallback only: GitHub's `deploy` workflow is the normal path
-      allow_failure: true
-  resource_group: production      # never run two deploys at once
+    - if: $CI_COMMIT_TAG =~ /^v/
+      when: manual
+  resource_group: production
   environment:
     name: production
     url: https://bc.outiva.com
+  timeout: 90 minutes
   script:
-    - ci/deploy.sh dist/battlecity-server-*-linux-x86_64.tar.gz "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
-
-# Browser client (https://bc.outiva.com via Apache). Built with Emscripten, then published to the web root.
-# Runs when the client, its data or the web files change.
-.web-changes: &web-changes
-  changes:
-    - client/**/*
-    - web/**/*
-    - tools/stage-web-data.sh
-    - external/imgui/**/*
-    - data/*.bmp
-    - data/*.ttf
-    - data/*.dat
-    - data/wav/*
-    - data/midi/*
-    - CMakeLists.txt
-    - ci/build-web.sh
-    - ci/deploy-web.sh
-
-build:web:
-  stage: build
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-      <<: *web-changes
-    - when: manual
-      allow_failure: true
-  script:
-    - ci/build-web.sh build-web dist-web
-  artifacts:
-    paths: [dist-web/]
-    expire_in: 4 weeks
-
-deploy:web:
-  stage: deploy
-  needs: [build:web]
-  rules:
-    - when: manual      # fallback only: GitHub's `deploy` workflow is the normal path
-      allow_failure: true
-  resource_group: production-web
-  environment:
-    name: production-web
-    url: https://bc.outiva.com
-  script:
-    - ci/deploy-web.sh dist-web "${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"
+    - ci/deploy-release.sh "$CI_COMMIT_TAG" johnsie/battlecity-ng

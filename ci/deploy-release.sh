@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploys a PUBLISHED GitHub release to THIS machine: downloads the server and web packages, verifies them against the
+# Run ON the production host (by the GitLab runner there). Pulls a PUBLISHED GitHub release and deploys it to THIS machine: downloads the server and web packages, verifies them against the
 # release's SHA256SUMS.txt, then runs ci/deploy.sh (game server) and ci/deploy-web.sh (website).
 # What runs in production is therefore byte-for-byte what was built, tested and published; nothing is rebuilt here.
 # Usage: ci/deploy-release.sh <tag> [owner/repo]        e.g. ci/deploy-release.sh v0.3.0
@@ -14,8 +14,15 @@ cd "$WORK"
 
 SERVER="battlecity-server-$VERSION-linux-x86_64.tar.gz"
 WEB="battlecity-web-$VERSION.tar.gz"
+# The release is published by GitHub Actions after the tag is pushed; wait for it (up to 60 minutes)
+echo "== Waiting for the $TAG release on $REPO"
+for i in $(seq 1 120); do
+  curl -fsSL -o SHA256SUMS.txt "$BASE/SHA256SUMS.txt" 2>/dev/null && break
+  [ "$i" = 120 ] && { echo "release $TAG was not published within 60 minutes"; exit 1; }
+  sleep 30
+done
 echo "== Downloading $TAG from $REPO"
-for f in SHA256SUMS.txt "$SERVER" "$WEB"; do
+for f in "$SERVER" "$WEB"; do
   curl -fsSL --retry 3 -o "$f" "$BASE/$f"
 done
 echo "== Verifying checksums"
