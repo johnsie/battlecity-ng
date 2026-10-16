@@ -436,7 +436,13 @@ void CProcess::ProcessError(int error) {
 		case 69: //Message E
 			{MessageBox(this->p->hWnd, "Account is currently in use", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
 		case 70: //Message F
-			{MessageBox(this->p->hWnd, "Please download the latest version of BattleCity at https://bc.outiva.com", 0, 0); SendMessage(this->p->hWnd, WM_CLOSE, 0, 0); break;}
+			{
+#ifdef __EMSCRIPTEN__
+				BCMessageBoxAsync("The game has been updated. The page will now reload to get the latest version.", "BattleCity", 0, [](int) { BCRestartApplication(); });
+#else
+				MessageBox(this->p->hWnd, "Please download the latest version of BattleCity at https://bc.outiva.com", 0, 0); SendMessage(this->p->hWnd, WM_CLOSE, 0, 0);
+#endif
+				break;}
 		case 71: //Message G
 			{MessageBox(this->p->hWnd, "Banned", 0, 0); SendMessage(this->p->hWnd, WM_CLOSE, 0, 0); break;}
 		case 72: //Message H

@@ -40,6 +40,10 @@ Known open problems:
 - Client packages ship `options.ini` pointing at the live server by default (`BC_SERVER` overrides it).
 - No 24 hour soak yet, no gameplay-level bot beyond join and drive, web client not re-tested after the movement changes.
 
+Decisions (2026-10-16):
+- **GitLab is the source of truth** for code, tags and releases. GitHub is a mirror and the place native client packages are published.
+- **Protocol changes force clients to update.** There is no overlap period: the server rejects a mismatched `VERSION` (message F), the web client reloads itself, native clients are told to download the new version.
+
 ## 2. Workstreams
 
 ### Workstream 0: Branch hygiene (mostly done)

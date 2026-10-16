@@ -35,7 +35,7 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
         case WM_INITDIALOG:
 			SendDlgItemMessage(hwnd, IDUSER, EM_LIMITTEXT, 15, 0);
 			SendDlgItemMessage(hwnd, IDPASS, EM_LIMITTEXT, 15, 0);
-			SetDlgItemText(hwnd, IDVERSION, p->Login->VersionString.c_str());
+			SetDlgItemText(hwnd, IDVERSION, (p->Login->VersionString + "  -  server: " + p->Options->gameServerAddress).c_str());
 			return 1;
 			break;
         case WM_COMMAND:
