@@ -13,7 +13,7 @@ jobs:
   linux-client:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev
       - name: Build
         run: |
@@ -29,7 +29,7 @@ jobs:
   linux-server:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo apt-get update && sudo apt-get install -y cmake libsqlite3-dev
       - name: Build
         run: |
@@ -50,7 +50,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -73,7 +73,7 @@ jobs:
   windows-server:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build (MSVC)
         run: |
           cmake -S . -B build -A x64 -DBC_BUILD_CLIENT=OFF
@@ -93,7 +93,7 @@ jobs:
   web-client:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Cache the Emscripten SDK
         uses: actions/cache@v4
         with:

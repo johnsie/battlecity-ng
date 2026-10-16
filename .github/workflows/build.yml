@@ -17,7 +17,7 @@ jobs:
   linux:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake libsdl2-dev libsqlite3-dev
       - name: Build client and server
@@ -41,7 +41,7 @@ jobs:
   linux-sanitizers:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake libsqlite3-dev
       - name: Build server with sanitizers
@@ -61,7 +61,7 @@ jobs:
   windows-server:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build server (MSVC)
         run: |
           cmake -S . -B build -A x64 -DBC_BUILD_CLIENT=OFF
@@ -79,7 +79,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: msys2/setup-msys2@v2
         with:
           msystem: UCRT64
@@ -109,7 +109,7 @@ jobs:
   web-client:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/cache@v4
         with:
           path: ~/.cache/bc-emsdk
