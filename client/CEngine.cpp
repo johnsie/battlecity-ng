@@ -119,6 +119,7 @@ void CEngine::Frame() {
 				p->DDraw->Draw(p->DDraw->imgCompany, (p->ResolutionX/2)-320, (p->ResolutionY/2), 320, 240);
 				p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2)-320, (p->ResolutionY/2)-240, 320, 240);
 				p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2), (p->ResolutionY/2), 320, 240);
+				this->DrawConnectionStatus();
 				p->DDraw->Flip();
 				break;
 
@@ -196,6 +197,15 @@ void CEngine::Frame() {
 		}
 }
 
+/// <summary>   While there is no connection to the server, says why and when the next attempt is </summary>
+void CEngine::DrawConnectionStatus() {
+	if (!p->Winsock->Status.empty()) {
+		p->DDraw->DTextOut((p->ResolutionX/2)-320, (p->ResolutionY/2)+250, p->Winsock->Status, COLOR_YELLOW);
+	} else if (p->Winsock->Connecting) {
+		p->DDraw->DTextOut((p->ResolutionX/2)-320, (p->ResolutionY/2)+250, "Connecting to the server...", COLOR_YELLOW);
+	}
+}
+
 /// <summary>   Splash screen + dialogs while the engine is not running (e.g. connection failed) </summary>
 void CEngine::IdleFrame() {
 	p->Dialog->Cycle();
@@ -204,6 +214,7 @@ void CEngine::IdleFrame() {
 	p->DDraw->Draw(p->DDraw->imgCompany, (p->ResolutionX/2)-320, (p->ResolutionY/2), 320, 240);
 	p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2)-320, (p->ResolutionY/2)-240, 320, 240);
 	p->DDraw->Draw(p->DDraw->imgBCLogo, (p->ResolutionX/2), (p->ResolutionY/2), 320, 240);
+	this->DrawConnectionStatus();
 	p->DDraw->Flip();
 }
 

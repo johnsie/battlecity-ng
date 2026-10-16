@@ -33,6 +33,11 @@ Also done (2026-10-16):
 - Movement checks: the server judges position updates by speed and elapsed time (it used a fixed 300 units, which warped players back after a lag spike); the relay test checks that an impossible jump is refused.
 - Post-deploy checks already exist in `ci/deploy.sh` (port 9680 must answer, automatic rollback) and `ci/deploy-web.sh` (web page must return 200).
 
+Also done (2026-10-16, later):
+- **Bot load test** (`tools/load_test.py`, `ci/load-test.sh`): 20 bots in five cities, 60 s under the sanitizers in both CIs; every bot must receive a steady stream of updates, final positions must agree, and the server must survive. It found that `sSMUpdate` has an unpacked padding byte (now zeroed on the server instead of leaking stack contents; documented in `docs/protocol.md`).
+- **Connection handling (3.3):** a failed connect now retries automatically (2, 4, 8, 16, 16 s, six attempts) and the splash screen says why and when the next attempt is; after six failures the connection manager opens. Also fixed: the game state was uninitialised at start-up. The login dialog shows the server address. Version mismatch on web reloads the page.
+- Web: mouse position comes from the canvas rectangle (exact at any window size or pixel ratio); button presses are latched so quick clicks are not missed.
+
 Known open problems:
 - Default branch: GitLab's is `main`, CI matches `master`. Nothing has been merged to `master`, so GitLab has not run these changes (merging deploys production).
 - The Windows server is built with MSVC in CI but has only been run (smoke, fuzz, relay) from a MinGW build; the MSVC `.exe` itself is untested.

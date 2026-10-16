@@ -83,6 +83,8 @@ int CALLBACK ConnectionManagerDialogProcedure(HWND hwnd, UINT Message, WPARAM wP
                     GetDlgItemText(hwnd,ID_GameServerAddress,_gameServerAddress,255);
                     p->Options->gameServerAddress = _gameServerAddress;
                     p->Winsock->Init(_gameServerAddress);
+                    p->Winsock->RetryAttempts = 0;
+                    p->Winsock->RetryPending = false;
                     p->Winsock->StartTCP();
                     EndDialog(hwnd,1);
                     break;

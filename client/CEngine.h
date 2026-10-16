@@ -38,6 +38,7 @@ public:
     void Frame();
     /// <summary> Draws the splash screen and dialogs while the engine is stopped (e.g. not connected). </summary>
     void IdleFrame();
+	void DrawConnectionStatus();
 
     void logerror(std::string error);
     /// <summary> Diagnostic note: goes to debug.log and (rate limited) the server log, never into the chat window. </summary>

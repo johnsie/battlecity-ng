@@ -55,6 +55,13 @@ public:
 	bool Connected;
 	bool Connecting;               // connect() in progress (non-blocking, finished in Cycle())
 	unsigned long ConnectStart;
+
+	// Automatic retry with backoff after a failed connect (shown on the splash screen)
+	int RetryAttempts;             // failed attempts so far
+	bool RetryPending;
+	unsigned long RetryAt;         // tick at which to try again
+	string Status;                 // what the player sees while no connection exists
+	void ScheduleRetry(const char *reason);
 	int MyIndex;
 
 	bc_socket Socket;

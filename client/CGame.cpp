@@ -64,6 +64,7 @@ CGame::CGame() {
 
 	timeBeginPeriod(1);
 	running = 1;
+	State = 0;   // was left uninitialised (random garbage until the login dialog set it)
 
 	Tick = 0;
 	TimePassed = 0;

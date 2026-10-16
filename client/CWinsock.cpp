@@ -27,6 +27,9 @@ CWinsock::CWinsock(CGame *game)  {
 	Connected = false;
 	Connecting = false;
 	ConnectStart = 0;
+	RetryAttempts = 0;
+	RetryPending = false;
+	RetryAt = 0;
 	MyIndex = 0;
 	Socket = BC_INVALID_SOCKET;
 
@@ -53,8 +56,8 @@ void CWinsock::StartTCP() {
     host_entry = gethostbyname(ServerIP);
 	if(host_entry==NULL)
     {
-        MessageBox(p->hWnd, (std::string("Unable to find the game server: ") + ServerIP).c_str(), "BattleCity", 0);
-        p->Process->ProcessEvent(1);
+        this->CloseWinsock();
+        this->ScheduleRetry((std::string("Unable to find the game server ") + ServerIP).c_str());
         return;
     }
     //  Establish socket address object
@@ -75,8 +78,7 @@ void CWinsock::StartTCP() {
 
     //  Upon verifying Socket connection failed display message box with an error message
 	if (Socket == BC_INVALID_SOCKET) {
-		MessageBox(p->hWnd, "Invalid Socket!", 0, 0);
-		p->Process->ProcessEvent(1);
+		this->ScheduleRetry("Unable to open a network socket");
 		return;
 	}
 
@@ -94,14 +96,36 @@ void CWinsock::StartTCP() {
     //  2 - Connected
 	if (connect(Socket, (sockaddr*)(&sockAddr), sizeof(sockaddr_in)) == 0) {
 		this->Connected = true;
+		RetryAttempts = 0;
+		Status = "";
 		p->Process->ProcessEvent(2);
 	} else if (bc_would_block()) {
 		this->Connecting = true;
 		this->ConnectStart = BCGetTicks();
 	} else {
 		this->CloseWinsock();
-		p->Process->ProcessEvent(1);
+		this->ScheduleRetry("Unable to connect");
 	}
+}
+
+/// <summary> A connect failed: retry with a growing delay (2, 4, 8, 16, 16 ... seconds) for a while, then ask the player </summary>
+void CWinsock::ScheduleRetry(const char *reason) {
+	const int maxAttempts = 6;
+	RetryAttempts++;
+	if (RetryAttempts > maxAttempts) {
+		// Give up: tell the player and open the connection manager so they can pick another server
+		RetryAttempts = 0;
+		RetryPending = false;
+		Status = "";
+		p->Process->ProcessEvent(1);
+		return;
+	}
+	unsigned long delay = 2000UL << (RetryAttempts - 1 < 3 ? RetryAttempts - 1 : 3);
+	RetryAt = BCGetTicks() + delay;
+	RetryPending = true;
+	char text[200];
+	snprintf(text, sizeof(text), "%s (attempt %d of %d). Trying again in %lu seconds...", reason, RetryAttempts, maxAttempts, delay / 1000);
+	Status = text;
 }
 
 /// <summary> Finishes a non-blocking connect: success -> event 2, failure or 10s timeout -> event 1 </summary>
@@ -125,6 +149,8 @@ void CWinsock::CheckConnect() {
 		if (error == 0 && !FD_ISSET(Socket, &failed)) {
 			Connecting = false;
 			Connected = true;
+			RetryAttempts = 0;
+			Status = "";
 			p->Process->ProcessEvent(2);
 			return;
 		}
@@ -134,7 +160,7 @@ void CWinsock::CheckConnect() {
 
 	// Failed or timed out
 	CloseWinsock();
-	p->Process->ProcessEvent(1);
+	ScheduleRetry(ready > 0 ? "The server refused the connection" : "The server did not answer");
 }
 
 void CWinsock::StartWinsock() {
@@ -178,6 +204,11 @@ void CWinsock::SendData(unsigned char PacketID, char *TheData, int len) {
 }
 
 void CWinsock::Cycle() {
+	if (RetryPending && BCGetTicks() >= RetryAt) {
+		RetryPending = false;
+		StartTCP();
+		return;
+	}
 	if (Connecting) {
 		CheckConnect();
 		return;
