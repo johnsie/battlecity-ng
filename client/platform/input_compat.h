@@ -42,6 +42,7 @@ void BCFixMouse(int *x, int *y);
 // Test hook: force a key to read as pressed/released regardless of the real keyboard
 void BCTestSetKey(int dik, bool down);
 
+void BCLatchMouseButton(int sdlButton);
 void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int *mouseWindowY);
 
 #endif

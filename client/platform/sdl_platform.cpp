@@ -214,6 +214,15 @@ void BCFixMouse(int *x, int *y) {
 static bool g_testKeys[256];
 void BCTestSetKey(int dik, bool down) { if (dik >= 0 && dik < 256) g_testKeys[dik] = down; }
 
+// A click can press and release between two polls (browsers deliver both events in one frame),
+// which SDL_GetMouseState would never show as pressed. Latch presses from events and report each
+// for at least one poll.
+static bool g_mouseLatch[2];
+void BCLatchMouseButton(int sdlButton) {
+	if (sdlButton == SDL_BUTTON_LEFT) g_mouseLatch[0] = true;
+	else if (sdlButton == SDL_BUTTON_RIGHT) g_mouseLatch[1] = true;
+}
+
 void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int *mouseWindowY) {
 	static const struct { SDL_Scancode sdl; int dik; } map[] = {
 		{ SDL_SCANCODE_1, DIK_1 }, { SDL_SCANCODE_2, DIK_2 }, { SDL_SCANCODE_3, DIK_3 },
@@ -237,6 +246,9 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 	memset(mouse, 0, sizeof(*mouse));
 	if (buttons & SDL_BUTTON(SDL_BUTTON_LEFT))  mouse->rgbButtons[0] = 0x80;
 	if (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) mouse->rgbButtons[1] = 0x80;
+	if (g_mouseLatch[0]) mouse->rgbButtons[0] = 0x80;
+	if (g_mouseLatch[1]) mouse->rgbButtons[1] = 0x80;
+	g_mouseLatch[0] = g_mouseLatch[1] = false;
 	*mouseWindowX = x;
 	*mouseWindowY = y;
 }

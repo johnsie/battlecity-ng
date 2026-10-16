@@ -120,6 +120,8 @@ static void HandleEvent(const SDL_Event &e) {
 	BCDialogsProcessEvent(&e);
 	bool dialog = BCDialogsActive();
 
+	if (e.type == SDL_MOUSEBUTTONDOWN && !dialog) BCLatchMouseButton(e.button.button);
+
 	switch (e.type) {
 		case SDL_QUIT:
 			g_quit = true;
