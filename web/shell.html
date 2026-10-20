@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Battle City</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Cpath d='M3 13V6l5-3 5 3v7z' fill='%23e33'/%3E%3C/svg%3E">
+<script>
+  window.outivaIdentityReady = import('./outiva-auth.js').then(function (auth) {
+    return auth.initialiseOutivaIdentity({ clientId: 'battlecity-web', appId: 'battlecity' });
+  });
+</script>
 <style>
   :root { --bg:#0b0b0b; --fg:#ddd; --accent:#e33; }
   html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
@@ -18,12 +23,13 @@
   #status.hidden { display:none; }
   #status.ended { background:rgba(0,0,0,.78); pointer-events:auto; }
   #error { color:#ff8080; margin-top:1rem; white-space:pre-wrap; max-width:36rem; }
+  #outiva-account { margin:.5rem 0 0; color:#999; font-size:.82rem; }
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
-  <div id="status"><h1>BATTLE CITY</h1><div id="msg">Loading...</div><div id="bar"><div id="fill"></div></div><div id="error"></div></div>
+  <div id="status"><h1>BATTLE CITY</h1><div id="msg">Loading...</div><div id="bar"><div id="fill"></div></div><p id="outiva-account">Guest play — no Outiva account required</p><div id="error"></div></div>
 </div>
 <script>
   var statusEl = document.getElementById('status'), msgEl = document.getElementById('msg'),
@@ -34,6 +40,17 @@
     websocket: { url: (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws', subprotocol: 'binary' },
     // Test hooks: ?script=<commands> runs the client's built-in test script, ?debug=1 logs dropped packets
     preRun: [function () {
+      addRunDependency('outiva-identity');
+      Promise.resolve(window.outivaIdentityReady).then(function (profile) {
+        window.outivaProfile = profile;
+        if (!profile) return;
+        var label = profile.name || profile.preferred_username || profile.email || 'Outiva user';
+        document.getElementById('outiva-account').textContent = 'Outiva account: ' + label;
+        var source = profile.preferred_username || profile.name || (profile.email || '').split('@')[0];
+        ENV.BC_OUTIVA_NAME = source.replace(/[^A-Za-z0-9 _-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 15);
+      }).catch(function (error) {
+        console.warn('Optional Outiva identity was not available', error);
+      }).finally(function () { removeRunDependency('outiva-identity'); });
       var q = new URLSearchParams(location.search);
       if (q.get('script')) { FS.writeFile('/test-script.txt', q.get('script')); ENV.BC_TEST_SCRIPT = '/test-script.txt'; }
       if (q.get('debug')) { ENV.BC_DEBUG_NET = '1'; }

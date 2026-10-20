@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CLogin.h"
+#include <cstdlib>
 
 HBRUSH g_hbrBackgroundLogin;
 HDC hdcStaticLogin;
@@ -35,6 +36,13 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
         case WM_INITDIALOG:
 			SendDlgItemMessage(hwnd, IDUSER, EM_LIMITTEXT, 15, 0);
 			SendDlgItemMessage(hwnd, IDPASS, EM_LIMITTEXT, 15, 0);
+#ifdef __EMSCRIPTEN__
+			// The verified Outiva profile only supplies a convenient legacy account
+			// name. Battle City's existing password remains required by its server.
+			if (const char *outivaName = std::getenv("BC_OUTIVA_NAME")) {
+				if (outivaName[0] != '\0') SetDlgItemText(hwnd, IDUSER, outivaName);
+			}
+#endif
 			SetDlgItemText(hwnd, IDVERSION, (p->Login->VersionString + "  -  server: " + p->Options->gameServerAddress).c_str());
 			return 1;
 			break;
