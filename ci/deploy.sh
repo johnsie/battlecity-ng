@@ -27,7 +27,7 @@ wait_for_health() {
   for _ in $(seq 1 30); do
     if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
       status=$(curl -fsS --max-time 2 "http://127.0.0.1:$STATUS_PORT/health" 2>/dev/null || true)
-      if [[ "$status" =~ ^\{"status":"available","players":[0-9]+\}$ ]]; then return 0; fi
+      if printf '%s\n' "$status" | grep -Eq '^\{"status":"available","players":[0-9]+\}$'; then return 0; fi
     fi
     sleep 1
   done
