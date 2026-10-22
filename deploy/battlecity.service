@@ -8,6 +8,7 @@ User=battlecity
 Group=battlecity
 WorkingDirectory=/var/lib/battlecity
 Environment=BC_PORT=9680
+Environment=BC_STATUS_PORT=9682
 UMask=0027
 ExecStartPre=/opt/battlecity/current/prestart.sh
 ExecStart=/opt/battlecity/current/bc-server

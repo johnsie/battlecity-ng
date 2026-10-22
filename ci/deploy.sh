@@ -13,6 +13,7 @@ VERSION=$2
 APP=/opt/battlecity
 STATE=/var/lib/battlecity
 PORT=${BC_PORT:-9680}
+STATUS_PORT=${BC_STATUS_PORT:-9682}
 SERVICE=battlecity
 
 REL="$APP/releases/$VERSION"
@@ -34,13 +35,14 @@ echo "== Switching to $VERSION and restarting"
 ln -sfn "$REL" "$APP/current"
 sudo -n /usr/bin/systemctl restart "$SERVICE"
 
-if wait_for_port; then
-  echo "== Healthy: $SERVICE is accepting connections on port $PORT"
+if wait_for_port && status=$(curl -fsS --max-time 2 "http://127.0.0.1:$STATUS_PORT/health") &&
+   [[ "$status" =~ ^\{"status":"available","players":[0-9]+\}$ ]]; then
+  echo "== Healthy: $SERVICE is accepting connections and its loopback status source answered"
   ls -1dt "$APP"/releases/* | tail -n +6 | xargs -r rm -rf   # keep the 5 newest releases
   exit 0
 fi
 
-echo "!! $SERVICE did not come up on port $PORT"
+echo "!! $SERVICE did not pass its game/status health checks (ports $PORT and $STATUS_PORT)"
 sudo -n /usr/bin/journalctl -u "$SERVICE" -n 40 --no-pager || true
 if [ -n "$PREV" ] && [ "$PREV" != "$REL" ]; then
   echo "!! Rolling back to $PREV"

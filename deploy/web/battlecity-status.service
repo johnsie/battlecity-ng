@@ -1,0 +1,22 @@
+[Unit]
+Description=Battle City public status adapter
+After=network.target battlecity.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+Environment=BC_STATUS_PORT=9682
+Environment=BC_OUTIVA_STATUS_PORT=9683
+ExecStart=/usr/bin/python3 /usr/local/lib/battlecity/outiva_status.py
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

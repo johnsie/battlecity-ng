@@ -41,7 +41,7 @@ The steps, and how far along each is, are on the [roadmap](ROADMAP.md).
 ## Play
 
 * Browser: [bc.outiva.com](https://bc.outiva.com)
-* Downloads for Windows and Linux will appear under [Releases](https://github.com/johnsie/battlecity-ng/releases) once the first version of the new clients is published.
+* Windows and Linux downloads: [Releases](https://github.com/johnsie/battlecity-ng/releases).
 
 ## Join the community
 

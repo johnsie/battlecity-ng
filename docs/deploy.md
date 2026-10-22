@@ -33,12 +33,32 @@ Pushing to `master` never restarts production: only a tagged release that you de
        git push gitlab v0.3.0 && git push origin v0.3.0
 
 4. Watch the `release` workflow on GitHub until the Release appears.
-5. In GitLab, open the tag's pipeline and click play on `deploy:release`. It checks that port 9680 answers (rolling back automatically if not) and that the web page returns 200.
-6. Hard-refresh the web client and connect once.
+5. Before the first release containing the console integration, run `sudo ./deploy/setup.sh` and
+   `sudo ./deploy/web/setup-web.sh` on the host. In GitLab, open the tag's pipeline and click play on
+   `deploy:release`. It checks the game and status ports (rolling back automatically if either fails), then checks the
+   public status JSON and CORS/cache headers.
+6. Check the console status contract, then hard-refresh the web client and connect once:
+
+       curl -i https://bc.outiva.com/outiva-status.json
+       curl -i -H 'Origin: https://outiva.com' https://bc.outiva.com/outiva-status.json
+
+   Expect a JSON-only response with `available` and an integer `players`, `Cache-Control: public, max-age=15`, and
+   `Access-Control-Allow-Origin: https://outiva.com`. Stop `battlecity.service` briefly in a maintenance window to
+   verify `degraded`; a timed-out or malformed source returns `unknown` with HTTP 503.
 
 ## Host setup
 
 The production host, the web front end (Apache, websockify, HAProxy) and the Windows server service are described in `deploy/README.md` and `deploy/windows/README.md`.
+
+The public `/outiva-status.json` endpoint is served by `battlecity-status.service`. It caches the loopback-only game
+source (`127.0.0.1:9682`) for 15 seconds and constructs a fresh allow-listed response containing only status and a
+count. It never proxies player records. Re-run `sudo ./deploy/web/setup-web.sh` after changing its service, adapter or
+Apache configuration.
+
+Rollback the console integration by removing the two `ProxyPass` lines and the status `<Location>` block from the
+Apache vhost, running `apache2ctl configtest`, and reloading Apache. Then disable the adapter with
+`systemctl disable --now battlecity-status`. The loopback source may remain enabled safely; set `BC_STATUS_PORT=0` in
+`battlecity.service` and restart the game server if it must also be disabled.
 
 ## Release checklist
 

@@ -36,8 +36,12 @@ install -d -o gitlab-runner -g www-data -m 0755 "$WEBROOT" "$WEBROOT/releases"
 
 echo "== Browser gateway service"
 install -m 0644 battlecity-ws.service /etc/systemd/system/battlecity-ws.service
+install -d -m 0755 /usr/local/lib/battlecity
+install -m 0755 outiva_status.py /usr/local/lib/battlecity/outiva_status.py
+install -m 0644 battlecity-status.service /etc/systemd/system/battlecity-status.service
 systemctl daemon-reload
 systemctl enable --now battlecity-ws
+systemctl enable --now battlecity-status
 
 echo "== Apache vhost"
 install -m 0644 bc-outiva-com.conf "/etc/apache2/sites-available/$SITE.conf"
@@ -89,5 +93,7 @@ fi
 echo
 echo "Done. Checks:"
 echo "  systemctl status battlecity-ws"
+echo "  systemctl status battlecity-status"
 echo "  curl -kI --resolve bc.outiva.com:443:127.0.0.1 https://bc.outiva.com/"
+echo "  curl -k --resolve bc.outiva.com:443:127.0.0.1 https://bc.outiva.com/outiva-status.json"
 echo "HAProxy must send SNI/Host bc.outiva.com to 192.168.10.181:443 (TLS, verification off)."

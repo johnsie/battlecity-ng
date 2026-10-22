@@ -22,6 +22,7 @@
 */
 
 #include "CServer.h"
+#include "CStatusEndpoint.h"
 #include <exception> 
 
 void InstallCrashHandler();
@@ -87,6 +88,8 @@ int main(int argc, char *argv[]) {
 			Server.Tick = Server.Timer->GetTime();
             //  Perform winsock cycle for network connectivity
 			Server.Winsock->Cycle();
+			// A loopback-only, non-blocking status source for the public web adapter.
+			Server.StatusEndpoint->Cycle();
             //  Verify current time interval is greater than item time interval
 			if (Server.Tick > ItemTick) {
                 //  Perform item cycle

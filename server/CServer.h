@@ -109,6 +109,7 @@ class CTime;
 class CLog;
 class CEMail;
 class CDatabase;
+class CStatusEndpoint;
 
 // Doubles single quotes so a client-supplied string cannot end its SQL literal early (queries are built by concatenation).
 // Also stops at an embedded NUL and drops control characters.
@@ -169,6 +170,7 @@ class CServer {
 		CLog *Log;
 		CEMail *EMail;
 		CDatabase *Database;
+		CStatusEndpoint *StatusEndpoint;
 
 		CTime *Timer;
 		float Tick;

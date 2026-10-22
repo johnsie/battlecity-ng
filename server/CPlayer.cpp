@@ -215,6 +215,7 @@ void CPlayer::ResetPlayer() {
 	this->lastMove = 0;
 	this->lastShot = 0;
 	this->isDead = false;
+	this->IsBot = false;
 	this->timeDeath = 0;
 }
 

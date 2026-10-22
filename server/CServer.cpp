@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CServer.h"
+#include "CStatusEndpoint.h"
 
 /// <summary>
 /// Initializes <see cref="CServer"/> class.
@@ -52,6 +53,7 @@ CServer::CServer() {
 	Log = new CLog(this);
 	EMail = new CEMail(this);
 	Database = new CDatabase(this);
+	StatusEndpoint = new CStatusEndpoint(this);
 	//Build = new CBuildingList(this);
 	//Item = new CItemList(this);
 	//Bullet = new CBulletList(this);
@@ -92,6 +94,7 @@ CServer::~CServer() {
 	delete Log;
 	delete EMail;
 	delete Database;
+	delete StatusEndpoint;
 
 	// For each possible player, delete the player object
 	for (int i = 0; i < MAX_PLAYERS; i++) {
@@ -120,6 +123,7 @@ void CServer::Init() {
     cout << "+ CServer::Init() @ Winsock->InitWinsock" << endl;
     //  Initialize Winsock object
 	this->Winsock->InitWinsock();
+	this->StatusEndpoint->Init();
     cout << "+ CServer::Init() @ Check files and paths" << endl;
     //  Verify files and paths
 	this->CheckFilesAndPaths();

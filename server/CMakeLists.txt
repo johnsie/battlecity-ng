@@ -33,4 +33,14 @@ if(NOT WIN32)
   add_executable(test-outqueue test/test_outqueue.cpp)
   target_compile_options(test-outqueue PRIVATE -Wall)
   add_test(NAME outqueue COMMAND test-outqueue)
+
+  add_executable(test-status-count test/test_status_count.cpp)
+  target_compile_options(test-status-count PRIVATE -Wall)
+  add_test(NAME status-count COMMAND test-status-count)
+
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME outiva-status-adapter
+    COMMAND ${Python3_EXECUTABLE} test_outiva_status.py)
+  set_tests_properties(outiva-status-adapter PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/deploy/web)
 endif()

@@ -32,7 +32,7 @@ Apache on the same host serves the static site and proxies browser game traffic:
 - Public TLS ends at HAProxy. Apache presents a self-signed *origin* certificate (`/etc/ssl/certs/bc-origin.crt`,
   10 years, SAN `bc.outiva.com` + `192.168.10.181`). HAProxy must send SNI/Host `bc.outiva.com` to `192.168.10.181:443`.
 - One-time setup (root): `sudo ./deploy/web/setup-web.sh`. It installs `websockify`, enables the Apache modules, creates the
-  certificate, installs the `battlecity-ws` service and the `bc-outiva-com` vhost, and **removes the old bc.outiva.com
+  certificate, installs the `battlecity-ws` and cached `battlecity-status` services and the `bc-outiva-com` vhost, and **removes the old bc.outiva.com
   vhosts from outiva-com.conf** (backup in `/var/backups/bc-legacy-apache/`). Apache is reloaded only if `configtest`
   passes; otherwise everything is rolled back. Note the old vhosts also served `battlecity.orb` / `www.battlecity.orb`;
   those names are no longer served.
@@ -40,5 +40,8 @@ Apache on the same host serves the static site and proxies browser game traffic:
   whenever something under `web/` changes on master.
 - Known limitation: the game server sees every browser player as coming from 127.0.0.1 (the gateway), so IP-based bans
   would affect all web players. A gateway that forwards the real client address is a later improvement.
+- Outiva status: Apache proxies `/outiva-status.json` to the adapter on `127.0.0.1:9683`. The adapter queries the
+  game's loopback-only source on port 9682 at most once every 15 seconds. Only players in the entered-game state are
+  counted; connection, verification, chat/application states and server-controlled players are excluded.
 - The old Let's Encrypt certificate/renewal for bc.outiva.com is no longer used by Apache; remove it when convenient with
   `sudo certbot delete --cert-name bc.outiva.com`.

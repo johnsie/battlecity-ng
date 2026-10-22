@@ -70,6 +70,8 @@ class CPlayer {
 		float lastShot;
 
 		bool isDead;
+		// Server-controlled players are never included in the public Outiva count.
+		bool IsBot;
 		float timeDeath;
 		bool isCloaked;
 		float timeUncloak;
