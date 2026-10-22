@@ -23,9 +23,12 @@ echo "== Installing release $VERSION"
 mkdir -p "$REL"
 tar -xzf "$TARBALL" -C "$REL" --strip-components=1
 
-wait_for_port() {
+wait_for_health() {
   for _ in $(seq 1 30); do
-    if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then return 0; fi
+    if (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
+      status=$(curl -fsS --max-time 2 "http://127.0.0.1:$STATUS_PORT/health" 2>/dev/null || true)
+      if [[ "$status" =~ ^\{"status":"available","players":[0-9]+\}$ ]]; then return 0; fi
+    fi
     sleep 1
   done
   return 1
@@ -35,8 +38,7 @@ echo "== Switching to $VERSION and restarting"
 ln -sfn "$REL" "$APP/current"
 sudo -n /usr/bin/systemctl restart "$SERVICE"
 
-if wait_for_port && status=$(curl -fsS --max-time 2 "http://127.0.0.1:$STATUS_PORT/health") &&
-   [[ "$status" =~ ^\{"status":"available","players":[0-9]+\}$ ]]; then
+if wait_for_health; then
   echo "== Healthy: $SERVICE is accepting connections and its loopback status source answered"
   ls -1dt "$APP"/releases/* | tail -n +6 | xargs -r rm -rf   # keep the 5 newest releases
   exit 0
