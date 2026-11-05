@@ -7,6 +7,10 @@ stages: [build, test, package, deploy]
 
 default:
   tags: [ubuntu-server]
+  # GitLab/runner hiccups (a 502 while fetching the repo, a lost runner) must not block a release: retry those, never real test failures
+  retry:
+    max: 2
+    when: [runner_system_failure, stuck_or_timeout_failure, scheduler_failure, api_failure]
 
 variables:
   GIT_DEPTH: "20"
