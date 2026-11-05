@@ -12,15 +12,15 @@
     LAN host (GitLab runner `ubuntu-server`) --pulls--> the published Release,
         verifies the checksums, installs the Linux server and the website
 
-Principles: **build once, deploy that exact artifact** (nothing is rebuilt on the host), **GitHub has no access to the LAN** (the host only makes outbound downloads), **releases are immutable tags**, and the deploy is a manual click.
+Principles: **build once, deploy that exact artifact** (nothing is rebuilt on the host), **GitHub has no access to the LAN** (the host only makes outbound downloads), **releases are immutable tags**, and the deploy runs automatically when a release tag is pushed to GitLab.
 
 | Event | What runs |
 |-------|-----------|
 | push / pull request | GitHub `build`: Linux, Windows client (MSYS2), Windows server (MSVC), web client (Emscripten); unit, smoke, sanitizer, fuzz, relay and 20-bot load tests. GitLab CI runs build and tests on the LAN too. |
 | tag `vX.Y.Z[-rcN]` pushed to GitHub | GitHub `release`: builds and packages **Linux and Windows servers and clients plus the web client**, writes `SHA256SUMS.txt`, attests provenance, publishes the GitHub Release |
-| tag pushed to GitLab | GitLab pipeline gets a manual `deploy:release` job. Click play: it waits for the GitHub Release, verifies it, installs the Linux server (health-checked, automatic rollback) and the website, on the LAN host |
+| tag pushed to GitLab | GitLab pipeline runs `deploy:release` automatically: it waits for the GitHub Release, verifies it, installs the Linux server (health-checked, automatic rollback) and the website, on the LAN host |
 
-Pushing to `master` never restarts production: only a tagged release that you deploy does, so players are disconnected only when you decide. Rollback or redeploy: run `deploy:release` of an older tag's pipeline (or `ci/deploy-release.sh <tag>` on the host).
+Pushing to `master` never restarts production: only a pushed `v*` tag does (automatically), so players are disconnected only when you tag a release. Rollback or redeploy: run `deploy:release` of an older tag's pipeline (or `ci/deploy-release.sh <tag>` on the host).
 
 ## Releasing
 
@@ -34,8 +34,8 @@ Pushing to `master` never restarts production: only a tagged release that you de
 
 4. Watch the `release` workflow on GitHub until the Release appears.
 5. Before the first release containing the console integration, run `sudo ./deploy/setup.sh` and
-   `sudo ./deploy/web/setup-web.sh` on the host. In GitLab, open the tag's pipeline and click play on
-   `deploy:release`. It checks the game and status ports (rolling back automatically if either fails), then checks the
+   `sudo ./deploy/web/setup-web.sh` on the host. The tag's GitLab pipeline then runs
+   `deploy:release` by itself (it waits for the GitHub Release). It checks the game and status ports (rolling back automatically if either fails), then checks the
    public status JSON and CORS/cache headers.
 6. Check the console status contract, then hard-refresh the web client and connect once:
 
