@@ -21,6 +21,9 @@
 ===============================================================================
 */
 #include "CDDraw.h"
+#include <vector>
+#include <cmath>
+#include <algorithm>
 
 CDDraw::CDDraw(CGame *game)
 {
@@ -112,16 +115,70 @@ void CDDraw::InitFullscreen(HWND hWnd)
     CreateRenderer(hWnd);
 }
 
+/// <summary>
+/// Turns colour-keyed pixels into real alpha and spreads the colour of nearby opaque pixels into the
+/// transparent ones, so smooth (linear) scaling never blends in the key colour (no pink/black fringes).
+/// </summary>
+static SDL_Surface *KeyToAlpha(SDL_Surface *src, bool useColorKey, Uint8 kr, Uint8 kg, Uint8 kb)
+{
+    SDL_Surface *s = SDL_ConvertSurfaceFormat(src, SDL_PIXELFORMAT_RGBA32, 0);
+    if (!s) return NULL;
+    SDL_SetSurfaceBlendMode(s, SDL_BLENDMODE_BLEND);
+    if (!useColorKey) return s;
+
+    const int w = s->w, h = s->h, pitch = s->pitch;
+    Uint8 *base = (Uint8 *)s->pixels;
+    bool anyKeyed = false;
+    for (int y = 0; y < h; y++) {
+        Uint8 *row = base + y * pitch;
+        for (int x = 0; x < w; x++) {
+            Uint8 *px = row + x * 4;
+            if (px[0] == kr && px[1] == kg && px[2] == kb) { px[3] = 0; anyKeyed = true; }
+        }
+    }
+    if (!anyKeyed) return s;
+
+    // Bleed colour outwards a few pixels (enough for 2x-4x upscaling filters)
+    std::vector<Uint8> done((size_t)w * h);
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) done[(size_t)y * w + x] = base[y * pitch + x * 4 + 3] != 0;
+    for (int pass = 0; pass < 3; pass++) {
+        std::vector<Uint8> next = done;
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                if (done[(size_t)y * w + x]) continue;
+                int r = 0, g = 0, b = 0, n = 0;
+                for (int dy = -1; dy <= 1; dy++) {
+                    int yy = y + dy;
+                    if (yy < 0 || yy >= h) continue;
+                    for (int dx = -1; dx <= 1; dx++) {
+                        int xx = x + dx;
+                        if (xx < 0 || xx >= w || !done[(size_t)yy * w + xx]) continue;
+                        const Uint8 *q = base + yy * pitch + xx * 4;
+                        r += q[0]; g += q[1]; b += q[2]; n++;
+                    }
+                }
+                if (!n) continue;
+                Uint8 *px = base + y * pitch + x * 4;
+                px[0] = (Uint8)(r / n); px[1] = (Uint8)(g / n); px[2] = (Uint8)(b / n);
+                next[(size_t)y * w + x] = 1;
+            }
+        }
+        done.swap(next);
+    }
+    return s;
+}
+
 BCImage *CDDraw::LoadImage(const char *file, bool useColorKey, COLORREF colorKey)
 {
-    SDL_Surface *surface = SDL_LoadBMP(file);
-    if (!surface) {
+    SDL_Surface *loaded = SDL_LoadBMP(file);
+    if (!loaded) {
         p->Engine->logerror(std::string("Unable to load ") + file + ": " + SDL_GetError());
         return NULL;
     }
-    if (useColorKey) {
-        SDL_SetColorKey(surface, SDL_TRUE, SDL_MapRGB(surface->format, GetRValue(colorKey), GetGValue(colorKey), GetBValue(colorKey)));
-    }
+    SDL_Surface *surface = KeyToAlpha(loaded, useColorKey, GetRValue(colorKey), GetGValue(colorKey), GetBValue(colorKey));
+    SDL_FreeSurface(loaded);
+    if (!surface) return NULL;
     BCImage *img = new BCImage;
     img->width = surface->w;
     img->height = surface->h;
@@ -131,6 +188,7 @@ BCImage *CDDraw::LoadImage(const char *file, bool useColorKey, COLORREF colorKey
         delete img;
         return NULL;
     }
+    SDL_SetTextureBlendMode(img->texture, SDL_BLENDMODE_BLEND);
     return img;
 }
 
@@ -247,7 +305,12 @@ void CDDraw::UpdateScaleMode()
     if (ow == lastOutputW && oh == lastOutputH) return;
     lastOutputW = ow;
     lastOutputH = oh;
-    SDL_ScaleMode mode = (ow < p->ResolutionX || oh < p->ResolutionY) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
+    // Pixel art stays crisp: an integer multiple of the game's resolution is used when the window is close to
+    // one (nearest filtering, thin borders); otherwise the picture is scaled smoothly to fill the window.
+    float fit = std::min((float)ow / p->ResolutionX, (float)oh / p->ResolutionY);
+    bool integerFit = fit >= 1.0f && (fit - std::floor(fit)) < 0.34f;
+    SDL_RenderSetIntegerScale(Renderer, integerFit ? SDL_TRUE : SDL_FALSE);
+    SDL_ScaleMode mode = (fit < 1.0f || !integerFit) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
     BCImage **all[] = { &imgArrows, &imgArrowsRed, &imgBCLogo, &imgBlackNumbers, &imgBtnStaff, &imgBuildIcons, &imgBuildings, &imgBullets, &imgCompany, &imgCursor, &imgDemolish, &imgGround, &imgHealth, &imgInterface, &imgInterfaceBottom, &imgInventorySelection, &imgItems, &imgLava, &imgLoading, &imgLExplosion, &imgMiniMapColors, &imgMoneyBox, &imgMoneyDown, &imgMoneyUp, &imgMuzzleFlash, &imgPopulation, &imgRadarColors, &imgResearch, &imgResearchComplete, &imgRocks, &imgSExplosion, &imgSmoke, &imgStar, &imgTanks, &imgTurretBase, &imgTurretHead };
     for (BCImage **img : all) if (*img && (*img)->texture) SDL_SetTextureScaleMode((*img)->texture, mode);
 }
