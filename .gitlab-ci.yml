@@ -28,6 +28,7 @@ build:server-linux:
 
 test:server-smoke:
   stage: test
+  resource_group: test-ports   # the tests bind fixed local ports: never run two pipelines' tests at once
   needs: [build:server-linux]
   script:
     - ci/smoke-test.sh build/server/bc-server data/map.dat
@@ -44,6 +45,7 @@ build:client-linux:
 
 test:client-smoke:
   stage: test
+  resource_group: test-ports   # the tests bind fixed local ports: never run two pipelines' tests at once
   needs: [build:client-linux]
   script:
     - ci/smoke-test-client.sh build-client/client/bc-client data
@@ -51,6 +53,7 @@ test:client-smoke:
 # Same server built with AddressSanitizer/UBSan: out-of-range indexing (the Windows crash class) fails here, before deploy
 test:server-sanitizers:
   stage: test
+  resource_group: test-ports   # the tests bind fixed local ports: never run two pipelines' tests at once
   script:
     - cmake -S . -B build-asan -DCMAKE_BUILD_TYPE=Debug -DBC_BUILD_CLIENT=OFF -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize=alignment -fno-omit-frame-pointer"
     - cmake --build build-asan -j"$(nproc)"
