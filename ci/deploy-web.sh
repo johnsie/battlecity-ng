@@ -31,10 +31,15 @@ echo "   https://bc.outiva.com/outiva-status.json -> HTTP $status_code"
 grep -Eq '^\{"status":"available","players":[0-9]+\}$' "$CHECK_DIR/body" || {
   echo "status endpoint returned an invalid body"; cat "$CHECK_DIR/body"; exit 1;
 }
-grep -Eiq '^Access-Control-Allow-Origin: https://outiva\.com\r?$' "$CHECK_DIR/headers" || {
+# curl writes CRLF line endings, and grep -E has no \r escape: strip the CRs first
+tr -d '\r' < "$CHECK_DIR/headers" > "$CHECK_DIR/headers.lf"
+grep -Eiq '^Access-Control-Allow-Origin: https://outiva\.com$' "$CHECK_DIR/headers.lf" || {
   echo "status endpoint is missing the Outiva CORS header"; exit 1;
 }
-grep -Eiq '^Cache-Control: public, max-age=15\r?$' "$CHECK_DIR/headers" || {
+[ "$(grep -Eic '^Access-Control-Allow-Origin:' "$CHECK_DIR/headers.lf")" = "1" ] || {
+  echo "status endpoint sends duplicate CORS headers (browsers reject them)"; exit 1;
+}
+grep -Eiq '^Cache-Control: public, max-age=15$' "$CHECK_DIR/headers.lf" || {
   echo "status endpoint is missing the 15-second cache header"; exit 1;
 }
 ls -1dt "$ROOT"/releases/* | tail -n +6 | xargs -r rm -rf   # keep the 5 newest
