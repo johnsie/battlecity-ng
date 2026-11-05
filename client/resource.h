@@ -95,6 +95,7 @@
 #define IDMONTHLYTOP20                  1070
 #define IDSTARTINGCITY                  1071
 #define IDUPDATESTARTINGCITY            1072
+#define IDOUTIVALOGIN                   1073
 #define IDC_STATIC                      -1
 
 // Next default values for new objects

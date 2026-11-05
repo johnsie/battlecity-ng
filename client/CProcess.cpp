@@ -394,6 +394,7 @@ int CProcess::ProcessData(char *TheData) {
  **************************************************************/
 void CProcess::ProcessLogin(unsigned char Index, unsigned char playerType) {
 	CPlayer* player = this->p->Player[Index];
+	BCSetLoginLayout(false);
 
 	this->p->Winsock->MyIndex = Index;
 

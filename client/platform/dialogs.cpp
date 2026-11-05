@@ -5,6 +5,7 @@
 #include "dialogs.h"
 #include "dialogs_defs.h"
 #include "input_compat.h"
+#include "../resource.h"
 #include <SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -16,6 +17,10 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <cstdlib>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 namespace {
 
@@ -47,6 +52,7 @@ struct Dlg {
 	std::vector<Ctl> ctls;          // never resized after creation: control handles stay valid
 	bool open = false;
 	bool focusFirst = false;
+	int loginMode = 0;               // 0: Battle City account, 1: Outiva identity
 };
 
 const float FONT_PIXELS = 11.5f;     // font size at scale 1 (the original dialogs' size at 1024x768)
@@ -116,6 +122,7 @@ void ResetDialog(Dlg *d) {
 		c.buffer.clear();
 		if (c.isEditable()) SetEditText(c, "");
 	}
+	d->loginMode = std::getenv("BC_OUTIVA_NAME") ? 1 : 0;
 }
 
 Dlg *GetOrCreateDialog(int id) {
@@ -375,6 +382,14 @@ void BCDialogsShutdown() {
 	g_imguiReady = false;
 }
 
+void BCSetLoginLayout(bool active) {
+#ifdef __EMSCRIPTEN__
+	EM_ASM({ if (window.bcSetLoginLayout) window.bcSetLoginLayout(!!$0); }, active ? 1 : 0);
+#else
+	(void)active;
+#endif
+}
+
 bool BCDialogsActive() { return g_active != nullptr || !g_messages.empty(); }
 
 bool BCMessagesPending() { return !g_messages.empty(); }
@@ -553,6 +568,212 @@ void DrawControl(Dlg *d, Ctl &c, int index, float originY) {
 	ImGui::PopID();
 }
 
+bool DrawLoginEdit(Dlg *d, Ctl *c, const char *hint, bool password, bool focus) {
+	if (!c) return false;
+	if (c->buffer.empty()) SetEditText(*c, c->text.c_str());
+	ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue;
+	if (password) flags |= ImGuiInputTextFlags_Password;
+	ImGui::PushID(c->def->id);
+	ImGui::SetNextItemWidth(-1);
+	if (focus && d->focusFirst) { ImGui::SetKeyboardFocusHere(); d->focusFirst = false; }
+	bool entered = ImGui::InputTextWithHint("##field", hint, c->buffer.data(), c->buffer.size(), flags);
+	c->text = c->buffer.data();
+	ImGui::PopID();
+	return entered;
+}
+
+void DrawLoginTab(Dlg *d, const char *label, int mode, float width) {
+	bool active = d->loginMode == mode;
+	if (active) {
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.18f, 0.25f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.12f, 0.18f, 0.25f, 1.0f));
+	} else {
+		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.055f, 0.075f, 0.10f, 1.0f));
+		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.09f, 0.13f, 0.18f, 1.0f));
+	}
+	if (ImGui::Button(label, ImVec2(width, 40.0f * g_scale))) {
+		d->loginMode = mode;
+		d->focusFirst = true;
+	}
+	ImGui::PopStyleColor(2);
+}
+
+void DrawLoginSubmit(Dlg *d, const char *label) {
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.91f, 0.18f, 0.13f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.25f, 0.18f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.78f, 0.12f, 0.09f, 1.0f));
+	if (ImGui::Button(label, ImVec2(-1, 43.0f * g_scale))) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
+	ImGui::PopStyleColor(3);
+}
+
+bool DrawLoginLink(const char *label) {
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.13f, 0.19f, 0.26f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.23f, 0.31f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.70f, 0.79f, 0.88f, 1.0f));
+	bool clicked = ImGui::SmallButton(label);
+	ImGui::PopStyleColor(4);
+	return clicked;
+}
+
+void DrawModernLogin(Dlg *d) {
+	ImGuiIO &io = ImGui::GetIO();
+	const float margin = 14.0f;
+	const bool wide = io.DisplaySize.x >= 760.0f && io.DisplaySize.y >= 500.0f;
+	const float width = std::min(wide ? 900.0f : 520.0f, io.DisplaySize.x - margin * 2.0f);
+	const float height = std::min(wide ? 560.0f : 620.0f, io.DisplaySize.y - margin * 2.0f);
+	const float padding = wide ? 30.0f : 20.0f;
+
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 18.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 1.0f);
+	ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.035f, 0.052f, 0.073f, 0.985f));
+	ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.22f, 0.29f, 0.37f, 0.9f));
+	ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.91f, 0.94f, 0.97f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.075f, 0.105f, 0.14f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(0.10f, 0.14f, 0.19f, 1.0f));
+	ImGui::PushStyleColor(ImGuiCol_FrameBgActive, ImVec4(0.12f, 0.16f, 0.22f, 1.0f));
+	ImGuiWindowFlags flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
+	                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
+	                         ImGuiWindowFlags_NoScrollWithMouse;
+	if (ImGui::Begin("Battle City sign in###modern-login", nullptr, flags)) {
+		if (wide) {
+			ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.075f, 0.105f, 0.135f, 1.0f));
+			ImGui::BeginChild("##login-hero", ImVec2(width * 0.38f, height), false, ImGuiWindowFlags_NoScrollbar);
+			ImGui::SetCursorPos(ImVec2(34.0f, 38.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.27f, 0.18f, 1.0f));
+			ImGui::SetWindowFontScale(1.7f);
+			ImGui::TextUnformatted("BATTLE CITY");
+			ImGui::SetWindowFontScale(1.0f);
+			ImGui::PopStyleColor();
+			ImGui::SetCursorPos(ImVec2(34.0f, 112.0f));
+			ImGui::SetWindowFontScale(1.45f);
+			ImGui::TextWrapped("Build your city. Rally your team. Rule the map.");
+			ImGui::SetWindowFontScale(1.0f);
+			ImGui::SetCursorPos(ImVec2(34.0f, 218.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68f, 0.74f, 0.80f, 1.0f));
+			ImGui::PushTextWrapPos(width * 0.38f - 34.0f);
+			ImGui::TextWrapped("Enter the shared world with your Battle City character, or identify yourself through Outiva.");
+			ImGui::PopTextWrapPos();
+			ImGui::SetCursorPos(ImVec2(34.0f, height - 62.0f));
+			ImGui::TextUnformatted("LIVE  -  bc.outiva.com");
+			ImGui::PopStyleColor();
+			ImGui::EndChild();
+			ImGui::PopStyleColor();
+			ImGui::SameLine(0, 0);
+		}
+
+		float panelWidth = wide ? width * 0.62f : width;
+		ImGui::BeginChild("##login-form", ImVec2(panelWidth, height), false);
+		if (!wide && height >= 560.0f) {
+			d->focusFirst = false;
+			ImGui::SetScrollY(0.0f);
+		}
+		ImGui::SetCursorPos(ImVec2(padding, padding));
+		if (!wide) {
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.27f, 0.18f, 1.0f));
+			ImGui::SetWindowFontScale(1.45f);
+			ImGui::TextUnformatted("BATTLE CITY");
+			ImGui::SetWindowFontScale(1.0f);
+			ImGui::PopStyleColor();
+			ImGui::Dummy(ImVec2(0, 8.0f));
+		}
+
+		float available = panelWidth - padding * 2.0f;
+		float tabWidth = (available - 8.0f) * 0.5f;
+		ImGui::SetCursorPosX(padding);
+		DrawLoginTab(d, "Battle City account", 0, tabWidth);
+		ImGui::SameLine(0, 8.0f);
+		DrawLoginTab(d, "Outiva account", 1, tabWidth);
+		ImGui::SetCursorPosX(padding);
+		ImGui::Dummy(ImVec2(0, 16.0f));
+
+		Ctl *user = FindCtl(d, IDUSER);
+		Ctl *pass = FindCtl(d, IDPASS);
+		const char *outivaName = std::getenv("BC_OUTIVA_NAME");
+		bool hasOutiva = outivaName && outivaName[0];
+
+		ImGui::SetCursorPosX(padding);
+		ImGui::BeginGroup();
+		ImGui::PushItemWidth(available);
+		if (d->loginMode == 0) {
+			ImGui::SetWindowFontScale(1.45f);
+			ImGui::TextUnformatted("Welcome back");
+			ImGui::SetWindowFontScale(1.0f);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.65f, 0.71f, 0.78f, 1.0f));
+			ImGui::TextWrapped("Sign in with your existing Battle City character.");
+			ImGui::PopStyleColor();
+			ImGui::Dummy(ImVec2(0, 12.0f));
+			ImGui::TextUnformatted("Character name");
+			bool enter = DrawLoginEdit(d, user, "Your character name", false, wide);
+			ImGui::Dummy(ImVec2(0, 8.0f));
+			ImGui::TextUnformatted("Password");
+			enter = DrawLoginEdit(d, pass, "Your password", true, false) || enter;
+			ImGui::Dummy(ImVec2(0, 14.0f));
+			if (enter) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
+			if (d->open) DrawLoginSubmit(d, "Enter Battle City");
+			if (d->open) {
+				ImGui::Dummy(ImVec2(0, 10.0f));
+				if (DrawLoginLink("Create character")) Notify(d, 3, BN_CLICKED, FindCtl(d, 3));
+				ImGui::SameLine();
+				if (DrawLoginLink("Forgot password")) Notify(d, 5, BN_CLICKED, FindCtl(d, 5));
+				ImGui::SameLine();
+				if (DrawLoginLink("Edit character")) Notify(d, 4, BN_CLICKED, FindCtl(d, 4));
+			}
+		} else {
+			ImGui::SetWindowFontScale(1.45f);
+			ImGui::TextUnformatted(hasOutiva ? "Outiva connected" : "Continue with Outiva");
+			ImGui::SetWindowFontScale(1.0f);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.65f, 0.71f, 0.78f, 1.0f));
+			ImGui::TextWrapped(hasOutiva
+				? "Your verified Outiva identity is ready. Enter your Battle City password to open this character."
+				: "Use your Outiva account securely through accounts.outiva.com.");
+			ImGui::PopStyleColor();
+			ImGui::Dummy(ImVec2(0, 14.0f));
+			if (!hasOutiva) {
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.38f, 0.62f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.47f, 0.75f, 1.0f));
+				if (ImGui::Button("Continue with Outiva", ImVec2(-1, 46.0f * g_scale)))
+					Notify(d, IDOUTIVALOGIN, BN_CLICKED, nullptr);
+				ImGui::PopStyleColor(2);
+				ImGui::Dummy(ImVec2(0, 12.0f));
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.52f, 0.60f, 0.68f, 1.0f));
+				ImGui::TextWrapped("You will return here after signing in. Battle City never sees your Outiva password.");
+				ImGui::PopStyleColor();
+			} else {
+				ImGui::TextUnformatted("Battle City character");
+				DrawLoginEdit(d, user, "Character name", false, false);
+				ImGui::Dummy(ImVec2(0, 8.0f));
+				ImGui::TextUnformatted("Battle City password");
+				bool enter = DrawLoginEdit(d, pass, "Required by the game server", true, wide);
+				ImGui::Dummy(ImVec2(0, 14.0f));
+				if (enter) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
+				if (d->open) DrawLoginSubmit(d, "Continue as Outiva user");
+			}
+		}
+		ImGui::PopItemWidth();
+		if (d->open) {
+			ImGui::Dummy(ImVec2(0, 12.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.62f, 0.69f, 1.0f));
+			if (DrawLoginLink("Exit game")) Notify(d, IDCANCEL, BN_CLICKED, FindCtl(d, IDCANCEL));
+			ImGui::SameLine();
+			ImGui::TextUnformatted("Battle City NG");
+			ImGui::PopStyleColor();
+		}
+		ImGui::EndGroup();
+		// ImGui scrolls a newly opened child to its first keyboard-nav item. On a
+		// phone-sized but tall viewport all content already fits, so keep the brand
+		// and account selector visible instead of starting halfway down the form.
+		if (!wide && height >= 560.0f) ImGui::SetScrollY(0.0f);
+		ImGui::EndChild();
+	}
+	ImGui::End();
+	ImGui::PopStyleColor(6);
+	ImGui::PopStyleVar(3);
+}
+
 } // namespace
 
 // Draws the front message as a modal popup; returns true when it was answered (and removes it)
@@ -604,7 +825,10 @@ void BCDialogsRender() {
 	if (lw <= 0 || lh <= 0) { lw = ow; lh = oh; }
 	float k = std::min(ow / (float)lw, oh / (float)lh);                 // how much the game itself is scaled
 	float ui = std::max(MIN_UI_SCALE, k) * UI_BOOST;                    // dialogs stay readable when the window is small
-	if (d) {                                                            // ... but must fit inside the window
+	bool modernLogin = d && d->def->id == ID_LOGIN;
+	if (modernLogin) {
+		ui = std::max(1.15f, std::min(1.5f, std::min(ow / 760.0f, oh / 520.0f) * 1.25f));
+	} else if (d) {                                                     // ... but must fit inside the window
 		float fitW = ow * 0.97f / (d->def->w * DLU_X);
 		float fitH = (oh * 0.97f - 40.0f) / (d->def->h * DLU_Y);
 		ui = std::min(ui, std::min(fitW, fitH));
@@ -633,7 +857,9 @@ void BCDialogsRender() {
 
 	float titleH = ImGui::GetFrameHeight();
 	bool keepOpen = true;
-	if (d) {
+	if (modernLogin) {
+		DrawModernLogin(d);
+	} else if (d) {
 	ImVec2 size(d->def->w * DLU_X * g_scale, d->def->h * DLU_Y * g_scale + titleH);
 	ImGui::SetNextWindowPos(ImVec2((ImGui::GetIO().DisplaySize.x - size.x) / 2, (ImGui::GetIO().DisplaySize.y - size.y) / 2), ImGuiCond_Always);
 	ImGui::SetNextWindowSize(size, ImGuiCond_Always);

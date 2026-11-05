@@ -22,6 +22,11 @@
 */
 #include "CLogin.h"
 #include <cstdlib>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#else
+#include <SDL.h>
+#endif
 
 HBRUSH g_hbrBackgroundLogin;
 HDC hdcStaticLogin;
@@ -36,13 +41,11 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
         case WM_INITDIALOG:
 			SendDlgItemMessage(hwnd, IDUSER, EM_LIMITTEXT, 15, 0);
 			SendDlgItemMessage(hwnd, IDPASS, EM_LIMITTEXT, 15, 0);
-#ifdef __EMSCRIPTEN__
 			// The verified Outiva profile only supplies a convenient legacy account
 			// name. Battle City's existing password remains required by its server.
 			if (const char *outivaName = std::getenv("BC_OUTIVA_NAME")) {
 				if (outivaName[0] != '\0') SetDlgItemText(hwnd, IDUSER, outivaName);
 			}
-#endif
 			SetDlgItemText(hwnd, IDVERSION, (p->Login->VersionString + "  -  server: " + p->Options->gameServerAddress).c_str());
 			return 1;
 			break;
@@ -82,6 +85,16 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 					p->Recover->ShowRecoverDlg();
 					EndDialog(hwnd, 5);
 				break;
+				case IDOUTIVALOGIN:
+#ifdef __EMSCRIPTEN__
+					// A user gesture is required before leaving the embedded game for Keycloak.
+					EM_ASM({ if (window.beginOutivaSignIn) window.beginOutivaSignIn(); });
+#else
+					// Desktop clients complete Outiva sign-in in the browser client, where the
+					// OIDC redirect URI and verified profile are available.
+					SDL_OpenURL("https://bc.outiva.com/?login=outiva");
+#endif
+				break;
             }
 			break;
         default:
@@ -107,6 +120,7 @@ CLogin::~CLogin()
 /// <summary>   Shows the login dialog. </summary>
 void CLogin::ShowLoginDlg()
 {
+	BCSetLoginLayout(true);
     //  Set game state to STATE_LOGIN
 	p->State = STATE_LOGIN;
     //  Initialize the ID_LOGIN dialog

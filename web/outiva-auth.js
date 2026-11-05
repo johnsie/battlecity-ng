@@ -1,7 +1,9 @@
 // Optional Outiva identity for browser clients. Direct visits remain anonymous;
 // the Outiva console starts a silent PKCE flow with ?outiva_sso=1.
+// Always use Keycloak's public/canonical issuer. The service is hosted on
+// 192.168.10.181, but using that address here would break TLS and `iss` checks.
 const AUTHORITY = 'https://accounts.outiva.com/realms/outiva';
-const CALLBACK_KEYS = ['code', 'state', 'session_state', 'iss', 'error', 'error_description', 'outiva_sso'];
+const CALLBACK_KEYS = ['code', 'state', 'session_state', 'iss', 'error', 'error_description', 'outiva_sso', 'login'];
 const encoder = new TextEncoder();
 
 const base64url = bytes => btoa(String.fromCharCode(...bytes)).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
@@ -40,14 +42,14 @@ async function verifyIdToken(token, clientId, expectedNonce = '') {
   return { sub: claims.sub, name: claims.name || '', preferred_username: claims.preferred_username || '', email: claims.email || '', exp: claims.exp };
 }
 
-async function begin(clientId) {
+async function begin(clientId, { prompt = 'none', returnToConsole: consoleReturn = false } = {}) {
   const verifier = randomValue(64);
-  const pending = { verifier, state: randomValue(), nonce: randomValue(), created: Date.now() };
+  const pending = { verifier, state: randomValue(), nonce: randomValue(), created: Date.now(), consoleReturn };
   sessionStorage.setItem(pendingKey(clientId), JSON.stringify(pending));
   const challenge = base64url(new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(verifier))));
   const query = new URLSearchParams({
     client_id: clientId, redirect_uri: `${location.origin}/`, response_type: 'code', response_mode: 'query',
-    scope: 'openid profile email', prompt: 'none', state: pending.state, nonce: pending.nonce,
+    scope: 'openid profile email', prompt, state: pending.state, nonce: pending.nonce,
     code_challenge: challenge, code_challenge_method: 'S256',
   });
   location.replace(`${AUTHORITY}/protocol/openid-connect/auth?${query}`);
@@ -57,7 +59,9 @@ async function finish(clientId, appId, params) {
   const pending = JSON.parse(sessionStorage.getItem(pendingKey(clientId)) || 'null');
   sessionStorage.removeItem(pendingKey(clientId));
   if (!pending || params.get('state') !== pending.state || Date.now() - pending.created > 10 * 60 * 1000 || params.has('error')) {
-    clearCallback(); returnToConsole(appId); return null;
+    clearCallback();
+    if (pending?.consoleReturn) returnToConsole(appId);
+    return null;
   }
   const response = await fetch(`${AUTHORITY}/protocol/openid-connect/token`, {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -67,15 +71,32 @@ async function finish(clientId, appId, params) {
   const tokens = await response.json();
   const profile = await verifyIdToken(tokens.id_token, clientId, pending.nonce);
   localStorage.setItem(storageKey(clientId), tokens.id_token);
-  clearCallback(); returnToConsole(appId);
+  clearCallback();
+  if (pending.consoleReturn) returnToConsole(appId);
   return profile;
+}
+
+// Starts an interactive flow from the login screen. This deliberately differs
+// from the console's silent SSO probe: Keycloak may show its account picker.
+export async function signInWithOutiva(clientId) {
+  return begin(clientId, { prompt: 'login', returnToConsole: false });
 }
 
 export async function initialiseOutivaIdentity({ clientId, appId }) {
   const params = new URLSearchParams(location.search);
+  let callbackPending = null;
+  try { callbackPending = JSON.parse(sessionStorage.getItem(pendingKey(clientId)) || 'null'); }
+  catch { sessionStorage.removeItem(pendingKey(clientId)); }
   try {
     if (params.has('code') || params.has('error')) return await finish(clientId, appId, params);
-    if (params.get('outiva_sso') === '1') { await begin(clientId); return null; }
+    if (params.get('login') === 'outiva') {
+      await begin(clientId, { prompt: 'login', returnToConsole: false });
+      return null;
+    }
+    if (params.get('outiva_sso') === '1') {
+      await begin(clientId, { prompt: 'none', returnToConsole: true });
+      return null;
+    }
     const token = localStorage.getItem(storageKey(clientId));
     if (!token) return null;
     try { return await verifyIdToken(token, clientId); }
@@ -83,7 +104,7 @@ export async function initialiseOutivaIdentity({ clientId, appId }) {
   } catch (error) {
     console.warn('Optional Outiva sign-in was not available:', error);
     clearCallback();
-    if (params.has('code') || params.has('error') || params.get('outiva_sso') === '1') returnToConsole(appId);
+    if (callbackPending?.consoleReturn || params.get('outiva_sso') === '1') returnToConsole(appId);
     return null;
   }
 }
