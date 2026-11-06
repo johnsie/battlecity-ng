@@ -306,6 +306,18 @@ void CDrawing::DrawPanel() {
 	// Draw the bottom half of the interface
 	p->DDraw->Draw(p->DDraw->imgInterfaceBottom, MaxMapX, 430, 200, 170);
 
+	// Crisp labels on the panel buttons (their faces are painted bare when the art is loaded)
+	{
+		const COLORREF ink = RGB(24, 38, 62);
+		const char *names[6] = { "STAFF", "MAP", "INFO", "POINTS", "OPTIONS", "HELP" };
+		bool flashing = p->Player[p->Winsock->MyIndex]->isMayor && p->Personnel->ApplicantWaiting && p->Personnel->ApplicantAnim == 1;
+		for (int b = 0; b < 6; b++) {
+			if (b == 0 && flashing) continue;   // the flashing Staff art carries its own label
+			p->DDraw->DButtonLabel(MaxMapX + 148, 269 + b * 22 + 3, 40, names[b], ink);
+		}
+		p->DDraw->DButtonLabel(MaxMapX + 129, 401 + 3, 59, "BUILD", ink);
+	}
+
 	// The panel art is 600 pixels tall; on taller views continue it as a bevelled metal block instead of leaving black
 	if (p->ResolutionY > 600) {
 		const int top = 600, h = p->ResolutionY - top;

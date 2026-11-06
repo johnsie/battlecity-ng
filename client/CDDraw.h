@@ -50,6 +50,7 @@ public:
     void Flip();
     void Draw(BCImage* Surface, int X, int Y, int width, int height, int _sX = 0, int _sY = 0, int _clipwidth = -1, int _clipheight = -1);
     void DTextOut(int X, int Y, string text, COLORREF ColorVal);
+    bool DButtonLabel(int X, int Y, int width, const string &text, COLORREF colour);   // crisp, shadowless label centred in a button; false if smooth text is unavailable
     int MeasureText(const string &text);   // width in game pixels of text as drawn by DTextOut
     void DFillRect(int X, int Y, int width, int height);
     void DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH);
@@ -125,9 +126,13 @@ private:
     void EnsureCanvas();
     void FlushText(const SDL_Rect &dst, float scale);
     bool EnsureTextAtlas(float scale);
-    struct QueuedText { int x, y; std::string text; COLORREF colour; };
+    struct QueuedText { int x, y; std::string text; COLORREF colour; bool shadow; };
     std::vector<QueuedText> textQueue;
     BCTtfFont ttf;
+    BCTtfFont ttfSmall;       // second bake of the same font, smaller, for the panel's button labels
+    SDL_Texture *SmallAtlas;
+    float smallScale;
+    bool EnsureSmallAtlas(float scale);
     bool ttfTried;
     SDL_Texture *TextAtlas;
     SDL_Texture *ShadowTex;
@@ -141,6 +146,8 @@ private:
 
     SDL_Window *Window;
     BCImage *Font;
+    SDL_Texture *UpscaleTex;  // canvas enlarged by a whole number (nearest), the first step of the sharp-bilinear upscale
+    int upscaleK;
     SDL_Texture *Canvas;      // the game is drawn here at its own resolution, then scaled to the window in one step
     int canvasW, canvasH;
 

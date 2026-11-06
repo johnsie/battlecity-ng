@@ -28,9 +28,13 @@
 CDDraw::CDDraw(CGame *game)
 {
     Canvas = NULL;
+    UpscaleTex = NULL;
+    upscaleK = 0;
     canvasW = canvasH = 0;
     ttfTried = false;
     TextAtlas = NULL;
+    SmallAtlas = NULL;
+    smallScale = 0;
     ShadowTex = NULL;
     GlowTex = NULL;
     PuffTex = NULL;
@@ -181,6 +185,64 @@ static SDL_Surface *KeyToAlpha(SDL_Surface *src, bool useColorKey, Uint8 kr, Uin
     return s;
 }
 
+/// <summary> Light unsharp mask (4-neighbour) for soft source art such as the panel buttons, whose labels carry a blurry halo </summary>
+static void SharpenSurface(SDL_Surface *s, float amount)
+{
+    if (!s || s->format->BytesPerPixel != 4 || s->w < 3 || s->h < 3) return;
+    std::vector<Uint8> copy((size_t)s->pitch * s->h);
+    SDL_LockSurface(s);
+    memcpy(copy.data(), s->pixels, copy.size());
+    for (int y = 1; y < s->h - 1; y++) {
+        for (int x = 1; x < s->w - 1; x++) {
+            const Uint8 *c = &copy[(size_t)y * s->pitch + x * 4];
+            if (c[3] < 255) continue;
+            const Uint8 *n[4] = { c - 4, c + 4, c - s->pitch, c + s->pitch };
+            Uint8 *o = (Uint8 *)s->pixels + (size_t)y * s->pitch + x * 4;
+            for (int ch = 0; ch < 3; ch++) {
+                float avg = (n[0][ch] + n[1][ch] + n[2][ch] + n[3][ch]) / 4.0f;
+                float v = c[ch] + (c[ch] - avg) * amount;
+                o[ch] = (Uint8)std::min(255.0f, std::max(0.0f, v));
+            }
+        }
+    }
+    SDL_UnlockSurface(s);
+}
+
+/// <summary> The side panel's buttons have their labels baked in, soft and haloed. Paint the faces clean (every button face is
+/// identical, and no pixel of a face is covered by the text of all six labels, so the brightest pixel across them is the bare face)
+/// so crisp text can be drawn on top instead. Coordinates are those of imgInterface.bmp. </summary>
+static void ClearPanelButtonLabels(SDL_Surface *s)
+{
+    if (!s || s->format->BytesPerPixel != 4 || s->w < 190 || s->h < 425) return;
+    const int tops[6] = { 269, 291, 313, 335, 357, 379 }, left = 148, faceW = 40, faceH = 17;   // interior of each 42x19 button
+    SDL_LockSurface(s);
+    auto at = [&](int x, int y) { return (Uint8 *)s->pixels + (size_t)y * s->pitch + x * 4; };
+    auto lum = [](const Uint8 *q) { return (int)q[0] * 4 + q[1] + q[2]; };   // the cyan halo is low in red, the grey face is not
+    Uint8 face[17][40][4];
+    for (int dy = 0; dy < faceH; dy++) {
+        // the bevelled ends: the brightest of the six (lettering and its cyan halo are darker or lower in red)
+        for (int dx = 0; dx < faceW; dx++) {
+            const Uint8 *best = at(left + dx, tops[0] + 1 + dy);
+            for (int b = 1; b < 6; b++) { const Uint8 *q = at(left + dx, tops[b] + 1 + dy); if (lum(q) > lum(best)) best = q; }
+            memcpy(face[dy][dx], best, 4);
+        }
+        // the flat middle, where most of the lettering is: the row's typical bare-face colour (a high percentile of every sample
+        // in that row of all six buttons, since lettering covers well under half of it)
+        std::vector<const Uint8 *> samples;
+        for (int b = 0; b < 6; b++) for (int dx = 4; dx < 36; dx++) samples.push_back(at(left + dx, tops[b] + 1 + dy));
+        std::sort(samples.begin(), samples.end(), [&](const Uint8 *l, const Uint8 *r) { return l[0] < r[0]; });   // red: the cyan halo is low in it, the grey face is not
+        const Uint8 *typical = samples[samples.size() * 9 / 10];
+        for (int dx = 4; dx < 36; dx++) memcpy(face[dy][dx], typical, 4);
+    }
+    for (int b = 0; b < 6; b++)
+        for (int dy = 0; dy < faceH; dy++)
+            for (int dx = 0; dx < faceW; dx++) memcpy(at(left + dx, tops[b] + 1 + dy), face[dy][dx], 4);
+    // BUILD: a wider button (x 129..187, y 402..418); the middle, where the lettering is, repeats a clean column of the others
+    for (int dy = 0; dy < faceH; dy++)
+        for (int x = 142; x <= 181; x++) memcpy(at(x, 402 + dy), face[dy][10], 4);
+    SDL_UnlockSurface(s);
+}
+
 BCImage *CDDraw::LoadImage(const char *file, bool useColorKey, COLORREF colorKey)
 {
     SDL_Surface *loaded = SDL_LoadBMP(file);
@@ -191,6 +253,11 @@ BCImage *CDDraw::LoadImage(const char *file, bool useColorKey, COLORREF colorKey
     SDL_Surface *surface = KeyToAlpha(loaded, useColorKey, GetRValue(colorKey), GetGValue(colorKey), GetBValue(colorKey));
     SDL_FreeSurface(loaded);
     if (!surface) return NULL;
+    if (!strcmp(file, "imgInterface.bmp")) {
+        if (!ttfTried) { ttfTried = true; ttf.Load("Vera.ttf"); }
+        if (ttf.Loaded()) ClearPanelButtonLabels(surface);   // crisp labels are drawn over the bare faces (see CDrawing::DrawPanel)
+    }
+    if (strstr(file, "imgInterface")) SharpenSurface(surface, 1.6f);   // the side panel's buttons are soft in the original art
     BCImage *img = new BCImage;
     img->width = surface->w;
     img->height = surface->h;
@@ -307,7 +374,9 @@ void CDDraw::DestroySurfaces()
     FreeImage(imgTurretHead);
     FreeImage(Font);
     if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
+    if (UpscaleTex) { SDL_DestroyTexture(UpscaleTex); UpscaleTex = NULL; upscaleK = 0; }
     if (TextAtlas) { SDL_DestroyTexture(TextAtlas); TextAtlas = NULL; }
+    if (SmallAtlas) { SDL_DestroyTexture(SmallAtlas); SmallAtlas = NULL; smallScale = 0; }
     if (ShadowTex) { SDL_DestroyTexture(ShadowTex); ShadowTex = NULL; }
     if (GlowTex) { SDL_DestroyTexture(GlowTex); GlowTex = NULL; }
     if (PuffTex) { SDL_DestroyTexture(PuffTex); PuffTex = NULL; }
@@ -340,6 +409,7 @@ void CDDraw::EnsureCanvas()
 {
     if (Canvas && canvasW == p->ResolutionX && canvasH == p->ResolutionY) return;
     if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
+    if (UpscaleTex) { SDL_DestroyTexture(UpscaleTex); UpscaleTex = NULL; upscaleK = 0; }
     Canvas = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, p->ResolutionX, p->ResolutionY);
     canvasW = p->ResolutionX;
     canvasH = p->ResolutionY;
@@ -373,13 +443,33 @@ void CDDraw::Flip()
         float fit = std::min((float)ow / canvasW, (float)oh / canvasH);
         bool integerFit = fit >= 1.0f && (fit - std::floor(fit)) / fit < 0.08f;
         float sc = integerFit ? std::floor(fit) : fit;
+        // Sharp bilinear: enlarge by a whole number with nearest filtering (crisp pixel edges), then let the
+        // smooth filter handle only the small leftover fraction. Plain bilinear from the small canvas looks blurry.
+        SDL_RenderSetLogicalSize(Renderer, 0, 0);
+        SDL_Texture *source = Canvas;
+        if (!integerFit && fit > 1.0f) {
+            int k = std::min(8, (int)std::ceil(fit));
+            if (!UpscaleTex || upscaleK != k) {
+                if (UpscaleTex) SDL_DestroyTexture(UpscaleTex);
+                UpscaleTex = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, canvasW * k, canvasH * k);
+                upscaleK = k;
+                if (UpscaleTex) SDL_SetTextureScaleMode(UpscaleTex, SDL_ScaleModeLinear);
+            }
+            if (UpscaleTex) {
+                SDL_SetTextureScaleMode(Canvas, SDL_ScaleModeNearest);
+                SDL_SetRenderTarget(Renderer, UpscaleTex);
+                SDL_RenderCopy(Renderer, Canvas, NULL, NULL);
+                SDL_SetRenderTarget(Renderer, NULL);
+                source = UpscaleTex;
+            }
+        }
         SDL_Rect dst;
         dst.w = (int)(canvasW * sc + 0.5f);
         dst.h = (int)(canvasH * sc + 0.5f);
         dst.x = (ow - dst.w) / 2;
         dst.y = (oh - dst.h) / 2;
         SDL_RenderSetLogicalSize(Renderer, 0, 0);
-        SDL_RenderCopy(Renderer, Canvas, NULL, &dst);
+        SDL_RenderCopy(Renderer, source, NULL, &dst);
         FlushText(dst, sc);
         SDL_RenderSetLogicalSize(Renderer, p->ResolutionX, p->ResolutionY);
     }
@@ -427,7 +517,7 @@ void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)
     if (!ttfTried) { ttfTried = true; ttf.Load("Vera.ttf"); }
     if (ttf.Loaded() && Canvas) {
         // Smooth text is drawn after the game image is scaled, at the window's real resolution (see FlushText)
-        textQueue.push_back({ X, Y, Text, ColorVal });
+        textQueue.push_back({ X, Y, Text, ColorVal, true });
         return;
     }
     const int cw = 8, ch = 16, cols = 16;
@@ -573,6 +663,27 @@ void CDDraw::DrawVignette(int w, int h, int alpha, int r, int g, int b)
 }
 
 /// <summary> (Re)bakes the text atlas for the current output scale (quantised so it does not thrash) </summary>
+bool CDDraw::EnsureSmallAtlas(float scale)
+{
+    float q = std::floor(std::min(std::max(scale, 0.75f), 4.0f) * 8.0f + 0.5f) / 8.0f;
+    if (SmallAtlas && q == smallScale) return true;
+    if (SmallAtlas) { SDL_DestroyTexture(SmallAtlas); SmallAtlas = NULL; }
+    if (!ttfSmall.Loaded()) ttfSmall.Load("Vera.ttf");
+    float px = 10.2f * q;
+    int size = px > 24.0f ? 1024 : 512;
+    std::vector<unsigned char> rgba;
+    if (!ttfSmall.Bake(px, size, rgba)) return false;
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(rgba.data(), size, size, 32, size * 4, SDL_PIXELFORMAT_RGBA32);
+    if (!surf) return false;
+    SmallAtlas = SDL_CreateTextureFromSurface(Renderer, surf);
+    SDL_FreeSurface(surf);
+    if (!SmallAtlas) return false;
+    SDL_SetTextureBlendMode(SmallAtlas, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(SmallAtlas, SDL_ScaleModeNearest);
+    smallScale = q;
+    return true;
+}
+
 bool CDDraw::EnsureTextAtlas(float scale)
 {
     float q = std::floor(std::min(std::max(scale, 0.75f), 4.0f) * 8.0f + 0.5f) / 8.0f;
@@ -595,6 +706,18 @@ bool CDDraw::EnsureTextAtlas(float scale)
 }
 
 /// <summary> Width in game pixels of text as DTextOut draws it </summary>
+bool CDDraw::DButtonLabel(int X, int Y, int width, const string &text, COLORREF colour)
+{
+    if (!Renderer || !Canvas) return false;
+    if (!ttfTried) { ttfTried = true; ttf.Load("Vera.ttf"); }
+    if (!ttf.Loaded()) return false;
+    if (!EnsureSmallAtlas(smallScale > 0 ? smallScale : 1.0f)) return false;
+    float w = 0;
+    for (unsigned char ch : text) { const BCGlyph *g = ttfSmall.Glyph(ch); w += g ? g->advance : 4; }
+    textQueue.push_back({ X + (width - (int)(w / smallScale + 0.5f)) / 2, Y, text, colour, false });
+    return true;
+}
+
 int CDDraw::MeasureText(const string &text)
 {
     if (!ttfTried) { ttfTried = true; ttf.Load("Vera.ttf"); }
@@ -617,6 +740,7 @@ void CDDraw::FlushText(const SDL_Rect &dst, float sc)
     int shadowX = std::max(1, (int)(sc + 0.5f)), shadowY = std::max(1, (int)(1.5f * sc + 0.5f));
     for (int pass = 0; pass < 2; pass++) {
         for (const QueuedText &t : textQueue) {
+            if (!t.shadow) continue;   // button labels are drawn below
             COLORREF colour = (pass == 0) ? RGB(0,0,0) : t.colour;
             SDL_SetTextureColorMod(TextAtlas, GetRValue(colour), GetGValue(colour), GetBValue(colour));
             float pen = dst.x + t.x * sc + (pass == 0 ? shadowX : 0);
@@ -628,6 +752,26 @@ void CDDraw::FlushText(const SDL_Rect &dst, float sc)
                 SDL_Rect out = { (int)std::floor(pen + g->xoff + 0.5f), (int)std::floor(baseline + g->yoff + 0.5f), src.w, src.h };
                 if (src.w > 0 && src.h > 0) SDL_RenderCopy(Renderer, TextAtlas, &src, &out);
                 pen += g->advance;
+            }
+        }
+    }
+    // Button labels: smaller, no shadow, struck twice a device pixel apart for weight
+    if (EnsureSmallAtlas(sc)) {
+        for (const QueuedText &t : textQueue) {
+            if (t.shadow) continue;
+            SDL_SetTextureColorMod(SmallAtlas, GetRValue(t.colour), GetGValue(t.colour), GetBValue(t.colour));
+            const BCGlyph *sp = ttfSmall.Glyph(' ');
+            for (int strike = 0; strike < 2; strike++) {
+                float pen = dst.x + t.x * sc + strike;
+                float baseline = dst.y + (t.y + 10.0f) * sc;
+                for (unsigned char ch : t.text) {
+                    const BCGlyph *g = ttfSmall.Glyph(ch);
+                    if (!g) { pen += sp->advance; continue; }
+                    SDL_Rect src = { (int)g->x0, (int)g->y0, (int)(g->x1 - g->x0), (int)(g->y1 - g->y0) };
+                    SDL_Rect out = { (int)std::floor(pen + g->xoff + 0.5f), (int)std::floor(baseline + g->yoff + 0.5f), src.w, src.h };
+                    if (src.w > 0 && src.h > 0) SDL_RenderCopy(Renderer, SmallAtlas, &src, &out);
+                    pen += g->advance;
+                }
             }
         }
     }
