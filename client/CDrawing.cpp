@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "CGame.h"
 
 /***************************************************************
@@ -285,14 +286,19 @@ void CDrawing::DrawTank() {
 		convert << timeleft;
 
 		// Draw dead message and respawn timer
-		p->DDraw->DTextOut(220, 270, "You have been blown up!", COLOR_WHITE);
-		p->DDraw->DTextOut(220, 285, "You will respawn in: ", COLOR_WHITE);
-		p->DDraw->DTextOut(387, 285, convert.str(), COLOR_WHITE);
+		{
+			std::string line1 = "You have been blown up!";
+			std::string line2 = "You will respawn in: " + convert.str();
+			int cy = MaxMapY / 2 - 114;
+			p->DDraw->DTextOut((MaxMapX - p->DDraw->MeasureText(line1)) / 2, cy, line1, COLOR_WHITE);
+			p->DDraw->DTextOut((MaxMapX - p->DDraw->MeasureText(line2)) / 2, cy + 15, line2, COLOR_WHITE);
+		}
 		return;
 	}
 
 	// Draw the tank
 	tankImage = this->getPlayerTankImage(p->Player[me], p->Player[me]);
+	p->DDraw->DrawShadow(this->PlayerOffsetX + 27, this->PlayerOffsetY + 37, 58, 26, 150, MaxMapX, MaxMapY);
 	p->DDraw->Draw(p->DDraw->imgTanks, this->PlayerOffsetX, this->PlayerOffsetY, 48, 48, (p->Player[me]->Direction / 2) * 48, tankImage * 48);
 
 	// If Names are on,
@@ -347,6 +353,7 @@ void CDrawing::DrawBuildings() {
 			buildingSubType = bld->Type - buildingType*100;
 			by = 144*buildingType;
 			bX = (bld->Animation/2)*144;
+			this->p->DDraw->DrawShadow(tileX+offX+84, tileY+offY+132, 150, 46, 130, MaxMapX, MaxMapY);
 			this->p->DDraw->Draw(this->p->DDraw->imgBuildings, tileX+offX, tileY+offY, 144, 144, bX, by, MaxMapX, MaxMapY);
 
 			moffX = 0;
@@ -437,6 +444,7 @@ void CDrawing::DrawPlayers() {
 
 			// If tankimg != -1, draw the tank
 			if (tankimg != -1) {
+				p->DDraw->DrawShadow(relativeX + 27, relativeY + 37, 58, 26, 150, MaxMapX, MaxMapY);
 				p->DDraw->Draw(p->DDraw->imgTanks, relativeX, relativeY, 48, 48, (p->Player[i]->Direction / 2) * 48, tankimg * 48, MaxMapX, MaxMapY);
 			}
 
@@ -1108,7 +1116,7 @@ void CDrawing::DrawBullets() {
 		tmpY = (int)p->Player[me]->Y - (int)blt->y + this->PlayerOffsetY;
 
 		// If the bullet is in sight,
-		if (tmpX > 0 && tmpY > 0 && tmpX < 900 && tmpY < 900) {
+		if (tmpX > 0 && tmpY > 0 && tmpX < std::max(900, MaxMapX + 76) && tmpY < std::max(900, MaxMapY + 76)) {
 			dX = blt->animation * 8;
 			dY = dY = blt->type * 8;
 

@@ -31,6 +31,7 @@ CDDraw::CDDraw(CGame *game)
     canvasW = canvasH = 0;
     ttfTried = false;
     TextAtlas = NULL;
+    ShadowTex = NULL;
     atlasScale = 0;
     atlasSize = 0;
     lastOutputW = lastOutputH = 0;
@@ -254,6 +255,8 @@ void CDDraw::LoadSurfaces()
         FreeImage(*e.target);
         *e.target = LoadImage(e.file, e.keyed, e.key);
     }
+    for (BCImage *glow : { imgLExplosion, imgSExplosion, imgMuzzleFlash })
+        if (glow && glow->texture) SDL_SetTextureBlendMode(glow->texture, SDL_BLENDMODE_ADD);   // fire glows instead of painting over the ground
     FreeImage(Font);
     Font = LoadImage("imgFont.bmp", true, RGB(0,0,0));
     TextWidth = 8;
@@ -301,6 +304,7 @@ void CDDraw::DestroySurfaces()
     FreeImage(Font);
     if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
     if (TextAtlas) { SDL_DestroyTexture(TextAtlas); TextAtlas = NULL; }
+    if (ShadowTex) { SDL_DestroyTexture(ShadowTex); ShadowTex = NULL; }
     if (Renderer) {
         SDL_DestroyRenderer(Renderer);
         Renderer = NULL;
@@ -435,6 +439,37 @@ void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)
             SDL_RenderCopy(Renderer, Font->texture, &src, &dst);
         }
     }
+}
+
+/// <summary> A soft elliptical drop shadow (black, fading to nothing at the edge), clipped to the map view </summary>
+void CDDraw::DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH)
+{
+    if (!Renderer) return;
+    if (!ShadowTex) {
+        const int w = 64, h = 32;
+        std::vector<Uint32> px((size_t)w * h);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                float dx = (x + 0.5f - w / 2.0f) / (w / 2.0f), dy = (y + 0.5f - h / 2.0f) / (h / 2.0f);
+                float d = std::sqrt(dx * dx + dy * dy);
+                float a = d >= 1.0f ? 0.0f : (1.0f - d * d);        // smooth falloff
+                a = a * a * (3.0f - 2.0f * a);
+                px[(size_t)y * w + x] = ((Uint32)(a * 255.0f + 0.5f) << 24);   // black with alpha (RGBA32 little-endian: A in the top byte)
+            }
+        }
+        SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(px.data(), w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
+        if (surf) { ShadowTex = SDL_CreateTextureFromSurface(Renderer, surf); SDL_FreeSurface(surf); }
+        if (!ShadowTex) return;
+        SDL_SetTextureBlendMode(ShadowTex, SDL_BLENDMODE_BLEND);
+        SDL_SetTextureScaleMode(ShadowTex, SDL_ScaleModeLinear);
+    }
+    SDL_Rect clip = { XOff, YOff, clipW, clipH };
+    SDL_RenderSetClipRect(Renderer, &clip);
+    SDL_SetTextureAlphaMod(ShadowTex, (Uint8)std::min(255, std::max(0, alpha)));
+    SDL_Rect dst = { XOff + cx - width / 2, YOff + cy - height / 2, width, height };
+    SDL_RenderCopy(Renderer, ShadowTex, NULL, &dst);
+    SDL_RenderSetClipRect(Renderer, NULL);
+    DrawCalls++;
 }
 
 /// <summary> (Re)bakes the text atlas for the current output scale (quantised so it does not thrash) </summary>

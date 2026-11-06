@@ -52,6 +52,7 @@ public:
     void DTextOut(int X, int Y, string text, COLORREF ColorVal);
     int MeasureText(const string &text);   // width in game pixels of text as drawn by DTextOut
     void DFillRect(int X, int Y, int width, int height);
+    void DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH);   // soft elliptical shadow centred on (cx, cy)
     void DFillRectColor(int X, int Y, int width, int height, int r, int g, int b);
     void ApplyLogicalSize();   // call after the game's resolution changed
 
@@ -125,6 +126,7 @@ private:
     BCTtfFont ttf;
     bool ttfTried;
     SDL_Texture *TextAtlas;
+    SDL_Texture *ShadowTex;
     float atlasScale;
     int atlasSize;
     int lastOutputW, lastOutputH;
