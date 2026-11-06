@@ -1,26 +1,24 @@
 # Releasing and deploying
 
-**GitLab is the source of truth** (`https://gitlab.outiva.com/devteam/battlecity-ng`, remote `gitlab`). GitHub (`origin`) builds, tests, packages and publishes **every** deliverable (Linux and Windows servers and clients, and the web client). It does not deploy anything: the LAN host pulls releases itself.
+**GitLab is the source of truth** (`https://gitlab.outiva.com/devteam/battlecity-ng`, remote `gitlab`). GitLab CI and GitHub Actions are two separate pipelines for two separate jobs, and neither depends on, waits for or calls the other:
+
+- **GitLab CI** (runner `ubuntu-server`, on the LAN host) builds, tests, packages and **deploys production** (the Linux server and the website).
+- **GitHub Actions** builds and publishes the **public releases** (Linux and Windows servers and clients, the web client, checksums, provenance). It never deploys anything and never reaches the LAN.
 
 ## How it works
 
-    developer --push--> GitLab (source of truth) --push--> GitHub
-                                                              |
-                  GitHub Actions: build, test, package ALL targets, publish the Release
-                  (SHA256SUMS + provenance attestations).  GitHub never connects to the LAN.
-                                                              |
-    LAN host (GitLab runner `ubuntu-server`) --pulls--> the published Release,
-        verifies the checksums, installs the Linux server and the website
+    developer --push + tag--> GitLab --> GitLab CI: build, test, package, deploy to this host
+                          \--> GitHub --> GitHub Actions: build, test, package ALL targets, publish the Release
 
-Principles: **build once, deploy that exact artifact** (nothing is rebuilt on the host), **GitHub has no access to the LAN** (the host only makes outbound downloads), **releases are immutable tags**, and the deploy runs automatically when a release tag is pushed to GitLab.
+Both start from the same tag, and each finishes in its own time. Production is built from the tag by GitLab itself, so a slow or failing GitHub build never holds up a deploy (and a failed deploy never blocks a public release). Releases are immutable tags.
 
 | Event | What runs |
 |-------|-----------|
 | push / pull request | GitHub `build`: Linux, Windows client (MSYS2), Windows server (MSVC), web client (Emscripten); unit, smoke, sanitizer, fuzz, relay and 20-bot load tests. GitLab CI runs build and tests on the LAN too. |
 | tag `vX.Y.Z[-rcN]` pushed to GitHub | GitHub `release`: builds and packages **Linux and Windows servers and clients plus the web client**, writes `SHA256SUMS.txt`, attests provenance, publishes the GitHub Release |
-| tag pushed to GitLab | GitLab pipeline runs `deploy:release` automatically: it waits for the GitHub Release, verifies it, installs the Linux server (health-checked, automatic rollback) and the website, on the LAN host |
+| tag pushed to GitLab | GitLab pipeline (`package:server-linux`, `build:web`, then `deploy:production`) builds the server and the web client from the tag, then installs them on the LAN host (the server is health-checked with automatic rollback) |
 
-Pushing to `master` never restarts production: only a pushed `v*` tag does (automatically), so players are disconnected only when you tag a release. Rollback or redeploy: run `deploy:release` of an older tag's pipeline (or `ci/deploy-release.sh <tag>` on the host).
+Pushing to `master` never restarts production: only a pushed `v*` tag does (automatically), so players are disconnected only when you tag a release. Rollback or redeploy: re-run `deploy:production` in an older tag's pipeline (its artifacts are kept for 4 weeks), or switch `/opt/battlecity/current` back to an older release directory.
 
 ## Releasing
 
@@ -35,7 +33,7 @@ Pushing to `master` never restarts production: only a pushed `v*` tag does (auto
 4. Watch the `release` workflow on GitHub until the Release appears.
 5. Before the first release containing the console integration, run `sudo ./deploy/setup.sh` and
    `sudo ./deploy/web/setup-web.sh` on the host. The tag's GitLab pipeline then runs
-   `deploy:release` by itself (it waits for the GitHub Release). It checks the game and status ports (rolling back automatically if either fails), then checks the
+   `deploy:production` by itself. It checks the game and status ports (rolling back automatically if either fails), then checks the
    public status JSON and CORS/cache headers.
 6. Check the console status contract, then hard-refresh the web client and connect once:
 

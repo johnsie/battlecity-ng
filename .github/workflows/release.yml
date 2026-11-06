@@ -1,5 +1,5 @@
 # Publishes a GitHub Release when a version tag is pushed (vMAJOR.MINOR.PATCH): Linux and Windows clients and servers.
-# Nothing is deployed from GitHub: the LAN host pulls the published release itself (see docs/deploy.md).
+# Public releases only. Nothing is deployed from here, and this workflow has nothing to do with GitLab CI, which builds and deploys production on its own (see docs/deploy.md).
 name: release
 
 on:

@@ -1,5 +1,5 @@
-# Battle City CI on the LAN (fast feedback). Releases are built, packaged and published by GitHub Actions; the production host
-# pulls and deploys them from here (job deploy:release). See docs/deploy.md.
+# Battle City CI on the LAN: build, test, package and deploy to production (job deploy:production). It has nothing to do with
+# GitHub Actions, which separately builds and publishes the public releases. See docs/deploy.md.
 # Linux jobs run on the runner tagged `ubuntu-server` (shell executor, on the same host that runs the game server).
 # Required on that host: build-essential cmake libsqlite3-dev  (see deploy/README.md)
 
@@ -66,18 +66,45 @@ test:server-sanitizers:
     - ci/waypoints-test.sh build-asan/server/bc-server data/map.dat
     - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 
-# Production deploy: PULLS the release that GitHub Actions built, tested and published for this tag (nothing is rebuilt here,
-# and GitHub never reaches into the LAN). Waits for the release, verifies SHA256SUMS, then installs the Linux server and the
-# website. Runs automatically for every v* tag (players are restarted onto the new version).
-deploy:release:
+# Production deploy, entirely on GitLab: the server and the web client are built and tested above, packaged here and installed on
+# this host. GitHub is not involved (it builds and publishes its own public releases from the same tag; neither waits for the other).
+# Runs automatically for every v* tag: players are restarted onto the new version.
+package:server-linux:
+  stage: package
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+  needs: [build:server-linux, test:server-smoke, test:server-sanitizers]
+  script:
+    - ci/package-server.sh build "${CI_COMMIT_TAG#v}" dist
+  artifacts:
+    paths: [dist/]
+    expire_in: 4 weeks
+
+# Browser client (https://bc.outiva.com via the web server), built with Emscripten
+build:web:
+  stage: build
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - when: manual
+      allow_failure: true
+  script:
+    - ci/build-web.sh build-web dist-web
+    - V="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}"; ci/package-web.sh dist-web "${V#v}" dist-web-pkg
+  artifacts:
+    paths: [dist-web-pkg/]
+    expire_in: 4 weeks
+
+deploy:production:
   stage: deploy
+  needs: [package:server-linux, build:web]
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
       when: on_success
-  resource_group: production
+  resource_group: production      # never run two deploys at once
   environment:
     name: production
     url: https://bc.outiva.com
-  timeout: 90 minutes
   script:
-    - ci/deploy-release.sh "$CI_COMMIT_TAG" johnsie/battlecity-ng
+    - ci/deploy.sh dist/battlecity-server-*-linux-x86_64.tar.gz "$CI_COMMIT_TAG"
+    - mkdir web-site && tar -xzf dist-web-pkg/battlecity-web-*.tar.gz -C web-site --strip-components=1
+    - ci/deploy-web.sh web-site "$CI_COMMIT_TAG"
