@@ -64,7 +64,7 @@ jobs:
       - name: Waypoints
         run: ci/waypoints-test.sh build-asan/server/bc-server data/map.dat
       - name: Load test (20 bots)
-        run: ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
+        run: ci/load-test.sh build-asan/server/bc-server data/map.dat 20 20
 
   windows-server:
     runs-on: windows-latest

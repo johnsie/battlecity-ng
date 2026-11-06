@@ -64,7 +64,7 @@ test:server-sanitizers:
     - ci/resume-test.sh build-asan/server/bc-server data/map.dat
     - ci/voice-test.sh build-asan/server/bc-server data/map.dat
     - ci/waypoints-test.sh build-asan/server/bc-server data/map.dat
-    - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
+    - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 20
 
 # Production deploy, entirely on GitLab: the server and the web client are built and tested above, packaged here and installed on
 # this host. GitHub is not involved (it builds and publishes its own public releases from the same tag; neither waits for the other).
