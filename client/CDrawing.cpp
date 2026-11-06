@@ -9,7 +9,8 @@
  **************************************************************/
 CDrawing::CDrawing(CGame *game) {
 	p = game;
-	for (int i = 0; i < MAX_PLAYERS; i++) lastTankX[i] = lastTankY[i] = lastPuff[i] = 0;
+	shakeAmp = 0; lastFrameTick = 0; fadeStart = -10000; wasDead = false;
+	for (int i = 0; i < MAX_PLAYERS; i++) lastTankX[i] = lastTankY[i] = lastPuff[i] = lastMarkX[i] = lastMarkY[i] = 0;
 	this->ClearDrawing();
 }
 
@@ -26,16 +27,60 @@ CDrawing::~CDrawing() {
  *
  **************************************************************/
 void CDrawing::DrawGame() {
+	int me = p->Winsock->MyIndex;
+	int baseX = this->PlayerOffsetX, baseY = this->PlayerOffsetY;
+	int shX = 0, shY = 0;
+
+	// Screen shake: the world jolts, the player's own tank and the HUD stay put
+	float dt = p->Tick - lastFrameTick;
+	if (dt < 0 || dt > 200) dt = 16;
+	lastFrameTick = p->Tick;
+	if (shakeAmp > 0.5f) {
+		shX = (int)(((rand() % 201) - 100) / 100.0f * shakeAmp);
+		shY = (int)(((rand() % 201) - 100) / 100.0f * shakeAmp);
+		shakeAmp -= dt * 0.012f;
+	}
+	else shakeAmp = 0;
+
+	this->PlayerOffsetX = baseX + shX;
+	this->PlayerOffsetY = baseY + shY;
 	this->DrawMap();
 	this->DrawBuildings();
 	this->DrawDust();
 	this->DrawBullets();
 	this->DrawItems();
 	this->DrawPlayers();
+	this->PlayerOffsetX = baseX;
+	this->PlayerOffsetY = baseY;
 	this->DrawPanel();
 	this->DrawTank();
+	this->PlayerOffsetX = baseX + shX;
+	this->PlayerOffsetY = baseY + shY;
 	this->DrawExplosions();
+	this->PlayerOffsetX = baseX;
+	this->PlayerOffsetY = baseY;
+
+	// Screen-wide mood: vignette, red pulse when badly hurt, grey-out when dead, fade-in on respawn
+	bool dead = p->Player[me]->isDead;
 	p->DDraw->DrawVignette(MaxMapX, MaxMapY, 110);
+	if (!dead && p->Player[me]->HP > 0 && p->Player[me]->HP <= 12) {
+		float pulse = 0.5f + 0.5f * sinf(p->Tick / 170.0f);
+		p->DDraw->DrawVignette(MaxMapX, MaxMapY, (int)(30 + 80 * pulse), 210, 0, 0);
+	}
+	if (dead) {
+		int a = (int)((p->Tick - p->InGame->timeDeath) / 6.0f);
+		p->DDraw->DrawOverlay(MaxMapX, MaxMapY, 20, 10, 10, std::min(a, 120));
+	}
+	else if (wasDead) {
+		fadeStart = p->Tick;
+		Ring rg = { p->Player[me]->X, p->Player[me]->Y, p->Tick, 800.0f, 24, 28, 120, 120, 200, 255, 220 };
+		rings.push_back(rg);
+	}
+	wasDead = dead;
+	float fade = (p->Tick - fadeStart) / 600.0f;
+	if (fade >= 0 && fade < 1.0f) p->DDraw->DrawOverlay(MaxMapX, MaxMapY, 0, 0, 0, (int)(255 * (1.0f - fade)));
+
+	if (shakeAmp > 3.0f) p->DDraw->DrawOverlay(MaxMapX, MaxMapY, 255, 245, 220, (int)(shakeAmp * 9.0f));   // blinding flash of a close blast
 	this->DrawRadar();
 	this->DrawChat();
 	this->DrawInfo();
@@ -161,6 +206,54 @@ void CDrawing::DrawMap() {
 		}
 	}
 
+	// Mottle the ground with big soft light/dark blotches fixed in the world, so the repeating texture is less obvious
+	{
+		float ox = p->Player[me]->X + this->PlayerOffsetX, oy = p->Player[me]->Y + this->PlayerOffsetY;
+		int ix0 = (int)floorf((ox - MaxMapX) / 256.0f) - 1, ix1 = (int)floorf(ox / 256.0f) + 1;
+		int iy0 = (int)floorf((oy - MaxMapY) / 256.0f) - 1, iy1 = (int)floorf(oy / 256.0f) + 1;
+		for (int cx = ix0; cx <= ix1; cx++) {
+			for (int cy = iy0; cy <= iy1; cy++) {
+				unsigned int hsh = (unsigned int)(cx * 73856093) ^ (unsigned int)(cy * 19349663);
+				hsh ^= hsh >> 13; hsh *= 0x5bd1e995; hsh ^= hsh >> 15;
+				int sx = (int)(ox - (cx * 256 + 40 + (int)(hsh % 176)));
+				int sy = (int)(oy - (cy * 256 + 40 + (int)((hsh >> 8) % 176)));
+				int rad = 90 + (int)((hsh >> 16) % 80);
+				if (hsh & 0x1000000) p->DDraw->DrawGlow(sx, sy, rad, 0, 0, 0, 26, MaxMapX, MaxMapY, false);
+				else p->DDraw->DrawGlow(sx, sy, rad, 255, 245, 200, 16, MaxMapX, MaxMapY, false);
+			}
+		}
+	}
+
+	// Cloud shadows drift slowly across the world (each blotch stays attached to its cell, so nothing pops)
+	{
+		float drift = p->Tick * 0.011f;
+		float ox = p->Player[me]->X + this->PlayerOffsetX, oy = p->Player[me]->Y + this->PlayerOffsetY;
+		int ix0 = (int)floorf((ox - drift - MaxMapX) / 512.0f) - 1, ix1 = (int)floorf((ox - drift) / 512.0f) + 1;
+		int iy0 = (int)floorf((oy - MaxMapY) / 512.0f) - 1, iy1 = (int)floorf(oy / 512.0f) + 1;
+		for (int cx = ix0; cx <= ix1; cx++) {
+			for (int cy = iy0; cy <= iy1; cy++) {
+				unsigned int hsh = (unsigned int)(cx * 2654435761u) ^ (unsigned int)(cy * 40503u + 977u);
+				hsh ^= hsh >> 16; hsh *= 0x45d9f3b; hsh ^= hsh >> 13;
+				if (hsh % 3 == 0) continue;   // gaps of sunshine
+				float wx = cx * 512 + 100 + (hsh % 300) + drift, wy = cy * 512 + 100 + ((hsh >> 9) % 300);
+				p->DDraw->DrawGlow((int)(ox - wx), (int)(oy - wy), 190 + (int)((hsh >> 18) % 90), 0, 10, 30, 30, MaxMapX, MaxMapY, false);
+			}
+		}
+	}
+
+	// Warm sunlight from the top-left, matching the shadows
+	p->DDraw->DrawGlow(MaxMapX / 5, MaxMapY / 6, MaxMapX / 2, 255, 235, 190, 20, MaxMapX, MaxMapY);
+
+	// Drifting dust motes catching the light
+	for (int m = 0; m < 24; m++) {
+		unsigned int hm = (unsigned int)(m + 1) * 2654435761u;
+		float sp = 0.006f + (hm % 100) * 0.00012f;
+		float px = fmodf((hm >> 8) % MaxMapX + p->Tick * sp * 2.0f, (float)MaxMapX);
+		float py = fmodf((hm >> 4) % MaxMapY + p->Tick * sp, (float)MaxMapY) + 6.0f * sinf(p->Tick / 900.0f + m);
+		int tw = (int)(30 + 40 * (0.5f + 0.5f * sinf(p->Tick / 400.0f + m * 1.7f)));
+		p->DDraw->DrawGlow((int)px, (int)py, 2 + (m & 1), 255, 250, 225, tw, MaxMapX, MaxMapY);
+	}
+
 	// Draw landscape and CC tiles on top of the ground (tilesToDraw^2 total)
 	for (i = -this->tilesToDraw; i<this->tilesToDraw; i++) {
 		for (j = -this->tilesToDraw; j<this->tilesToDraw; j++) {
@@ -173,9 +266,17 @@ void CDrawing::DrawMap() {
 				// If the map square is Lava, draw Lava
 				if (p->Map->map[tileX][tileY] == MAP_SQUARE_LAVA) {
 					p->DDraw->Draw(p->DDraw->imgLava, (myX-tileX)*48+this->PlayerOffsetX+offX, (myY-tileY)*48+this->PlayerOffsetY+offY, 48, 48, p->Map->tiles[tileX][tileY], 0, MaxMapX, MaxMapY);
+					{   // a tile now and then sparkles
+						unsigned int hg = (unsigned int)(tileX * 73856093) ^ (unsigned int)(tileY * 19349663);
+						hg ^= hg >> 11; hg *= 0x9E3779B1u;
+						float ph = sinf(p->Tick / 260.0f + (hg & 1023) * 0.37f);
+						if (ph > 0.9f) p->DDraw->DrawGlow((myX-tileX)*48+this->PlayerOffsetX+offX+8+(int)(hg>>10)%32, (myY-tileY)*48+this->PlayerOffsetY+offY+8+(int)(hg>>16)%32, 4, 235, 245, 255, (int)((ph - 0.9f) * 2000.0f), MaxMapX, MaxMapY);
+					}
 				}
 				// Else if the map square is Rock, draw Rock
 				else if (p->Map->map[tileX][tileY] == MAP_SQUARE_ROCK) {
+					p->DDraw->DrawShadow((myX-tileX)*48+this->PlayerOffsetX+offX+26, (myY-tileY)*48+this->PlayerOffsetY+offY+40, 50, 20, 100, MaxMapX, MaxMapY);
+					p->DDraw->DrawGlow((myX-tileX)*48+this->PlayerOffsetX+offX+18, (myY-tileY)*48+this->PlayerOffsetY+offY+16, 14, 255, 240, 200, 26, MaxMapX, MaxMapY);
 					p->DDraw->Draw(p->DDraw->imgRocks, (myX-tileX)*48+this->PlayerOffsetX+offX, (myY-tileY)*48+this->PlayerOffsetY+offY, 48, 48, p->Map->tiles[tileX][tileY], 0, MaxMapX, MaxMapY);	
 				}
 
@@ -294,13 +395,15 @@ void CDrawing::DrawTank() {
 			std::string line1 = "You have been blown up!";
 			std::string line2 = "You will respawn in: " + convert.str();
 			int cy = MaxMapY / 2 - 114;
+			p->DDraw->DrawShadow(MaxMapX / 2, cy + 14, 340, 76, 170, MaxMapX, MaxMapY);
 			p->DDraw->DTextOut((MaxMapX - p->DDraw->MeasureText(line1)) / 2, cy, line1, COLOR_WHITE);
 			p->DDraw->DTextOut((MaxMapX - p->DDraw->MeasureText(line2)) / 2, cy + 15, line2, COLOR_WHITE);
 		}
 		return;
 	}
 
-	// Draw the tank
+	// Draw the tank, over a faint pool of light that makes it easy to find
+	p->DDraw->DrawGlow(this->PlayerOffsetX + 24, this->PlayerOffsetY + 30, 44, 255, 255, 255, 22, MaxMapX, MaxMapY);
 	tankImage = this->getPlayerTankImage(p->Player[me], p->Player[me]);
 	p->DDraw->DrawShadow(this->PlayerOffsetX + 27, this->PlayerOffsetY + 37, 58, 26, 150, MaxMapX, MaxMapY);
 	p->DDraw->Draw(p->DDraw->imgTanks, this->PlayerOffsetX, this->PlayerOffsetY, 48, 48, (p->Player[me]->Direction / 2) * 48, tankImage * 48);
@@ -358,7 +461,14 @@ void CDrawing::DrawBuildings() {
 			by = 144*buildingType;
 			bX = (bld->Animation/2)*144;
 			this->p->DDraw->DrawShadow(tileX+offX+84, tileY+offY+132, 150, 46, 130, MaxMapX, MaxMapY);
+			this->p->DDraw->DrawShadow(tileX+offX+72, tileY+offY+126, 112, 20, 90, MaxMapX, MaxMapY);
 			this->p->DDraw->Draw(this->p->DDraw->imgBuildings, tileX+offX, tileY+offY, 144, 144, bX, by, MaxMapX, MaxMapY);
+			{
+				float pl = 0.5f + 0.5f * sinf(p->Tick / 500.0f + bld->X);
+				if (bld->isCC())            p->DDraw->DrawGlow(tileX+offX+72, tileY+offY+56, 64, 110, 170, 255, (int)(30 + 40 * pl), MaxMapX, MaxMapY);
+				else if (bld->isHospital()) p->DDraw->DrawGlow(tileX+offX+72, tileY+offY+72, 58, 80, 255, 130, (int)(22 + 38 * pl), MaxMapX, MaxMapY);
+				else if (bld->isFactory())  p->DDraw->DrawGlow(tileX+offX+72, tileY+offY+96, 52, 255, 130, 40, (int)(20 + 34 * pl), MaxMapX, MaxMapY);
+			}
 
 			moffX = 0;
 			moffY = 0;
@@ -677,6 +787,8 @@ void CDrawing::DrawArrow() {
 void CDrawing::DrawHealth()
 {
 	float percent = (float(p->Player[p->Winsock->MyIndex]->HP) / float(40));
+	if (p->Player[p->Winsock->MyIndex]->HP <= 12 && !p->Player[p->Winsock->MyIndex]->isDead)
+		p->DDraw->DrawGlow(MaxMapX + 156, 236, 40, 255, 40, 40, (int)(50 + 70 * (0.5f + 0.5f * sinf(p->Tick / 170.0f))), p->ResolutionX, p->ResolutionY);
 	p->DDraw->Draw(p->DDraw->imgHealth, (MaxMapX + 137), 250-int(percent * 87), 38, int(percent * 87));
 }
 
@@ -709,6 +821,34 @@ void CDrawing::DrawItems() {
 
 				tileX = ((myX - itm->X) * 48)+offX;
 				tileY = ((myY - itm->Y) * 48)+10+offY;
+
+				// Pick-ups float up and down above a small shadow
+				int bob = 0;
+				switch (itm->Type) {
+					case ITEM_TYPE_ORB: case ITEM_TYPE_MEDKIT: case ITEM_TYPE_CLOAK: case ITEM_TYPE_ROCKET: case ITEM_TYPE_FLARE: case ITEM_TYPE_WALL:
+						bob = (int)(2.5f * sinf(p->Tick / 320.0f + itm->X * 0.7f));
+						p->DDraw->DrawShadow(tileX + 24, tileY + 40, 30, 11, 80, MaxMapX, MaxMapY);
+						tileY += bob;
+						break;
+					default: break;
+				}
+				if (itm->Type == ITEM_TYPE_FLARE && itm->active) p->DDraw->DrawGlow(tileX + 24, tileY + 24, 150 + rand() % 12, 255, 200, 110, 55, MaxMapX, MaxMapY);
+
+				// Pick-ups glow softly so they catch the eye (never mines or other hidden items)
+				{
+					float pulse = 0.5f + 0.5f * sinf(p->Tick / 260.0f + itm->X);
+					switch (itm->Type) {
+						case ITEM_TYPE_ORB:    p->DDraw->DrawGlow(tileX + 24, tileY + 26, 34, 170, 110, 255, (int)(60 + 70 * pulse), MaxMapX, MaxMapY); break;
+						case ITEM_TYPE_BOMB:   if (itm->active && ((int)(p->Tick / 250) & 1)) p->DDraw->DrawGlow(tileX + 24, tileY + 26, 30, 255, 40, 30, 150, MaxMapX, MaxMapY); break;
+						case ITEM_TYPE_PLASMA: p->DDraw->DrawGlow(tileX + 24, tileY + 12, 28, 90, 200, 255, (int)(40 + 50 * pulse), MaxMapX, MaxMapY); break;
+						case ITEM_TYPE_MEDKIT: p->DDraw->DrawGlow(tileX + 24, tileY + 26, 30, 70, 255, 110, (int)(50 + 60 * pulse), MaxMapX, MaxMapY); break;
+						case ITEM_TYPE_CLOAK:
+						case ITEM_TYPE_ROCKET:
+						case ITEM_TYPE_FLARE:
+						case ITEM_TYPE_WALL:   p->DDraw->DrawGlow(tileX + 24, tileY + 26, 28, 255, 225, 140, (int)(35 + 45 * pulse), MaxMapX, MaxMapY); break;
+						default: break;
+					}
+				}
 
 				// Switch on Item Type
 				switch (itm->Type) {
@@ -1109,6 +1249,7 @@ void CDrawing::DrawDust() {
 	const float LIFE = 650.0f;
 	int me = p->Winsock->MyIndex;
 	float now = p->Tick;
+	static float lastSmoke = 0;
 
 	// Spawn: any visible tank that moved since the last frame
 	for (int i = 0; i < MAX_PLAYERS; i++) {
@@ -1118,11 +1259,58 @@ void CDrawing::DrawDust() {
 		lastTankX[i] = pl->X;
 		lastTankY[i] = pl->Y;
 		if (!moved || !pl->isInGame || pl->isDead || (i != me && pl->isCloaked)) continue;
+		// Direction of travel on screen: the view is mirrored (larger world X is further left), so "behind the tank" is +(dx,dy)
+		float len = sqrtf(dx * dx + dy * dy);
+		float nx = len > 0.01f ? dx / len : 0, ny = len > 0.01f ? dy / len : 0;
+		float mx = pl->X - lastMarkX[i], my = pl->Y - lastMarkY[i];
+		if (mx * mx + my * my > 100.0f && marks.size() < 400) {
+			lastMarkX[i] = pl->X;
+			lastMarkY[i] = pl->Y;
+			// twin tracks, either side of the tank
+			DustPuff m1 = { pl->X, pl->Y, now, (int)(-ny * 11.0f + nx * 6.0f), (int)(nx * 11.0f + ny * 6.0f), 0 };
+			DustPuff m2 = { pl->X, pl->Y, now, (int)(ny * 11.0f + nx * 6.0f), (int)(-nx * 11.0f + ny * 6.0f), 0 };
+			marks.push_back(m1);
+			marks.push_back(m2);
+		}
 		if (now - lastPuff[i] < 70.0f || dust.size() >= 200) continue;
 		lastPuff[i] = now;
-		DustPuff d = { pl->X, pl->Y, now, rand() % 17 - 8, rand() % 11 - 5 };
+		DustPuff d = { pl->X, pl->Y, now, rand() % 11 - 5 + (int)(nx * 26.0f), rand() % 9 - 4 + (int)(ny * 26.0f), 0 };
 		dust.push_back(d);
 	}
+
+	// A badly damaged tank of mine smokes
+	if (p->Player[me]->isInGame && !p->Player[me]->isDead && p->Player[me]->HP > 0 && p->Player[me]->HP <= 15 && now - lastSmoke > 110.0f && dust.size() < 200) {
+		lastSmoke = now;
+		DustPuff s = { p->Player[me]->X, p->Player[me]->Y, now, rand() % 15 - 7, rand() % 7 - 3, 1 };
+		dust.push_back(s);
+	}
+
+	// Scorch marks from big blasts lie under everything
+	{
+		size_t sk = 0;
+		for (size_t k = 0; k < scorch.size(); k++) {
+			float t = (now - scorch[k].born) / 25000.0f;
+			if (t >= 1.0f || t < 0.0f) continue;
+			scorch[sk++] = scorch[k];
+			int sx = (int)(p->Player[me]->X - scorch[k].wx) + this->PlayerOffsetX + 72;
+			int sy = (int)(p->Player[me]->Y - scorch[k].wy) + this->PlayerOffsetY + 76;
+			p->DDraw->DrawGlow(sx, sy, 46, 10, 8, 6, (int)(60.0f * (1.0f - t)), MaxMapX, MaxMapY, false);
+			p->DDraw->DrawGlow(sx, sy, 24, 0, 0, 0, (int)(40.0f * (1.0f - t)), MaxMapX, MaxMapY, false);
+		}
+		scorch.resize(sk);
+	}
+
+	// Tread marks first, so they lie on the ground under everything else
+	size_t mkeep = 0;
+	for (size_t k = 0; k < marks.size(); k++) {
+		float t = (now - marks[k].born) / 4000.0f;
+		if (t >= 1.0f || t < 0.0f) continue;
+		marks[mkeep++] = marks[k];
+		int sx = (int)(p->Player[me]->X - marks[k].wx) + this->PlayerOffsetX + 24 + marks[k].jx;
+		int sy = (int)(p->Player[me]->Y - marks[k].wy) + this->PlayerOffsetY + 28 + marks[k].jy;
+		p->DDraw->DrawGlow(sx, sy, 5, 12, 8, 4, (int)(120.0f * (1.0f - t)), MaxMapX, MaxMapY, false);
+	}
+	marks.resize(mkeep);
 
 	// Draw and expire
 	size_t keep = 0;
@@ -1132,9 +1320,13 @@ void CDrawing::DrawDust() {
 		dust[keep++] = dust[k];
 		int sx = (int)(p->Player[me]->X - dust[k].wx) + this->PlayerOffsetX + 24 + dust[k].jx;
 		int sy = (int)(p->Player[me]->Y - dust[k].wy) + this->PlayerOffsetY + 32 + dust[k].jy;
+		if (dust[k].dark) {
+			p->DDraw->DrawGlow(sx, sy - (int)(t * 34.0f) - 6, 6 + (int)(t * 12.0f), 48, 46, 44, (int)(120.0f * (1.0f - t)), MaxMapX, MaxMapY, false);
+			continue;
+		}
 		int radius = 7 + (int)(t * 13.0f);
-		int alpha = (int)(70.0f * (1.0f - t));
-		p->DDraw->DrawGlow(sx, sy, radius, 168, 148, 118, alpha, MaxMapX, MaxMapY, false);
+		int alpha = (int)(120.0f * (1.0f - t));
+		p->DDraw->DrawGlow(sx, sy, radius, 190, 170, 135, alpha, MaxMapX, MaxMapY, false);
 	}
 	dust.resize(keep);
 }
@@ -1153,6 +1345,20 @@ void CDrawing::DrawBullets() {
 	int dX;
 	int dY;
 
+	// Draw the tails first so the bullets sit on top
+	{
+		size_t keep = 0;
+		for (size_t k = 0; k < trail.size(); k++) {
+			float t = (p->Tick - trail[k].born) / 220.0f;
+			if (t >= 1.0f || t < 0.0f) continue;
+			trail[keep++] = trail[k];
+			int sx = (int)(p->Player[me]->X - trail[k].wx) + this->PlayerOffsetX + 4;
+			int sy = (int)(p->Player[me]->Y - trail[k].wy) + this->PlayerOffsetY + 4;
+			p->DDraw->DrawGlow(sx, sy, 8 - (int)(t * 5.0f), 255, 150, 50, (int)(120.0f * (1.0f - t)), MaxMapX, MaxMapY);
+		}
+		trail.resize(keep);
+	}
+
 	// For each bullet,
 	blt = p->Bullet->bulletListHead;
 	while (blt) {
@@ -1170,6 +1376,9 @@ void CDrawing::DrawBullets() {
 				blt->animation = 0;
 			}
 
+			// A short fading tail behind it
+			if (trail.size() < 400) { DustPuff tr = { (float)blt->x, (float)blt->y, p->Tick, 0, 0, 0 }; trail.push_back(tr); }
+
 			// Draw the bullet, with a small warm glow around it
 			p->DDraw->DrawGlow(tmpX + 4, tmpY + 4, 16, 255, 190, 90, 150, MaxMapX, MaxMapY);
 			p->DDraw->Draw(p->DDraw->imgBullets, tmpX, tmpY, 8, 8, dX, dY, MaxMapX, MaxMapY);
@@ -1185,6 +1394,18 @@ void CDrawing::DrawBullets() {
  *
  **************************************************************/
 void CDrawing::DrawRadar() {
+	// A sweeping beam with a fading trail, drawn first so the blips stay on top
+	{
+		int cx = MaxMapX + 97, cy = 71;
+		float base = p->Tick / 1700.0f * 6.2832f;
+		for (int tr = 0; tr < 5; tr++) {
+			float a = base - tr * 0.16f;
+			for (int s = 1; s <= 8; s++) {
+				float r = s * 6.2f;
+				p->DDraw->DrawGlow(cx + (int)(cosf(a) * r), cy + (int)(sinf(a) * r), 4, 90, 255, 150, (int)((90 - tr * 17) * (1.0f - s * 0.04f)), p->ResolutionX, p->ResolutionY);
+			}
+		}
+	}
 	int me = p->Winsock->MyIndex;
 	int RadarSrcX = 0;
 	int RadarX = 0;
@@ -1268,12 +1489,16 @@ void CDrawing::DrawExplosions() {
 
 			//Small explosion
 			case 1: 
+				SDL_SetTextureAlphaMod(p->DDraw->imgSExplosion->texture, (Uint8)(xpl->animation <= 5 ? 255 : std::max(40, 255 - (xpl->animation - 5) * 50)));
+				if (xpl->animation < 2) p->DDraw->DrawGlow(tX + 24, tY + 24, 40, 255, 255, 235, 170 - xpl->animation * 70, MaxMapX, MaxMapY);
 				p->DDraw->DrawGlow(tX + 24, tY + 24, 54 - xpl->animation * 3, 255, 150, 60, 150 - xpl->animation * 13, MaxMapX, MaxMapY);
 				p->DDraw->Draw(p->DDraw->imgSExplosion, tX, tY, 48, 48, xpl->animation * 48, 0, MaxMapX, MaxMapY);
 				break;
 
 			//Large explosion
 			case 2: 
+				SDL_SetTextureAlphaMod(p->DDraw->imgLExplosion->texture, (Uint8)(xpl->animation <= 5 ? 255 : std::max(40, 255 - (xpl->animation - 5) * 50)));
+				if (xpl->animation < 3) p->DDraw->DrawGlow(tX + 72, tY + 72, 110, 255, 255, 235, 190 - xpl->animation * 60, MaxMapX, MaxMapY);
 				p->DDraw->DrawGlow(tX + 72, tY + 72, 150 - xpl->animation * 8, 255, 140, 50, 190 - xpl->animation * 17, MaxMapX, MaxMapY);
 				p->DDraw->Draw(p->DDraw->imgLExplosion, tX, tY, 144, 144, 0, xpl->animation * 144, MaxMapX, MaxMapY);
 				break;
@@ -1288,6 +1513,20 @@ void CDrawing::DrawExplosions() {
 		// A new blast throws out a burst of embers
 		if (!xpl->sparked && (xpl->type == 1 || xpl->type == 2)) {
 			xpl->sparked = true;
+			if (xpl->type == 2) {
+				float ddx = p->Player[me]->X - xpl->x, ddy = p->Player[me]->Y - xpl->y;
+				float dist = sqrtf(ddx * ddx + ddy * ddy);
+				if (dist < 500.0f) AddShake(7.0f * (1.0f - dist / 500.0f));
+				Ring rg = { (float)xpl->x, (float)xpl->y, p->Tick, 650.0f, 72, 72, 190, 255, 190, 110, 200 };
+				if (rings.size() < 40) rings.push_back(rg);
+				DustPuff sc = { (float)xpl->x, (float)xpl->y, p->Tick, 0, 0, 0 };
+				if (scorch.size() < 60) scorch.push_back(sc);
+			}
+			for (int k = 0; k < (xpl->type == 2 ? 7 : 2) && smoke.size() < 120; k++) {
+				int sp = xpl->type == 2 ? 46 : 18;
+				DustPuff sm = { (float)xpl->x, (float)xpl->y, p->Tick + 150.0f + rand() % 350, (xpl->type == 2 ? 72 : 24) + rand() % (2 * sp) - sp, (xpl->type == 2 ? 72 : 24) + rand() % (2 * sp) - sp, 0 };
+				smoke.push_back(sm);
+			}
 			int n = xpl->type == 2 ? 24 : 9;
 			int c = xpl->type == 2 ? 72 : 24;
 			float speed = xpl->type == 2 ? 95.0f : 55.0f;
@@ -1300,6 +1539,37 @@ void CDrawing::DrawExplosions() {
 
 		// Get the next explosion
 		xpl = xpl->next;
+	}
+
+	// Smoke clouds billow up from the blast and drift away
+	{
+		size_t sk = 0;
+		for (size_t k = 0; k < smoke.size(); k++) {
+			float t = (p->Tick - smoke[k].born) / 1700.0f;
+			if (t >= 1.0f) continue;
+			smoke[sk++] = smoke[k];
+			if (t < 0) continue;
+			int sx = (int)(p->Player[me]->X - smoke[k].wx) + this->PlayerOffsetX + smoke[k].jx + (int)(t * 12.0f);
+			int sy = (int)(p->Player[me]->Y - smoke[k].wy) + this->PlayerOffsetY + smoke[k].jy - (int)(t * 34.0f);
+			float fadeIn = std::min(1.0f, t * 7.0f);
+			p->DDraw->DrawGlow(sx, sy, 14 + (int)(t * 24.0f), 64, 60, 56, (int)(120.0f * (1.0f - t) * fadeIn), MaxMapX, MaxMapY, false);
+		}
+		smoke.resize(sk);
+	}
+
+	// Shockwave rings
+	{
+		size_t rk = 0;
+		for (size_t k = 0; k < rings.size(); k++) {
+			float t = (p->Tick - rings[k].born) / rings[k].life;
+			if (t >= 1.0f || t < 0.0f) continue;
+			rings[rk++] = rings[k];
+			int sx = (int)(p->Player[me]->X - rings[k].wx) + this->PlayerOffsetX + rings[k].ox;
+			int sy = (int)(p->Player[me]->Y - rings[k].wy) + this->PlayerOffsetY + rings[k].oy;
+			float e = 1.0f - (1.0f - t) * (1.0f - t);   // decelerating growth
+			p->DDraw->DrawRing(sx, sy, 8 + (int)(e * rings[k].maxr), rings[k].r, rings[k].g, rings[k].b, (int)(rings[k].a * (1.0f - t)), MaxMapX, MaxMapY);
+		}
+		rings.resize(rk);
 	}
 
 	// Draw and expire the embers: they slow down, shrink and cool from yellow to red
@@ -1711,6 +1981,9 @@ void CDrawing::drawPlayerName(CPlayer *player, CPlayer *me) {
 	}
 	townWidth = p->DDraw->MeasureText(townString) / 2;
 	centerPoint = relativeX + 16 + 3;
+
+	// A soft dark backdrop keeps the labels readable on any ground
+	p->DDraw->DrawShadow(centerPoint, relativeY - 16, std::max(nameWidth, townWidth) * 2 + 40, 40, 110, MaxMapX, MaxMapY);
 
 	// Draw text
 	p->DDraw->DTextOut(centerPoint - nameWidth, relativeY - 31, nameString, this->getPlayerNameColor(player, me));

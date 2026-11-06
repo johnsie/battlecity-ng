@@ -77,10 +77,20 @@ class CDrawing {
         int clickOffsetY;
         int chatBarWidth;
 
-        struct DustPuff { float wx, wy, born; int jx, jy; };
+        struct DustPuff { float wx, wy, born; int jx, jy; int dark; };   // dark = smoke from a damaged tank
         std::vector<DustPuff> dust;
         struct Spark { float wx, wy, born, life; int ox, oy; float vx, vy; };
         std::vector<Spark> sparks;   // glowing embers thrown out by explosions
+        std::vector<DustPuff> marks;   // tread marks left on the ground (long-lived, faint)
+        float lastMarkX[MAX_PLAYERS], lastMarkY[MAX_PLAYERS];
+        struct Ring { float wx, wy, born, life; int ox, oy, maxr, r, g, b, a; };
+        std::vector<Ring> rings;        // expanding shockwaves
+        std::vector<DustPuff> scorch;   // blast scorch marks on the ground
+        std::vector<DustPuff> smoke;   // smoke clouds left by blasts
+        std::vector<DustPuff> trail;   // short fading tails behind bullets
+        float shakeAmp, lastFrameTick, fadeStart;
+        bool wasDead;
+        void AddShake(float amp) { if (amp > shakeAmp) shakeAmp = amp; }
         float lastTankX[MAX_PLAYERS], lastTankY[MAX_PLAYERS], lastPuff[MAX_PLAYERS];
 
         float arrowTick;

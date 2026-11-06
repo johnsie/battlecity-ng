@@ -262,7 +262,39 @@ int main(int argc, char *argv[]) {
 			else if (n == "adminedit") game.AdminEdit->ShowAdminEditDlg();
 			else if (n == "connection") game.ConnectionManager->showConnectionManager();
 		}
-		if (shotPath && ++frames >= shotFrames) {
+		// BC_TEST_SCENE=1: build an offline in-game scene (a tank near lava and rocks, buildings, items, blasts) to screenshot the renderer
+		if (getenv("BC_TEST_SCENE") && frames == 5) {
+			CGame &g = game;
+			BCDialogsCloseActive();
+			g.Dialog->StartDialog = 0;
+			int mx = 256, my = 256, best = getenv("BC_TEST_DRIVE") ? 1000000 : -1;
+			for (int y = 20; y < 490; y += 3) for (int x = 20; x < 490; x += 3) {
+				int n = 0;
+				for (int dy = -8; dy <= 8; dy++) for (int dx = -10; dx <= 10; dx++) n += (g.Map->map[x + dx][y + dy] == MAP_SQUARE_LAVA) * 2 + (g.Map->map[x + dx][y + dy] == MAP_SQUARE_ROCK);
+				if (getenv("BC_TEST_DRIVE") ? (n < best) : (n > best)) { best = n; mx = x; my = y; }
+			}
+			g.Winsock->MyIndex = 0;
+			CPlayer *me = g.Player[0];
+			me->isInGame = 1; me->isDead = false; me->X = mx * 48 + 10; me->Y = my * 48 + 10; me->HP = 10; me->refHP1 = (me->HP ^ 2 - 31) * 2; me->refHP2 = -(me->HP); me->Direction = 4; me->Tank = 0; me->Member = 0; me->isCloaked = false; me->isMayor = 0; me->City = 0; me->NameString = "Tester"; me->TownString = "Testville";
+			CPlayer *o = g.Player[1];
+			o->isInGame = 1; o->isDead = false; o->X = me->X - 150; o->Y = me->Y + 60; o->Direction = 8; o->Tank = 0; o->Member = 0; o->isCloaked = false; o->isMayor = 0; o->NameString = "Rival"; o->TownString = "Elsewhere"; o->City = 1; o->HP = 40;
+			memset(g.InGame->HasSector, 1, sizeof(g.InGame->HasSector));
+			g.Build->newBuilding(mx - 4, my - 3, 0, 0, 1000 + 1);
+			g.Build->newBuilding(mx + 3, my - 3, 100, 0, 1000 + 2);
+			g.Build->newBuilding(mx - 4, my + 3, 300, 0, 1000 + 3);
+			g.Item->newItem(mx + 2, my + 2, ITEM_TYPE_ORB, 0, 2000, 0);
+			g.Item->newItem(mx + 3, my + 2, ITEM_TYPE_MEDKIT, 0, 2001, 0);
+			g.Item->newItem(mx + 4, my + 2, ITEM_TYPE_BOMB, 0, 2002, 1);
+			g.Item->newItem(mx - 1, my + 3, ITEM_TYPE_PLASMA, 0, 2003, 0);
+			g.Explode->newExplosion((int)me->X - 160, (int)me->Y - 40, 2);
+			g.Explode->newExplosion((int)me->X + 120, (int)me->Y + 20, 1);
+			g.State = STATE_GAME;
+			g.Draw->ApplyResolution(); g.Draw->resetPlayerOffset();
+		}
+		if (getenv("BC_TEST_SCENE") && frames > 5) { BCDialogsCloseActive(); game.State = STATE_GAME; if (getenv("BC_TEST_DRIVE")) { game.Player[0]->X -= 5.0f; game.Player[0]->Y += 2.0f; } }
+		if (getenv("BC_TEST_SCENE") && frames > 5 && frames % 40 == 0 && frames < 400) g_game->Explode->newExplosion((int)g_game->Player[0]->X - 160, (int)g_game->Player[0]->Y - 40, (frames / 40) & 1 ? 1 : 2);
+		if (shotPath) frames++;
+		if (shotPath && frames >= shotFrames) {
 			game.DDraw->SaveScreenshot(shotPath);
 			break;
 		}

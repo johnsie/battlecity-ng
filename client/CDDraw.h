@@ -54,7 +54,9 @@ public:
     void DFillRect(int X, int Y, int width, int height);
     void DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH);
     void DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH, bool additive = true);   // additive light (or a normal-blend puff) centred on (cx, cy)
-    void DrawVignette(int w, int h, int alpha);   // darkens the corners of the map view   // soft elliptical shadow centred on (cx, cy)
+    void DrawVignette(int w, int h, int alpha, int r = 0, int g = 0, int b = 0);
+    void DrawRing(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH);   // additive thin ring (shockwaves)
+    void DrawOverlay(int w, int h, int r, int g, int b, int alpha);   // translucent colour wash over the map view   // darkens the corners of the map view   // soft elliptical shadow centred on (cx, cy)
     void DFillRectColor(int X, int Y, int width, int height, int r, int g, int b);
     void ApplyLogicalSize();   // call after the game's resolution changed
 
@@ -131,6 +133,7 @@ private:
     SDL_Texture *ShadowTex;
     SDL_Texture *GlowTex;
     SDL_Texture *PuffTex;
+    SDL_Texture *RingTex;
     SDL_Texture *VignetteTex;
     float atlasScale;
     int atlasSize;

@@ -34,6 +34,7 @@ CDDraw::CDDraw(CGame *game)
     ShadowTex = NULL;
     GlowTex = NULL;
     PuffTex = NULL;
+    RingTex = NULL;
     VignetteTex = NULL;
     atlasScale = 0;
     atlasSize = 0;
@@ -310,6 +311,7 @@ void CDDraw::DestroySurfaces()
     if (ShadowTex) { SDL_DestroyTexture(ShadowTex); ShadowTex = NULL; }
     if (GlowTex) { SDL_DestroyTexture(GlowTex); GlowTex = NULL; }
     if (PuffTex) { SDL_DestroyTexture(PuffTex); PuffTex = NULL; }
+    if (RingTex) { SDL_DestroyTexture(RingTex); RingTex = NULL; }
     if (VignetteTex) { SDL_DestroyTexture(VignetteTex); VignetteTex = NULL; }
     if (Renderer) {
         SDL_DestroyRenderer(Renderer);
@@ -521,17 +523,49 @@ void CDDraw::DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha
     DrawCalls++;
 }
 
+/// <summary> A thin glowing ring (an expanding shockwave), additive, clipped to the map view </summary>
+void CDDraw::DrawRing(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH)
+{
+    if (!Renderer || radius <= 0 || alpha <= 0) return;
+    if (!RingTex) {
+        RingTex = MakeRadialTexture(Renderer, 128, 128, true, [](float d) { float a = 1.0f - std::fabs(d - 0.85f) / 0.15f; return a <= 0 ? 0.0f : a * a * (3.0f - 2.0f * a); });
+        if (!RingTex) return;
+        SDL_SetTextureBlendMode(RingTex, SDL_BLENDMODE_ADD);
+    }
+    SDL_Rect clip = { XOff, YOff, clipW, clipH };
+    SDL_RenderSetClipRect(Renderer, &clip);
+    SDL_SetTextureColorMod(RingTex, (Uint8)r, (Uint8)g, (Uint8)b);
+    SDL_SetTextureAlphaMod(RingTex, (Uint8)std::min(255, alpha));
+    SDL_Rect dst = { XOff + cx - radius, YOff + cy - radius, radius * 2, radius * 2 };
+    SDL_RenderCopy(Renderer, RingTex, NULL, &dst);
+    SDL_RenderSetClipRect(Renderer, NULL);
+    DrawCalls++;
+}
+
+/// <summary> A translucent colour wash over the w x h map view (fades, death tint) </summary>
+void CDDraw::DrawOverlay(int w, int h, int r, int g, int b, int alpha)
+{
+    if (!Renderer || alpha <= 0) return;
+    SDL_Rect rc = { XOff, YOff, w, h };
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(Renderer, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)std::min(255, alpha));
+    SDL_RenderFillRect(Renderer, &rc);
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_NONE);
+    DrawCalls++;
+}
+
 /// <summary> Darkens the edges of the w x h map view so the eye stays on the action </summary>
-void CDDraw::DrawVignette(int w, int h, int alpha)
+void CDDraw::DrawVignette(int w, int h, int alpha, int r, int g, int b)
 {
     if (!Renderer || alpha <= 0) return;
     if (!VignetteTex) {
-        VignetteTex = MakeRadialTexture(Renderer, 128, 128, false, [](float d) { float t = (d - 0.55f) / 0.75f; return t <= 0 ? 0.0f : t * t; });
+        VignetteTex = MakeRadialTexture(Renderer, 128, 128, true, [](float d) { float t = (d - 0.55f) / 0.75f; return t <= 0 ? 0.0f : t * t; });
         if (!VignetteTex) return;
         SDL_SetTextureBlendMode(VignetteTex, SDL_BLENDMODE_BLEND);
     }
     SDL_Rect clip = { XOff, YOff, w, h };
     SDL_RenderSetClipRect(Renderer, &clip);
+    SDL_SetTextureColorMod(VignetteTex, (Uint8)r, (Uint8)g, (Uint8)b);
     SDL_SetTextureAlphaMod(VignetteTex, (Uint8)std::min(255, alpha));
     SDL_RenderCopy(Renderer, VignetteTex, NULL, &clip);
     SDL_RenderSetClipRect(Renderer, NULL);
