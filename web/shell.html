@@ -55,7 +55,7 @@
         if (!profile) return;
         var label = profile.name || profile.preferred_username || profile.email || 'Outiva user';
         document.getElementById('outiva-account').textContent = 'Outiva account: ' + label;
-        var source = profile.preferred_username || profile.name || (profile.email || '').split('@')[0];
+        var source = profile.callsign || profile.preferred_username || profile.name || (profile.email || '').split('@')[0];   // the callsign chosen on the Outiva account comes first
         ENV.BC_OUTIVA_NAME = source.replace(/[^A-Za-z0-9 _-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 15);
       }).catch(function (error) {
         console.warn('Optional Outiva identity was not available', error);
