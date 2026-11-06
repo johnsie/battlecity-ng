@@ -36,6 +36,7 @@ class CExplosion {
         int y;
         int type;
         int animation;
+        bool sparked;   // sparks already spawned for this explosion
         float tick;
 
         CExplosion *next;

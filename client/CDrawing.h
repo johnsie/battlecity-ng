@@ -23,6 +23,7 @@
 #ifndef _CDrawing
 #define _CDrawing
 
+#include <vector>
 #include "CGame.h"
 
 class CGame;
@@ -51,6 +52,7 @@ class CDrawing {
         void DrawInfo();
         void DrawInventory();
         void DrawBullets();
+        void DrawDust();   // dust puffs kicked up by moving tanks
         void DrawRadar();
         void DrawExplosions();
         void DrawMiniMap();
@@ -74,6 +76,12 @@ class CDrawing {
         int clickOffsetX;
         int clickOffsetY;
         int chatBarWidth;
+
+        struct DustPuff { float wx, wy, born; int jx, jy; };
+        std::vector<DustPuff> dust;
+        struct Spark { float wx, wy, born, life; int ox, oy; float vx, vy; };
+        std::vector<Spark> sparks;   // glowing embers thrown out by explosions
+        float lastTankX[MAX_PLAYERS], lastTankY[MAX_PLAYERS], lastPuff[MAX_PLAYERS];
 
         float arrowTick;
         float arrowFlashTick;

@@ -33,6 +33,7 @@ CDDraw::CDDraw(CGame *game)
     TextAtlas = NULL;
     ShadowTex = NULL;
     GlowTex = NULL;
+    PuffTex = NULL;
     VignetteTex = NULL;
     atlasScale = 0;
     atlasSize = 0;
@@ -308,6 +309,7 @@ void CDDraw::DestroySurfaces()
     if (TextAtlas) { SDL_DestroyTexture(TextAtlas); TextAtlas = NULL; }
     if (ShadowTex) { SDL_DestroyTexture(ShadowTex); ShadowTex = NULL; }
     if (GlowTex) { SDL_DestroyTexture(GlowTex); GlowTex = NULL; }
+    if (PuffTex) { SDL_DestroyTexture(PuffTex); PuffTex = NULL; }
     if (VignetteTex) { SDL_DestroyTexture(VignetteTex); VignetteTex = NULL; }
     if (Renderer) {
         SDL_DestroyRenderer(Renderer);
@@ -497,20 +499,24 @@ static SDL_Texture *MakeRadialTexture(SDL_Renderer *r, int w, int h, bool white,
 }
 
 /// <summary> Additive light: a soft round glow tinted (r,g,b), clipped to the map view </summary>
-void CDDraw::DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH)
+void CDDraw::DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH, bool additive)
 {
     if (!Renderer || radius <= 0 || alpha <= 0) return;
-    if (!GlowTex) {
-        GlowTex = MakeRadialTexture(Renderer, 64, 64, true, [](float d) { float a = 1.0f - d; return a <= 0 ? 0.0f : a * a * a; });
-        if (!GlowTex) return;
-        SDL_SetTextureBlendMode(GlowTex, SDL_BLENDMODE_ADD);
+    SDL_Texture *&tex = additive ? GlowTex : PuffTex;
+    if (!tex) {
+        if (additive)
+            tex = MakeRadialTexture(Renderer, 64, 64, true, [](float d) { float a = 1.0f - d; return a <= 0 ? 0.0f : a * a * a; });
+        else
+            tex = MakeRadialTexture(Renderer, 64, 64, true, [](float d) { float a = 1.0f - d; return a <= 0 ? 0.0f : a * a * (3.0f - 2.0f * a); });
+        if (!tex) return;
+        SDL_SetTextureBlendMode(tex, additive ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
     }
     SDL_Rect clip = { XOff, YOff, clipW, clipH };
     SDL_RenderSetClipRect(Renderer, &clip);
-    SDL_SetTextureColorMod(GlowTex, (Uint8)r, (Uint8)g, (Uint8)b);
-    SDL_SetTextureAlphaMod(GlowTex, (Uint8)std::min(255, alpha));
+    SDL_SetTextureColorMod(tex, (Uint8)r, (Uint8)g, (Uint8)b);
+    SDL_SetTextureAlphaMod(tex, (Uint8)std::min(255, alpha));
     SDL_Rect dst = { XOff + cx - radius, YOff + cy - radius, radius * 2, radius * 2 };
-    SDL_RenderCopy(Renderer, GlowTex, NULL, &dst);
+    SDL_RenderCopy(Renderer, tex, NULL, &dst);
     SDL_RenderSetClipRect(Renderer, NULL);
     DrawCalls++;
 }

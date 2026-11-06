@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cmath>
 #include "CGame.h"
 
 /***************************************************************
@@ -8,6 +9,7 @@
  **************************************************************/
 CDrawing::CDrawing(CGame *game) {
 	p = game;
+	for (int i = 0; i < MAX_PLAYERS; i++) lastTankX[i] = lastTankY[i] = lastPuff[i] = 0;
 	this->ClearDrawing();
 }
 
@@ -26,6 +28,7 @@ CDrawing::~CDrawing() {
 void CDrawing::DrawGame() {
 	this->DrawMap();
 	this->DrawBuildings();
+	this->DrawDust();
 	this->DrawBullets();
 	this->DrawItems();
 	this->DrawPlayers();
@@ -1097,6 +1100,46 @@ void CDrawing::DrawInventory() {
 }
 
 /***************************************************************
+ * Function:	DrawDust
+ *
+ * Moving tanks kick up small dust puffs that swell and fade. Drawn
+ * before the tanks so the puffs trail out from underneath them.
+ **************************************************************/
+void CDrawing::DrawDust() {
+	const float LIFE = 650.0f;
+	int me = p->Winsock->MyIndex;
+	float now = p->Tick;
+
+	// Spawn: any visible tank that moved since the last frame
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+		CPlayer *pl = p->Player[i];
+		float dx = pl->X - lastTankX[i], dy = pl->Y - lastTankY[i];
+		bool moved = (dx * dx + dy * dy) > 0.25f && (dx * dx + dy * dy) < 40000.0f;
+		lastTankX[i] = pl->X;
+		lastTankY[i] = pl->Y;
+		if (!moved || !pl->isInGame || pl->isDead || (i != me && pl->isCloaked)) continue;
+		if (now - lastPuff[i] < 70.0f || dust.size() >= 200) continue;
+		lastPuff[i] = now;
+		DustPuff d = { pl->X, pl->Y, now, rand() % 17 - 8, rand() % 11 - 5 };
+		dust.push_back(d);
+	}
+
+	// Draw and expire
+	size_t keep = 0;
+	for (size_t k = 0; k < dust.size(); k++) {
+		float t = (now - dust[k].born) / LIFE;
+		if (t >= 1.0f || t < 0.0f) continue;
+		dust[keep++] = dust[k];
+		int sx = (int)(p->Player[me]->X - dust[k].wx) + this->PlayerOffsetX + 24 + dust[k].jx;
+		int sy = (int)(p->Player[me]->Y - dust[k].wy) + this->PlayerOffsetY + 32 + dust[k].jy;
+		int radius = 7 + (int)(t * 13.0f);
+		int alpha = (int)(70.0f * (1.0f - t));
+		p->DDraw->DrawGlow(sx, sy, radius, 168, 148, 118, alpha, MaxMapX, MaxMapY, false);
+	}
+	dust.resize(keep);
+}
+
+/***************************************************************
  * Function:	DrawBullets
  *
  **************************************************************/
@@ -1242,9 +1285,36 @@ void CDrawing::DrawExplosions() {
 				break;
 		}
 
+		// A new blast throws out a burst of embers
+		if (!xpl->sparked && (xpl->type == 1 || xpl->type == 2)) {
+			xpl->sparked = true;
+			int n = xpl->type == 2 ? 24 : 9;
+			int c = xpl->type == 2 ? 72 : 24;
+			float speed = xpl->type == 2 ? 95.0f : 55.0f;
+			for (int k = 0; k < n && sparks.size() < 300; k++) {
+				float a = (rand() % 628) / 100.0f, s = speed * (0.4f + (rand() % 100) / 100.0f);
+				Spark sp = { (float)xpl->x, (float)xpl->y, p->Tick, 450.0f + rand() % 350, c, c, cosf(a) * s, sinf(a) * s };
+				sparks.push_back(sp);
+			}
+		}
+
 		// Get the next explosion
 		xpl = xpl->next;
 	}
+
+	// Draw and expire the embers: they slow down, shrink and cool from yellow to red
+	size_t keep = 0;
+	for (size_t k = 0; k < sparks.size(); k++) {
+		float t = (p->Tick - sparks[k].born) / sparks[k].life;
+		if (t >= 1.0f || t < 0.0f) continue;
+		sparks[keep++] = sparks[k];
+		float d = t * (2.0f - t) * 0.9f;   // eased distance travelled, in seconds of initial speed
+		int sx = (int)(p->Player[me]->X - sparks[k].wx) + this->PlayerOffsetX + sparks[k].ox + (int)(sparks[k].vx * d);
+		int sy = (int)(p->Player[me]->Y - sparks[k].wy) + this->PlayerOffsetY + sparks[k].oy + (int)(sparks[k].vy * d);
+		int g = (int)(220.0f - 150.0f * t);
+		p->DDraw->DrawGlow(sx, sy, 5 - (int)(t * 3.0f), 255, g, 40, (int)(255.0f * (1.0f - t)), MaxMapX, MaxMapY);
+	}
+	sparks.resize(keep);
 }
 
 /***************************************************************

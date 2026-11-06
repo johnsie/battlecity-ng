@@ -36,6 +36,7 @@ CExplosion::CExplosion(int x, int y, int type, CGame *game) {
 	this->y = y;
 	this->type = type;
 	this->animation = 0;
+	this->sparked = false;
 	this->tick = 0;
 	this->prev = 0;
 	this->next = 0;
