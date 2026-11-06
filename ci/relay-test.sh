@@ -8,7 +8,7 @@ PORT=${BC_TEST_PORT:-19700}
 WORK=$(mktemp -d)
 trap 'kill "$PID" 2>/dev/null || true; rm -rf "$WORK"' EXIT
 cd "$WORK"; cp "$MAP" map.dat
-BC_PORT=$PORT "$BIN" > server.log 2>&1 &
+BC_BOTS=0 BC_PORT=$PORT "$BIN" > server.log 2>&1 &   # the server-side bots have their own test (ci/bots-test.sh); keep this one about the network
 PID=$!
 sleep 3
 python3 "$TOOLS/move_test.py" 127.0.0.1 "$PORT" 10
