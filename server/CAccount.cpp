@@ -276,6 +276,56 @@ string CAccount::CreateOutivaCharacter(string sub, string callsign) {
 }
 
 /***************************************************************
+ * Function:	LinkOutivaCharacter
+ *
+ * Makes an existing name-and-password character the one this Outiva id plays. The caller has already checked the password.
+ * If the Outiva id already has another (usually brand new) character, that one is kept but renamed "<name>_old" and unlinked,
+ * never deleted. Returns 0 on success (actualName is the character, spelt as stored), 1 if there is no such ordinary character,
+ * 2 if it already belongs to a different Outiva account, 3 on a database error.
+ **************************************************************/
+int CAccount::LinkOutivaCharacter(string sub, string account, string &actualName) {
+	if (sub.empty()) return 3;
+	try {
+		string QueryString = "SELECT Account, OutivaSub FROM tAccounts WHERE lower(Account) = lower('" + SqlEscape(account) + "') AND Guest = 0;";
+		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
+		if (p->Database->Query.eof()) { p->Database->Query.finalize(); return 1; }
+		string stored = p->Database->Query.getStringField("Account");
+		string owner = p->Database->Query.getStringField("OutivaSub");
+		p->Database->Query.finalize();
+		if (owner == sub) { actualName = stored; return 0; }   // already linked to this very Outiva account
+		if (!owner.empty()) return 2;
+
+		string current = FindOutivaCharacter(sub);
+		string retired;
+		if (!current.empty()) {
+			retired = UniqueAccountName(this, current.substr(0, 11) + "_old");
+			if (retired.empty()) return 3;
+		}
+		p->Database->Database.execDML("BEGIN TRANSACTION;");
+		try {
+			if (!current.empty()) {
+				string rename = "UPDATE tAccounts SET Account = '" + SqlEscape(retired) + "', OutivaSub = '' WHERE lower(Account) = lower('" + SqlEscape(current) + "') AND OutivaSub = '" + SqlEscape(sub) + "';";
+				p->Database->Database.execDML(rename.c_str());
+			}
+			string link = "UPDATE tAccounts SET OutivaSub = '" + SqlEscape(sub) + "' WHERE lower(Account) = lower('" + SqlEscape(stored) + "') AND OutivaSub = '' AND Guest = 0;";
+			p->Database->Database.execDML(link.c_str());
+			p->Database->Database.execDML("COMMIT;");
+		}
+		catch (CppSQLite3Exception &) {
+			try { p->Database->Database.execDML("ROLLBACK;"); } catch (CppSQLite3Exception &) {}
+			throw;
+		}
+		cout << "OutivaLinked::" << stored << (current.empty() ? "" : " (previous character " + current + " kept as " + retired + ")") << endl;
+		actualName = stored;
+		return 0;
+	}
+	catch (CppSQLite3Exception& e) {
+		cerr << "CAccount::LinkOutivaCharacter : " << e.errorCode() << " : " << e.errorMessage() << endl;
+		return 3;
+	}
+}
+
+/***************************************************************
  * Function:	CreateGuest
  *
  * A temporary character for someone playing without an account, named "<name> (nonreg)" (a number goes before the suffix if the name is taken). It is a row so that everything that looks a player up by name works,

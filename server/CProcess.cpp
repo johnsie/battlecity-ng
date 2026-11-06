@@ -79,6 +79,11 @@ void CProcess::ProcessData(char *TheData, int playerId) {
             this->ProcessTicketLogin((sCMTicketLogin *)&TheData[1], playerId);
             break;
 
+        // Packet: cmLinkLogin
+        case cmLinkLogin:
+            this->ProcessLinkLogin((sCMLinkLogin *)&TheData[1], playerId);
+            break;
+
         // Packet: cmNewAccount
         case cmNewAccount:
             this->ProcessNewAccount((sCMNewAccount *)&TheData[1], playerId);
@@ -964,6 +969,47 @@ void CProcess::ProcessTicketLogin(sCMTicketLogin *login, int Index) {
         p->Winsock->SendData(Index, smError, "T");
         return;
     }
+    this->EnterAccount(Index, name.c_str(), false);
+}
+
+/***************************************************************
+ * Function:	ProcessLinkLogin
+ *
+ * Somebody signed in with Outiva also names an old name-and-password character and its password: if the password is right and the
+ * character is not already some other Outiva account's, it becomes the character this Outiva account plays (from now on and in
+ * this login). This works even when name-and-password logins are switched off: it is how people move over.
+ **************************************************************/
+void CProcess::ProcessLinkLogin(sCMLinkLogin *login, int Index) {
+    CPlayer* player = this->p->Player[Index];
+    if (player->State != State_Verified || !player->Name.empty()) return;   // not yet verified, or already logged in
+    if (p->TicketSecret.empty()) {
+        p->Winsock->SendData(Index, smError, "T");
+        return;
+    }
+    string ticket(login->Ticket, strnlen(login->Ticket, sizeof(login->Ticket)));
+    string user(login->User, strnlen(login->User, sizeof(login->User)));
+    string pass(login->Pass, strnlen(login->Pass, sizeof(login->Pass)));
+    OutivaTicket::Claims claims;
+    int64_t now = (int64_t)time(NULL);
+    if (OutivaTicket::Verify(p->TicketSecret, ticket, now, claims) != OutivaTicket::Result::Ok
+        || !p->UsedTickets.Use(claims.id, claims.expires, now)) {
+        cout << "Outiva::TicketRefused from " << player->IPAddress << endl;
+        p->Winsock->SendData(Index, smError, "T");
+        return;
+    }
+    if (p->Account->CheckAccount(user) != 1) {
+        p->Winsock->SendData(Index, smError, "C");
+        return;
+    }
+    if (p->Account->CheckPassword(user, pass) != 2) {
+        cout << "Outiva::LinkWrongPassword for " << user << " from " << player->IPAddress << endl;
+        p->Winsock->SendData(Index, smError, "B");
+        return;
+    }
+    string name;
+    int result = p->Account->LinkOutivaCharacter(claims.sub, user, name);
+    if (result == 2) { p->Winsock->SendData(Index, smError, "X"); return; }
+    if (result != 0 || name.empty()) { p->Winsock->SendData(Index, smError, "T"); return; }
     this->EnterAccount(Index, name.c_str(), false);
 }
 

@@ -9,7 +9,7 @@ import base64, hashlib, hmac, os, socket, sqlite3, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "deploy", "web"))
 import outiva_broker
 
-CM_VERSION, CM_LOGIN, CM_NEWACCOUNT, CM_SETSTATE, CM_JOBAPP, CM_GUESTLOGIN, CM_TICKETLOGIN = 1, 2, 3, 5, 6, 55, 56
+CM_VERSION, CM_LOGIN, CM_NEWACCOUNT, CM_SETSTATE, CM_JOBAPP, CM_GUESTLOGIN, CM_TICKETLOGIN, CM_LINKLOGIN = 1, 2, 3, 5, 6, 55, 56, 57
 SM_LOGINCORRECT, SM_ERROR = 1, 17
 VERSION = b"3.5.8"
 
@@ -190,6 +190,40 @@ def main():
     m.pump()
     check(m.error() != "Y", "an Outiva character is not stopped from founding a city")
     m.close()
+
+    # linking an old name-and-password character to an Outiva account (works although password logins are off)
+    with sqlite3.connect(db, timeout=10) as c:
+        c.execute("INSERT INTO tAccounts (Account, Password, Points, OutivaSub, Guest) VALUES ('Skeletor', 'secret', 5000, '', 0)")
+        c.execute("INSERT INTO tAccounts (Account, Password, Points, OutivaSub, Guest) VALUES ('Taken', 'pw', 10, 'sub-someone-else', 0)")
+    def link(sub, callsign, user, password):
+        k = Client(host, port)
+        k.send(CM_LINKLOGIN, field(ticket(secret, sub, callsign).encode(), 200) + field(user.encode(), 15) + field(password.encode(), 15))
+        k.wait(lambda: k.logged_in() or k.error())
+        return k
+    k = link("sub-skel", "Skel", "Skeletor", "wrong")
+    check(k.error() == "B" and not k.logged_in() and not rows(db, "WHERE OutivaSub = 'sub-skel'"), "linking with the wrong password is refused and changes nothing")
+    k.close()
+    k = link("sub-skel", "Skel", "Nobody", "x")
+    check(k.error() == "C" and not k.logged_in(), "linking a character that does not exist is refused")
+    k.close()
+    k = link("sub-skel", "Skel", "Taken", "pw")
+    check(k.error() == "X" and not k.logged_in() and ("Taken", "sub-someone-else", 0) in rows(db), "a character that belongs to another Outiva account cannot be taken")
+    k.close()
+    # the Outiva account already has a fresh character, then links the old one: that one is kept, renamed and unlinked
+    fresh = Client(host, port)
+    fresh.send(CM_TICKETLOGIN, field(ticket(secret, "sub-skel", "Skel").encode(), 200))
+    check(fresh.wait(fresh.logged_in) and ("Skel", "sub-skel", 0) in rows(db), "the Outiva account starts with a new character")
+    fresh.close()
+    time.sleep(0.5)
+    k = link("sub-skel", "Skel", "Skeletor", "secret")
+    check(k.logged_in(), "linking with the right password logs in")
+    k.close()
+    check(("Skeletor", "sub-skel", 0) in rows(db) and ("Skel_old", "", 0) in rows(db) and ("Skel", "sub-skel", 0) not in rows(db), "Skeletor is now the Outiva account's character; the new one was kept as Skel_old, unlinked")
+    time.sleep(0.5)
+    again = Client(host, port)
+    again.send(CM_TICKETLOGIN, field(ticket(secret, "sub-skel", "Skel").encode(), 200))
+    check(again.wait(again.logged_in) and len(rows(db, "WHERE OutivaSub = 'sub-skel'")) == 1 and ("Skeletor", "sub-skel", 0) in rows(db), "an ordinary Outiva sign-in now plays Skeletor (no new character)")
+    again.close()
     print("all Outiva login checks passed")
 
 

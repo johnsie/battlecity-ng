@@ -44,6 +44,15 @@ void CSend::SendTicketLogin(const char *ticket) {
 	p->Winsock->SendData(cmTicketLogin, (char *)&LoginData, sizeof(LoginData));
 }
 
+void CSend::SendLinkLogin(const char *ticket, const char *user, const char *pass) {
+	sCMLinkLogin LoginData;
+	memset(&LoginData, 0, sizeof(LoginData));
+	strncpy(LoginData.Ticket, ticket, sizeof(LoginData.Ticket) - 1);
+	strncpy(LoginData.User, user, sizeof(LoginData.User) - 1);
+	strncpy(LoginData.Pass, pass, sizeof(LoginData.Pass) - 1);
+	p->Winsock->SendData(cmLinkLogin, (char *)&LoginData, sizeof(LoginData));
+}
+
 void CSend::SendLogin(int NewAccount) {
 	if (NewAccount == 0) {
 		sCMLogin LoginData;

@@ -36,6 +36,7 @@ public:
 	void SendLogin(int NewAccount);
 	void SendGuestLogin(const char *name);
 	void SendTicketLogin(const char *ticket);
+	void SendLinkLogin(const char *ticket, const char *user, const char *pass);
 	void SendVersion();
 	void SendAccountEdit();
 	void SendAccountUpdate();

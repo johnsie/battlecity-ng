@@ -476,6 +476,8 @@ void CProcess::ProcessError(int error) {
 			{MessageBox(this->p->hWnd, "That kind of login is no longer available. Sign in with Outiva, or play as a guest.", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
 		case 84: //Message T
 			{MessageBox(this->p->hWnd, "Outiva sign-in did not work. Please sign in with Outiva again, or play as a guest.", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
+		case 88: //Message X
+			{MessageBox(this->p->hWnd, "That character is already linked to a different Outiva account.", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
 		case 89: //Message Y
 			{MessageBox(this->p->hWnd, "Sign in with Outiva to found a city. Guests can join other players' cities.", "BattleCity", 0); this->p->Meeting->ShowMeetingDlg(); break;}
 		case 77: //Message M

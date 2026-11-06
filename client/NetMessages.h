@@ -321,7 +321,8 @@ enum ClientMessages {
 	cmVoice,          // my voice: [seq 2][ADPCM predictor 2][step index 1][audio]
 	cmVoiceReport,    // report a player's voice: [slot]
     cmGuestLogin,     // play without an account: [name 15]. The server names the guest "<name> (nonreg)" (name cut to 6 characters); nothing about a guest is kept
-    cmTicketLogin     // sign in with a ticket from the Outiva login broker: [ticket 200]
+    cmTicketLogin,    // sign in with a ticket from the Outiva login broker: [ticket 200]
+    cmLinkLogin       // sign in with a ticket AND link an old name-and-password character to that Outiva account: [ticket 200][user 15][password 15]
 };
 
 struct sCMBuild
@@ -393,6 +394,13 @@ struct sCMGuestLogin
 struct sCMTicketLogin
 {
     char Ticket[200];
+};
+
+struct sCMLinkLogin
+{
+    char Ticket[200];
+    char User[15];
+    char Pass[15];
 };
 
 struct sCMNewAccount

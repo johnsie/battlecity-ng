@@ -129,6 +129,22 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 					else BeginOutivaSignIn();   // no valid ticket: sign in with Outiva again
 				}
 				break;
+				case IDLINKLOGIN:
+				{
+					// Sign in with Outiva AND make the old character named here the one this Outiva account plays
+					std::string ticket = OutivaTicket();
+					GetDlgItemText(hwnd, IDUSER, p->Login->user, 15);
+					GetDlgItemText(hwnd, IDPASS, p->Login->pass, 15);
+					if (ticket.empty()) BeginOutivaSignIn();
+					else if ((strlen(p->Login->user) > 0) && (strlen(p->Login->pass) > 0)) {
+						p->Send->SendLinkLogin(ticket.c_str(), p->Login->user, p->Login->pass);
+						OutivaTicketUsed();
+						p->Dialog->StartDialog = 0;
+						EndDialog(hwnd, 1);
+					}
+					else MessageBox(p->hWnd, "Type the old character's name and password first.", 0, 0);
+				}
+				break;
 				case IDOUTIVALOGIN:
 					BeginOutivaSignIn();
 				break;

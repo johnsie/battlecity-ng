@@ -111,6 +111,7 @@
 #define IDOUTIVALOGIN                   1073
 #define IDGUESTLOGIN                    1074
 #define IDTICKETLOGIN                   1075
+#define IDLINKLOGIN                     1076
 #define IDC_STATIC                      -1
 
 // Next default values for new objects

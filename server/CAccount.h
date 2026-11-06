@@ -22,6 +22,7 @@ class CAccount {
 		int NewAccount(string account, string password, string email, string fullname, string town, string state);
 		string FindOutivaCharacter(string sub);
 		string CreateOutivaCharacter(string sub, string callsign);
+		int LinkOutivaCharacter(string sub, string account, string &actualName);
 		string CreateGuest(string requested);
 		void DeleteGuest(string name);
 		int UpdateAccount(int Index, string password, string email, string fullname, string town, string state);

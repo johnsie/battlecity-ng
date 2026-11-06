@@ -126,7 +126,7 @@ void ResetDialog(Dlg *d) {
 		c.buffer.clear();
 		if (c.isEditable()) SetEditText(c, "");
 	}
-	d->loginMode = 1;
+	d->loginMode = getenv("BC_TEST_LOGIN_TAB") ? atoi(getenv("BC_TEST_LOGIN_TAB")) : 1;   // (the variable is for screenshots)
 	if (d->def->id == ID_LOGIN) {
 		// Fill the form from the login remembered on this device
 		std::string user, pass;
@@ -737,6 +737,17 @@ void DrawModernLogin(Dlg *d) {
 			ImGui::Dummy(ImVec2(0, 8.0f));
 			if (enter) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
 			if (d->open) DrawLoginSubmit(d, "Enter Battle City");
+			if (d->open && hasOutiva) {
+				// Signed in with Outiva: an old character can be moved over to the Outiva account (its password is checked once)
+				ImGui::Dummy(ImVec2(0, 8.0f));
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.38f, 0.62f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.47f, 0.75f, 1.0f));
+				if (ImGui::Button("Link this character to my Outiva account", ImVec2(-g_loginPad, 34.0f * g_scale))) Notify(d, IDLINKLOGIN, BN_CLICKED, nullptr);
+				ImGui::PopStyleColor(2);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.52f, 0.60f, 0.68f, 1.0f));
+				ImGui::TextWrapped("After this, signing in with Outiva plays this character.");
+				ImGui::PopStyleColor();
+			}
 			if (d->open) {
 				ImGui::Dummy(ImVec2(0, 10.0f));
 				if (DrawLoginLink("Create character")) Notify(d, 3, BN_CLICKED, FindCtl(d, 3));
