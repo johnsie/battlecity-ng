@@ -124,6 +124,7 @@ class CDrawing {
         string PanelLine5;
         string PanelLine6;
         string PanelLine7;
+        int PanelPlayer;                  // the player whose info the panel shows (kept current), or -1
         int PanelMode;
         void ClearPanel();
         void resetPlayerOffset();

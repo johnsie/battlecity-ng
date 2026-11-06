@@ -85,6 +85,7 @@ public:
     void ProcessPong();
     void ProcessAdminEdit(sCMAdminEdit *adminedit);
     void ProcessClickPlayer(sSMClickPlayer *clickplayer);
+    void ShowPlayerInfo(int index);
     void ProcessFinance(sSMFinance *finance);
     void ProcessWhisper(char *TheData);
     void ProcessGlobal(char *TheData);

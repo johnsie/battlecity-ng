@@ -1401,6 +1401,8 @@ void CProcess::ProcessPointsUpdate(sSMPoints *pts) {
 	player->Assists = pts->Assists;
 	player->MonthlyPoints = pts->MonthlyPoints;
 	player->GenerateNameString();
+	// the info panel is showing this player: keep it current
+	if (this->p->Draw->PanelPlayer == pts->Index) this->ShowPlayerInfo(pts->Index);
 }
 
 /***************************************************************
@@ -1889,15 +1891,31 @@ void CProcess::ProcessAdminEdit(sCMAdminEdit *adminedit) {
  * @param clickplayer
  **************************************************************/
 void CProcess::ProcessClickPlayer(sSMClickPlayer *clickplayer) {
-	stringstream ss;
 	CPlayer* player = this->p->Player[clickplayer->Index];
-	int DeathsInt = clickplayer->Deaths;
+	player->Orbs = clickplayer->Orbs;
+	player->Assists = clickplayer->Assists;
+	player->Deaths = clickplayer->Deaths;
+	this->ShowPlayerInfo(clickplayer->Index);
+	this->p->Engine->MsgQueue = 0;
+}
+
+/***************************************************************
+ * Function:	ShowPlayerInfo
+ *
+ * Fills the info panel with one player's rank, points and record. The panel keeps following that player (ProcessPointsUpdate
+ * calls this again), so the rank and points shown never lag behind the name above the tank.
+ **************************************************************/
+void CProcess::ShowPlayerInfo(int index) {
+	stringstream ss;
+	CPlayer* player = this->p->Player[index];
+	int DeathsInt = player->Deaths;
 
 	if (DeathsInt == 0) {
 		DeathsInt = 1;
 	}
 
 	this->p->Draw->ClearPanel();
+	this->p->Draw->PanelPlayer = index;
 
 	ss.str("");
 	ss << player->NameString;
@@ -1908,16 +1926,16 @@ void CProcess::ProcessClickPlayer(sSMClickPlayer *clickplayer) {
 	this->p->Draw->PanelLine2 = ss.str();
 
 	ss.str("");
-	ss << "Orbs:    " << clickplayer->Orbs;
-	this->p->Draw->PanelLine3 += ss.str();
+	ss << "Orbs:    " << player->Orbs;
+	this->p->Draw->PanelLine3 = ss.str();
 
 	ss.str("");
-	ss << "Assists: " << clickplayer->Assists;
-	this->p->Draw->PanelLine4 += ss.str();
+	ss << "Assists: " << player->Assists;
+	this->p->Draw->PanelLine4 = ss.str();
 
 	ss.str("");
-	ss << "Deaths:  " << clickplayer->Deaths;
-	this->p->Draw->PanelLine5 += ss.str();
+	ss << "Deaths:  " << player->Deaths;
+	this->p->Draw->PanelLine5 = ss.str();
 
 	ss.str("");
 	ss << "Pts/Mon: " << player->MonthlyPoints;
@@ -1925,9 +1943,7 @@ void CProcess::ProcessClickPlayer(sSMClickPlayer *clickplayer) {
 
 	ss.str("");
 	ss << "Pts/Death: " << ((player->Points)/(DeathsInt));
-	this->p->Draw->PanelLine7 += ss.str();
-
-	this->p->Engine->MsgQueue = 0;
+	this->p->Draw->PanelLine7 = ss.str();
 }
 
 

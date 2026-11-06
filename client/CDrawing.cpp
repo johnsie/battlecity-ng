@@ -185,6 +185,7 @@ void CDrawing::ClearDrawing() {
 	WaypointCount = 0;
 	WaypointTime = 0;
 	BoardTime = 0;
+	PanelPlayer = -1;
 	ShowWaypoints = BCLoadText("waypoints") != "0";
 }
 
@@ -1905,6 +1906,7 @@ void CDrawing::ClearPanel() {
 	PanelLine5 = "";
 	PanelLine6 = "";
 	PanelLine7 = "";
+	PanelPlayer = -1;
 	PanelMode = modeEmpty;
 }
 
