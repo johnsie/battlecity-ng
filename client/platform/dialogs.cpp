@@ -6,6 +6,7 @@
 #include "dialogs_defs.h"
 #include "input_compat.h"
 #include "../resource.h"
+#include "../OutivaLogin.h"
 #include <SDL.h>
 #include <imgui.h>
 #include <imgui_impl_sdl2.h>
@@ -52,7 +53,7 @@ struct Dlg {
 	std::vector<Ctl> ctls;          // never resized after creation: control handles stay valid
 	bool open = false;
 	bool focusFirst = false;
-	int loginMode = 0;               // 0: Battle City account, 1: Outiva identity
+	int loginMode = 1;               // 0: Battle City account (name and password), 1: Outiva account, 2: guest
 };
 
 const float FONT_PIXELS = 11.5f;     // font size at scale 1 (the original dialogs' size at 1024x768)
@@ -125,7 +126,7 @@ void ResetDialog(Dlg *d) {
 		c.buffer.clear();
 		if (c.isEditable()) SetEditText(c, "");
 	}
-	d->loginMode = std::getenv("BC_OUTIVA_NAME") ? 1 : 0;
+	d->loginMode = 1;
 	if (d->def->id == ID_LOGIN) {
 		// Fill the form from the login remembered on this device
 		std::string user, pass;
@@ -673,7 +674,7 @@ void DrawModernLogin(Dlg *d) {
 			ImGui::SetCursorPos(ImVec2(34.0f, 218.0f));
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.68f, 0.74f, 0.80f, 1.0f));
 			ImGui::PushTextWrapPos(width * 0.38f - 34.0f);
-			ImGui::TextWrapped("Enter the shared world with your Battle City character, or identify yourself through Outiva.");
+			ImGui::TextWrapped("Play as a guest straight away, or sign in with Outiva to keep your points, history and city.");
 			ImGui::PopTextWrapPos();
 			ImGui::SetCursorPos(ImVec2(34.0f, height - 62.0f));
 			ImGui::TextUnformatted("LIVE  -  bc.outiva.com");
@@ -700,18 +701,20 @@ void DrawModernLogin(Dlg *d) {
 		}
 
 		float available = panelWidth - padding * 2.0f - 4.0f;
-		float tabWidth = (available - 8.0f) * 0.5f;
+		float tabWidth = (available - 16.0f) / 3.0f;
 		ImGui::SetCursorPosX(padding);
-		DrawLoginTab(d, "Battle City account", 0, tabWidth);
+		DrawLoginTab(d, "Outiva", 1, tabWidth);
 		ImGui::SameLine(0, 8.0f);
-		DrawLoginTab(d, "Outiva account", 1, tabWidth);
+		DrawLoginTab(d, "Guest", 2, tabWidth);
+		ImGui::SameLine(0, 8.0f);
+		DrawLoginTab(d, "Old account", 0, tabWidth);
 		ImGui::SetCursorPosX(padding);
 		ImGui::Dummy(ImVec2(0, 16.0f));
 
 		Ctl *user = FindCtl(d, IDUSER);
 		Ctl *pass = FindCtl(d, IDPASS);
-		const char *outivaName = std::getenv("BC_OUTIVA_NAME");
-		bool hasOutiva = outivaName && outivaName[0];
+		std::string outivaCallsign = OutivaCallsign();
+		bool hasOutiva = !OutivaTicket().empty();
 
 		ImGui::SetCursorPosX(padding);
 		ImGui::BeginGroup();
@@ -742,36 +745,45 @@ void DrawModernLogin(Dlg *d) {
 				ImGui::SameLine();
 				if (DrawLoginLink("Edit character")) Notify(d, 4, BN_CLICKED, FindCtl(d, 4));
 			}
+		} else if (d->loginMode == 2) {
+			ImGui::SetWindowFontScale(1.45f);
+			ImGui::TextUnformatted("Play as a guest");
+			ImGui::SetWindowFontScale(1.0f);
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.65f, 0.71f, 0.78f, 1.0f));
+			ImGui::TextWrapped("Jump straight in. Nothing is saved: no points, history or ranking. Guests can join other players' cities but cannot found one.");
+			ImGui::PopStyleColor();
+			ImGui::Dummy(ImVec2(0, 12.0f));
+			ImGui::TextUnformatted("Guest name");
+			bool enter = DrawLoginEdit(d, user, "Any name you like", false, wide);
+			ImGui::Dummy(ImVec2(0, 14.0f));
+			if (enter) Notify(d, IDGUESTLOGIN, BN_CLICKED, nullptr);
+			if (d->open) {
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.91f, 0.18f, 0.13f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.25f, 0.18f, 1.0f));
+				ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.78f, 0.12f, 0.09f, 1.0f));
+				if (ImGui::Button("Play as guest", ImVec2(-g_loginPad, 43.0f * g_scale))) Notify(d, IDGUESTLOGIN, BN_CLICKED, nullptr);
+				ImGui::PopStyleColor(3);
+			}
 		} else {
 			ImGui::SetWindowFontScale(1.45f);
-			ImGui::TextUnformatted(hasOutiva ? "Outiva connected" : "Continue with Outiva");
+			ImGui::TextUnformatted(hasOutiva ? "Welcome back" : "Continue with Outiva");
 			ImGui::SetWindowFontScale(1.0f);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.65f, 0.71f, 0.78f, 1.0f));
 			ImGui::TextWrapped(hasOutiva
-				? "Your verified Outiva identity is ready. Enter your Battle City password to open this character."
-				: "Use your Outiva account securely through accounts.outiva.com.");
+				? "You are signed in with Outiva. Your points, history and city are saved to your Outiva character."
+				: "Sign in with your Outiva account to keep your points, history and city. No separate Battle City password is needed.");
 			ImGui::PopStyleColor();
 			ImGui::Dummy(ImVec2(0, 14.0f));
-			if (!hasOutiva) {
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.38f, 0.62f, 1.0f));
-				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.47f, 0.75f, 1.0f));
-				if (ImGui::Button("Continue with Outiva", ImVec2(-g_loginPad, 46.0f * g_scale)))
-					Notify(d, IDOUTIVALOGIN, BN_CLICKED, nullptr);
-				ImGui::PopStyleColor(2);
-				ImGui::Dummy(ImVec2(0, 12.0f));
-				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.52f, 0.60f, 0.68f, 1.0f));
-				ImGui::TextWrapped("You will return here after signing in. Battle City never sees your Outiva password.");
-				ImGui::PopStyleColor();
-			} else {
-				ImGui::TextUnformatted("Battle City character");
-				DrawLoginEdit(d, user, "Character name", false, false);
-				ImGui::Dummy(ImVec2(0, 8.0f));
-				ImGui::TextUnformatted("Battle City password");
-				bool enter = DrawLoginEdit(d, pass, "Required by the game server", true, wide);
-				ImGui::Dummy(ImVec2(0, 14.0f));
-				if (enter) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
-				if (d->open) DrawLoginSubmit(d, "Continue as Outiva user");
-			}
+			ImGui::PushStyleColor(ImGuiCol_Button, hasOutiva ? ImVec4(0.91f, 0.18f, 0.13f, 1.0f) : ImVec4(0.12f, 0.38f, 0.62f, 1.0f));
+			ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hasOutiva ? ImVec4(1.0f, 0.25f, 0.18f, 1.0f) : ImVec4(0.16f, 0.47f, 0.75f, 1.0f));
+			std::string label = hasOutiva ? (outivaCallsign.empty() ? std::string("Play") : "Play as " + outivaCallsign) : std::string("Continue with Outiva");
+			if (ImGui::Button(label.c_str(), ImVec2(-g_loginPad, 46.0f * g_scale)))
+				Notify(d, IDTICKETLOGIN, BN_CLICKED, nullptr);
+			ImGui::PopStyleColor(2);
+			ImGui::Dummy(ImVec2(0, 12.0f));
+			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.52f, 0.60f, 0.68f, 1.0f));
+			ImGui::TextWrapped("Battle City never sees your Outiva password. Your name here is your Outiva callsign.");
+			ImGui::PopStyleColor();
 		}
 		ImGui::PopItemWidth();
 		if (d->open) {

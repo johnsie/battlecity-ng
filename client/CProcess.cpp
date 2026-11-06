@@ -469,6 +469,12 @@ void CProcess::ProcessError(int error) {
 			break;
 		case 76: //Message L
 			{MessageBox(this->p->hWnd, "Email address not found.  Please try again!", 0, 0); this->p->Recover->ShowRecoverDlg(); break;}
+		case 79: //Message O
+			{MessageBox(this->p->hWnd, "That kind of login is no longer available. Sign in with Outiva, or play as a guest.", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
+		case 84: //Message T
+			{MessageBox(this->p->hWnd, "Outiva sign-in did not work. Please sign in with Outiva again, or play as a guest.", "BattleCity", 0); this->p->Login->ShowLoginDlg(); break;}
+		case 89: //Message Y
+			{MessageBox(this->p->hWnd, "Sign in with Outiva to found a city. Guests can join other players' cities.", "BattleCity", 0); break;}
 		case 77: //Message M
 			{MessageBox(this->p->hWnd, "Your account information has been sent to your email address!", 0, 0); this->p->Login->ShowLoginDlg(); break;}
 	}

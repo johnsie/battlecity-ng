@@ -4,7 +4,10 @@
 Usage: tools/outiva_login_test.py <host> <port> <ticket-secret> <path-to-BCData.db>
 The server must have been started with BC_TICKET_SECRET_FILE holding the secret, BC_LEGACY_LOGIN=0 and BC_BOTS=0.
 """
-import base64, hashlib, hmac, socket, sqlite3, sys, time
+import base64, hashlib, hmac, os, socket, sqlite3, sys, time
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "deploy", "web"))
+import outiva_broker
 
 CM_VERSION, CM_LOGIN, CM_NEWACCOUNT, CM_SETSTATE, CM_JOBAPP, CM_GUESTLOGIN, CM_TICKETLOGIN = 1, 2, 3, 5, 6, 55, 56
 SM_LOGINCORRECT, SM_ERROR = 1, 17
@@ -158,6 +161,14 @@ def main():
         check(b.wait(lambda: b.error() == "T") and not b.logged_in(), label + " is refused")
         b.close()
     check(not rows(db, "WHERE OutivaSub = 'sub-x'"), "refused tickets create nothing")
+
+    # a ticket made by the real broker code is accepted by the server (the two sides agree on the format)
+    broker = outiva_broker.Broker(secret, "https://accounts.outiva.com/realms/outiva", ["battlecity-web"], None)
+    made, _ = broker.ticket_for({"sub": "sub-broker", "callsign": "Broker Bob"})
+    k = Client(host, port)
+    k.send(CM_TICKETLOGIN, field(made.encode(), 200))
+    check(k.wait(k.logged_in) and ("Broker Bob", "sub-broker", 0) in rows(db), "a ticket from outiva_broker.py logs in")
+    k.close()
 
     # an Outiva character can take an empty city
     m = Client(host, port)

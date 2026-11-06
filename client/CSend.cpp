@@ -30,6 +30,20 @@ CSend::~CSend() {
 
 }
 
+void CSend::SendGuestLogin(const char *name) {
+	sCMGuestLogin LoginData;
+	memset(&LoginData, 0, sizeof(LoginData));
+	strncpy(LoginData.Name, name, sizeof(LoginData.Name) - 1);
+	p->Winsock->SendData(cmGuestLogin, (char *)&LoginData, sizeof(LoginData));
+}
+
+void CSend::SendTicketLogin(const char *ticket) {
+	sCMTicketLogin LoginData;
+	memset(&LoginData, 0, sizeof(LoginData));
+	strncpy(LoginData.Ticket, ticket, sizeof(LoginData.Ticket) - 1);
+	p->Winsock->SendData(cmTicketLogin, (char *)&LoginData, sizeof(LoginData));
+}
+
 void CSend::SendLogin(int NewAccount) {
 	if (NewAccount == 0) {
 		sCMLogin LoginData;

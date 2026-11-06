@@ -13,6 +13,33 @@
   window.outivaIdentityReady = window.outivaAuthModule.then(function (auth) {
     return auth.initialiseOutivaIdentity({ clientId: 'battlecity-web', appId: 'battlecity' });
   });
+
+  // A one-time login ticket for the game server, made by the login broker from the verified Outiva sign-in. The game reads window.bcTicket when
+  // the player clicks "Play", so it is renewed every 45 seconds (a ticket lives for 60) and straight away after one is used.
+  window.bcTicket = '';
+  window.bcTicketCallsign = '';
+  var ticketBusy = false;
+  function refreshTicket() {
+    if (ticketBusy) return;
+    var idToken = null;
+    try { idToken = localStorage.getItem('outiva.identity.battlecity-web'); } catch (e) { /* no storage: guests only */ }
+    if (!idToken) { window.bcTicket = ''; return; }
+    ticketBusy = true;
+    fetch('/outiva/ticket', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id_token: idToken }) })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (data) {
+        window.bcTicket = data && data.ticket ? data.ticket : '';
+        window.bcTicketCallsign = data && data.callsign ? data.callsign : '';
+      })
+      .catch(function () { window.bcTicket = ''; })
+      .then(function () { ticketBusy = false; });
+  }
+  window.bcTicketUsed = function () { window.bcTicket = ''; setTimeout(refreshTicket, 1500); };
+  window.outivaIdentityReady.then(function (profile) {
+    if (!profile) return;
+    refreshTicket();
+    setInterval(refreshTicket, 45000);
+  });
 </script>
 <style>
   :root { --bg:#0b0b0b; --fg:#ddd; --accent:#e33; }

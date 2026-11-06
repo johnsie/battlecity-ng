@@ -34,6 +34,8 @@ public:
 	~CSend();
 
 	void SendLogin(int NewAccount);
+	void SendGuestLogin(const char *name);
+	void SendTicketLogin(const char *ticket);
 	void SendVersion();
 	void SendAccountEdit();
 	void SendAccountUpdate();

@@ -1,0 +1,23 @@
+[Unit]
+Description=Battle City Outiva login broker (verifies an Outiva sign-in, issues a login ticket for the game server)
+After=network.target
+
+[Service]
+Type=simple
+User=battlecity
+Group=battlecity
+Environment=BC_BROKER_PORT=9684
+Environment=BC_TICKET_SECRET_FILE=/etc/battlecity/ticket.secret
+Environment=BC_OUTIVA_AUDIENCE=battlecity-web
+ExecStart=/usr/bin/python3 /usr/local/lib/battlecity/outiva_broker.py
+Restart=on-failure
+RestartSec=3
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+RestrictAddressFamilies=AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

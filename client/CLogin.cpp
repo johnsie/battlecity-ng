@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CLogin.h"
+#include "OutivaLogin.h"
 #include <cstdlib>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
@@ -32,6 +33,18 @@ HBRUSH g_hbrBackgroundLogin;
 HDC hdcStaticLogin;
 
 void *CLogPointer;
+
+static void BeginOutivaSignIn()
+{
+#ifdef __EMSCRIPTEN__
+	// A user gesture is required before leaving the embedded game for Keycloak.
+	EM_ASM({ if (window.beginOutivaSignIn) window.beginOutivaSignIn(); });
+#else
+	// Desktop clients complete Outiva sign-in in the browser client, where the
+	// OIDC redirect URI and verified profile are available.
+	SDL_OpenURL("https://bc.outiva.com/?login=outiva");
+#endif
+}
 
 int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 {
@@ -86,15 +99,28 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 					p->Recover->ShowRecoverDlg();
 					EndDialog(hwnd, 5);
 				break;
+				case IDGUESTLOGIN:
+					// Play without an account: the name is only a label, and nothing is kept
+					GetDlgItemText(hwnd, IDUSER, p->Login->user, 15);
+					p->Send->SendGuestLogin(p->Login->user);
+					p->Dialog->StartDialog = 0;
+					EndDialog(hwnd, 1);
+				break;
+				case IDTICKETLOGIN:
+				{
+					// Sign in with the one-time ticket the page (or the desktop launcher) holds for the verified Outiva account
+					std::string ticket = OutivaTicket();
+					if (!ticket.empty()) {
+						p->Send->SendTicketLogin(ticket.c_str());
+						OutivaTicketUsed();
+						p->Dialog->StartDialog = 0;
+						EndDialog(hwnd, 1);
+					}
+					else BeginOutivaSignIn();   // no valid ticket: sign in with Outiva again
+				}
+				break;
 				case IDOUTIVALOGIN:
-#ifdef __EMSCRIPTEN__
-					// A user gesture is required before leaving the embedded game for Keycloak.
-					EM_ASM({ if (window.beginOutivaSignIn) window.beginOutivaSignIn(); });
-#else
-					// Desktop clients complete Outiva sign-in in the browser client, where the
-					// OIDC redirect URI and verified profile are available.
-					SDL_OpenURL("https://bc.outiva.com/?login=outiva");
-#endif
+					BeginOutivaSignIn();
 				break;
             }
 			break;
