@@ -650,6 +650,7 @@ void CBotManager::RespawnBot(BotInfo &b) {
 void CBotManager::BulletHitBot(int botSlot, int damage, int shooter) {
 	BotInfo *b = BotBySlot(botSlot);
 	if (!b || b->dead || b->tier == BOT_GHOST) return;
+	if (b->tier != BOT_DUMMY && b->tier != BOT_DRONE) p->Waypoints->NoteFight(b->x, b->y);
 	if (shooter >= 0 && !IsHuman(shooter)) return;
 	b->hp -= damage;
 	b->lastHitBy = shooter;
@@ -1531,4 +1532,36 @@ void CBotManager::HumanUpdated(int idx) {
 		rec.push_back(s);
 		if (rec.size() > 300) rec.erase(rec.begin());
 	}
+}
+
+
+/// The places that matter to one player right now: a supply crate for their city (or the latest one for somebody else's),
+/// a raid on their city (the nearest raider), the bounty boss, the mission zone and the next time-trial gate.
+void CBotManager::Objectives(int slot, std::vector<WaypointInfo> &out) {
+	if (!enabled || slot < 0 || slot >= MAX_PLAYERS) return;
+	int city = p->Player[slot]->City;
+	int other = -1;
+	for (int i = 0; i < 4; i++) {
+		if (!drops[i].active) continue;
+		if (drops[i].city == city) out.push_back(WaypointInfo{ WP_CRATE, (float)(drops[i].x * 48), (float)(drops[i].y * 48) });
+		else if (other < 0 || drops[i].expiresAt > drops[other].expiresAt) other = i;
+	}
+	if (other >= 0) out.push_back(WaypointInfo{ WP_DROP, (float)(drops[other].x * 48), (float)(drops[other].y * 48) });
+	if (raid.active && raid.city == city) {
+		float px = p->Player[slot]->X, py = p->Player[slot]->Y, best = 1e30f;
+		const BotInfo *near = NULL;
+		for (int i = 0; i < 24; i++) {
+			const BotInfo &b = bots[i];
+			if (!b.used || b.dead || b.raidCity != city) continue;
+			float d = (b.x - px) * (b.x - px) + (b.y - py) * (b.y - py);
+			if (d < best) { best = d; near = &b; }
+		}
+		if (near) out.push_back(WaypointInfo{ WP_RAID, near->x, near->y });
+	}
+	for (int i = 0; i < 24; i++) {
+		const BotInfo &b = bots[i];
+		if (b.used && !b.dead && b.tier == BOT_BOSS) { out.push_back(WaypointInfo{ WP_BOSS, b.x, b.y }); break; }
+	}
+	if (mission.active && mission.type == 2) out.push_back(WaypointInfo{ WP_ZONE, mission.zoneX, mission.zoneY });
+	if (trial[slot].active && trial[slot].step >= 0 && trial[slot].step < 4) out.push_back(WaypointInfo{ WP_GATE, trial[slot].cx[trial[slot].step], trial[slot].cy[trial[slot].step] });
 }

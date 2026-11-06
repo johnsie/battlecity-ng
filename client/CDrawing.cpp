@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cmath>
 #include "CGame.h"
+std::string BCLoadText(const char *key);
 
 /***************************************************************
  * Constructor
@@ -88,6 +89,7 @@ void CDrawing::DrawGame() {
 	this->DrawInventory();
 	this->DrawItemHint();
 	this->DrawVoiceHud();
+	this->DrawWaypoints();
 
 	// If the player is Mayor,
 	if (p->Player[p->Winsock->MyIndex]->isMayor) {
@@ -180,6 +182,9 @@ void CDrawing::ClearDrawing() {
 
 	BuildMenuX = 0;
 	BuildMenuY = 0;
+	WaypointCount = 0;
+	WaypointTime = 0;
+	ShowWaypoints = BCLoadText("waypoints") != "0";
 }
 
 /***************************************************************
@@ -2226,5 +2231,119 @@ void CDrawing::DrawVoiceHud() {
 		VoiceSpeakerIcon(d, 4, ry + 2, 120, 255, 140);
 		d->DTextOut(18, ry, who, RGB(150,255,170));
 		row++;
+	}
+}
+
+
+/***************************************************************
+ * Function:	SetWaypoints / DrawWaypoints
+ *
+ * The server says where the things that matter to this player are (their base, a supply crate, a raid, the bounty boss,
+ * a mission zone, the latest fight). Anything out of view gets a pointer at the edge of the screen with its distance in
+ * tiles; anything in view gets a small label above it. See docs/waypoints.md.
+ **************************************************************/
+void CDrawing::SetWaypoints(const char *data, int length) {
+	if (length < 1) return;
+	int n = (unsigned char)data[0];
+	if (n > 8) n = 8;
+	if (length < 1 + 5 * n) return;
+	WaypointCount = 0;
+	for (int i = 0; i < n; i++) {
+		const unsigned char *w = (const unsigned char *)data + 1 + 5 * i;
+		Waypoint[WaypointCount].type = w[0];
+		Waypoint[WaypointCount].x = w[1] | (w[2] << 8);
+		Waypoint[WaypointCount].y = w[3] | (w[4] << 8);
+		WaypointCount++;
+	}
+	WaypointTime = BCGetTicks();
+}
+
+static void FillTriangle(CDDraw *d, float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b) {
+	float xs[3] = { x1, x2, x3 }, ys[3] = { y1, y2, y3 };
+	int top = (int)floorf(std::min(y1, std::min(y2, y3))), bottom = (int)ceilf(std::max(y1, std::max(y2, y3)));
+	for (int y = top; y <= bottom; y++) {
+		float fy = y + 0.5f, lo = 1e9f, hi = -1e9f;
+		for (int e = 0; e < 3; e++) {
+			int f = (e + 1) % 3;
+			float ya = ys[e], yb = ys[f];
+			if ((fy < std::min(ya, yb)) || (fy > std::max(ya, yb)) || ya == yb) continue;
+			float x = xs[e] + (xs[f] - xs[e]) * (fy - ya) / (yb - ya);
+			lo = std::min(lo, x); hi = std::max(hi, x);
+		}
+		if (hi >= lo) d->DFillRectColor((int)floorf(lo), y, (int)(hi - lo) + 1, 1, r, g, b);
+	}
+}
+
+void CDrawing::DrawWaypoints() {
+	if (!ShowWaypoints || WaypointCount == 0 || BCGetTicks() - WaypointTime > 5000) return;
+	CDDraw *d = p->DDraw;
+	CPlayer *me = p->Player[p->Winsock->MyIndex];
+	if (!me) return;
+	static const char *names[] = { "HOME", "CRATE", "RAID", "BOSS", "ZONE", "GATE", "DROP", "FIGHT" };
+	static const int colors[][3] = { {110,190,255}, {255,220,90}, {255,80,80}, {255,140,50}, {180,130,255}, {120,255,150}, {190,190,190}, {255,120,120} };
+	int pulse = (int)(p->Tick / 300) & 1;
+	struct Box { int x, y, w, h; } placed[8];
+	int placedCount = 0;
+	for (int i = 0; i < WaypointCount; i++) {
+		int type = Waypoint[i].type;
+		if (type < 0 || type > 7) continue;
+		float dxw = me->X - Waypoint[i].x, dyw = me->Y - Waypoint[i].y;     // the view is mirrored: larger world X is to the left, larger Y is up
+		float sx = dxw + PlayerOffsetX + 24, sy = dyw + PlayerOffsetY + 24;
+		int tiles = (int)(sqrtf(dxw * dxw + dyw * dyw) / 48.0f);
+		int cr = colors[type][0], cg = colors[type][1], cb = colors[type][2];
+		if (type == 2 && pulse) { cr = 255; cg = 160; cb = 160; }
+		bool inside = sx >= 14 && sx <= MaxMapX - 14 && sy >= 14 && sy <= MaxMapY - 14;
+		if (inside) {
+			if (type == 0 || tiles < 2) continue;      // your own base is plain to see, and so is anything you are on top of
+			string label = names[type];
+			int w = d->MeasureText(label) + 10, h = 16;
+			int bx = (int)sx - w / 2, by = (int)sy - 64;
+			if (bx < 4) bx = 4;
+			if (bx + w > MaxMapX - 4) bx = MaxMapX - 4 - w;
+			if (by < 4) by = 4;
+			d->DFillRectAlpha(bx, by, w, h, 0, 0, 0, 170);
+			d->DFillRectAlpha(bx, by, w, 1, cr, cg, cb, 220);
+			d->DFillRectAlpha(bx, by + h - 1, w, 1, cr, cg, cb, 220);
+			d->DTextOut(bx + 5, by, label, RGB(cr, cg, cb));
+			FillTriangle(d, sx - 6, by + h + 2, sx + 6, by + h + 2, sx, by + h + 12, cr, cg, cb);
+			continue;
+		}
+		// out of view: a pointer at the edge, with the distance
+		string label = string(names[type]) + " " + std::to_string(tiles);
+		int w = d->MeasureText(label) + 10, h = 18;
+		float cx0 = MaxMapX / 2.0f, cy0 = MaxMapY / 2.0f;
+		float vx = sx - cx0, vy = sy - cy0, len = sqrtf(vx * vx + vy * vy);
+		if (len < 1) continue;
+		float ux = vx / len, uy = vy / len;
+		float halfW = cx0 - 26 - w / 2.0f, halfH = cy0 - 36;          // where the label's centre may go
+		float t = 1e9f;
+		if (fabsf(ux) > 0.0001f) t = std::min(t, halfW / fabsf(ux));
+		if (fabsf(uy) > 0.0001f) t = std::min(t, halfH / fabsf(uy));
+		float ex = cx0 + ux * t, ey = cy0 + uy * t;
+		int bx = (int)ex - w / 2, by = (int)ey - h / 2;
+		if (bx < 190 + 70 && by < 112) by = 112;                      // keep clear of the info lines and the voice button
+		bool moved = true;
+		for (int tries = 0; moved && tries < 8; tries++) {             // keep pointers from sitting on one another
+			moved = false;
+			for (int k = 0; k < placedCount; k++) {
+				if (bx < placed[k].x + placed[k].w + 2 && bx + w + 2 > placed[k].x && by < placed[k].y + placed[k].h + 2 && by + h + 2 > placed[k].y) { by += h + 3; moved = true; }
+			}
+		}
+		if (by + h > MaxMapY - 6) by = MaxMapY - 6 - h;
+		placed[placedCount].x = bx; placed[placedCount].y = by; placed[placedCount].w = w; placed[placedCount].h = h; placedCount++;
+		d->DFillRectAlpha(bx, by, w, h, 0, 0, 0, 175);
+		d->DFillRectAlpha(bx, by, w, 1, cr, cg, cb, 230);
+		d->DFillRectAlpha(bx, by + h - 1, w, 1, cr, cg, cb, 230);
+		d->DFillRectAlpha(bx, by, 1, h, cr, cg, cb, 230);
+		d->DFillRectAlpha(bx + w - 1, by, 1, h, cr, cg, cb, 230);
+		d->DTextOut(bx + 5, by + 1, label, RGB(cr, cg, cb));
+		// the arrow sits just outside the label, on the side the thing is
+		float bcx = bx + w / 2.0f, bcy = by + h / 2.0f;
+		float tb = 1e9f;
+		if (fabsf(ux) > 0.0001f) tb = std::min(tb, (w / 2.0f) / fabsf(ux));
+		if (fabsf(uy) > 0.0001f) tb = std::min(tb, (h / 2.0f) / fabsf(uy));
+		float ax = bcx + ux * (tb + 9), ay = bcy + uy * (tb + 9);
+		float px = -uy, py = ux;
+		FillTriangle(d, ax + ux * 9, ay + uy * 9, ax - ux * 4 + px * 8, ay - uy * 4 + py * 8, ax - ux * 4 - px * 8, ay - uy * 4 - py * 8, cr, cg, cb);
 	}
 }

@@ -46,6 +46,13 @@ class CDrawing {
         void DrawBuildMenu();
         void DrawItemHint();
         void DrawVoiceHud();
+        void DrawWaypoints();
+        void SetWaypoints(const char *data, int length);   // smWaypoints
+        bool ShowWaypoints;                                  // N turns the pointers on and off
+        struct WaypointItem { int type; int x, y; };
+        WaypointItem Waypoint[8];
+        int WaypointCount;
+        unsigned long WaypointTime;
         void DrawBuildPlacement();
         void DrawArrow();
         void DrawHealth();

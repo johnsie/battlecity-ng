@@ -92,6 +92,8 @@ int main(int argc, char *argv[]) {
 			Server.StatusEndpoint->Cycle();
 			//  Server-side bots, raids, missions and drops
 			Server.Bots->Cycle();
+			//  Tell each player where the important things are
+			Server.Waypoints->Cycle();
             //  Verify current time interval is greater than item time interval
 			if (Server.Tick > ItemTick) {
                 //  Perform item cycle

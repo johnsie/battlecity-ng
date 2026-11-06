@@ -445,6 +445,16 @@ int main(int argc, char *argv[]) {
 			printf("voice self test: %s\n", game.Voice->SelfTest() ? "PASS" : "FAIL");
 			game.Voice->serverEnabled = true; game.Voice->on = true;
 		}
+		// BC_TEST_WAYPOINTS=1: pointers to a few made-up places (one on top of the other player, to check the mapping)
+		if (getenv("BC_TEST_WAYPOINTS") && getenv("BC_TEST_SCENE") && frames > 5) {
+			CPlayer *m = game.Player[game.Winsock->MyIndex], *o = game.Player[1];
+			struct { int type, x, y; } pts[] = { { 0, (int)m->X + 3000, (int)m->Y + 200 }, { 1, (int)m->X - 2500, (int)m->Y + 2600 }, { 2, (int)m->X - 400, (int)m->Y - 3600 },
+			                                     { 3, (int)o->X, (int)o->Y }, { 7, (int)m->X + 1800, (int)m->Y - 2600 }, { 4, (int)m->X - 3500, (int)m->Y - 300 } };
+			char pk[1 + 5 * 8];
+			pk[0] = 6;
+			for (int i = 0; i < 6; i++) { pk[1 + 5 * i] = (char)pts[i].type; pk[2 + 5 * i] = (char)(pts[i].x & 255); pk[3 + 5 * i] = (char)(pts[i].x >> 8); pk[4 + 5 * i] = (char)(pts[i].y & 255); pk[5 + 5 * i] = (char)(pts[i].y >> 8); }
+			game.Draw->SetWaypoints(pk, 31);
+		}
 		// BC_TEST_MENU=3: pointer over the chat area
 		if (getenv("BC_TEST_MENU") && getenv("BC_TEST_SCENE") && getenv("BC_TEST_MENU")[0] == '3') game.Input->MouseOverChat = 1;
 		// BC_TEST_MENU=2: leave the menu open for a screenshot

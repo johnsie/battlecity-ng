@@ -375,6 +375,9 @@ int CProcess::ProcessData(char *TheData) {
 			break;
 
 		// Packets: voice chat
+		case smWaypoints:
+			this->p->Draw->SetWaypoints(&TheData[1], this->LastPayloadLength);
+			break;
 		case smVoiceState:
 			this->p->Voice->OnState(&TheData[1], this->LastPayloadLength);
 			break;

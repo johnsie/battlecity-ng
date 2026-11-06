@@ -21,6 +21,8 @@
 ===============================================================================
 */
 #include "CGame.h"
+std::string BCLoadText(const char *key);
+void BCSaveText(const char *key, const std::string &text);
 #include "NetMessages.h"
 
 CGame::CGame() {
@@ -616,6 +618,13 @@ void CGame::handleGameKey(WPARAM wParam) {
 		if (this->InGame->ShowMap == 1) {
 			this->Winsock->SendData(cmMiniMap, " ");
 		}
+	}
+
+	// KEY: n (pointers to the important places on/off)
+	else if ((wParam == 78) || (wParam == 110)) {
+		this->Draw->ShowWaypoints = !this->Draw->ShowWaypoints;
+		BCSaveText("waypoints", this->Draw->ShowWaypoints ? "1" : "0");
+		this->InGame->AppendChat(this->Draw->ShowWaypoints ? "Pointers on: arrows at the edge of the screen show where your base, crates, raids and fights are. Press N to turn them off." : "Pointers off. Press N to turn them on.", COLOR_SYSTEM);
 	}
 
 	// KEY: v (voice chat on/off)

@@ -56,6 +56,7 @@ CServer::CServer() {
 	StatusEndpoint = new CStatusEndpoint(this);
 	Bots = new CBotManager(this);
 	Voice = new CVoice(this);
+	Waypoints = new CWaypoints(this);
 	//Build = new CBuildingList(this);
 	//Item = new CItemList(this);
 	//Bullet = new CBulletList(this);
@@ -99,6 +100,7 @@ CServer::~CServer() {
 	delete StatusEndpoint;
 	delete Bots;
 	delete Voice;
+	delete Waypoints;
 
 	// For each possible player, delete the player object
 	for (int i = 0; i < MAX_PLAYERS; i++) {
@@ -359,6 +361,7 @@ void CServer::reset() {
 
 	// Nobody is here: drop the bots before the world they live in is rebuilt
 	if (this->Bots) this->Bots->ResetState();
+	if (this->Waypoints) this->Waypoints->Reset();
 
 	// Rebuild the Build list
 	cout << " - Rebuilding building list" << endl;

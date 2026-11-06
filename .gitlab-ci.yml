@@ -63,6 +63,7 @@ test:server-sanitizers:
     - ci/bots-test.sh build-asan/server/bc-server data/map.dat
     - ci/resume-test.sh build-asan/server/bc-server data/map.dat
     - ci/voice-test.sh build-asan/server/bc-server data/map.dat
+    - ci/waypoints-test.sh build-asan/server/bc-server data/map.dat
     - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 
 # Production deploy: PULLS the release that GitHub Actions built, tested and published for this tag (nothing is rebuilt here,

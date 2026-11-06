@@ -61,6 +61,8 @@ jobs:
         run: ci/resume-test.sh build-asan/server/bc-server data/map.dat
       - name: Voice chat
         run: ci/voice-test.sh build-asan/server/bc-server data/map.dat
+      - name: Waypoints
+        run: ci/waypoints-test.sh build-asan/server/bc-server data/map.dat
       - name: Load test (20 bots)
         run: ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 

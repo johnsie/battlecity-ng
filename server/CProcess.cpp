@@ -1057,6 +1057,7 @@ void CProcess::ProcessDeath(char *TheData, int Index) {
         packet[2] = cityIndexThatKilledPlayer;
         p->Send->SendGameAllBut(-1, smDeath, packet, 3);
         cout << player->Name << " has died" << endl;
+        this->p->Waypoints->NoteFight(player->X, player->Y);
         player->isDead = true;
         player->timeDeath = p->Tick;
 

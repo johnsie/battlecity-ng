@@ -63,6 +63,9 @@ struct BotInfo {
 
 struct Sample { float x, y; int dir; };
 
+/// An important place for one player (see CWaypoints): type is a WP_ value
+struct WaypointInfo { int type; float x, y; };
+
 struct Progress {
 	int day;           // challenge day number the daily counters belong to
 	int dailyKills;
@@ -94,6 +97,7 @@ class CBotManager {
 		void HumanJoined(int idx);
 		void HumanLeft(int idx);
 		void HumanUpdated(int idx);
+		void Objectives(int slot, std::vector<WaypointInfo> &out);   // this player's crate, raid, boss, zone and trial gate
 		std::string RecentEvents();                       // text appended to the login-screen news
 
 	private:
