@@ -2125,11 +2125,11 @@ void CDrawing::DrawItemHint() {
 	string line2 = string("Then ") + use[t] + " (see the Inventory box)";
 	int cx = PlayerOffsetX + 24;
 	int w1 = p->DDraw->MeasureText(line1), w2 = p->DDraw->MeasureText(line2);
-	int w = (w1 > w2 ? w1 : w2) + 12;
-	int x = cx - w / 2, y = PlayerOffsetY - 52;
+	int w = (w1 > w2 ? w1 : w2) + 20;
+	int x = cx - w / 2, y = PlayerOffsetY - 84;   // clear of the name and city lines above the tank
 	if (x < 4) x = 4;
 	if (x + w > MaxMapX - 4) x = MaxMapX - 4 - w;
-	if (y < 60) y = PlayerOffsetY + 60;
+	if (y < 60) y = PlayerOffsetY + 56;
 	p->DDraw->DFillRectColor(x, y, w, 36, 0, 0, 0);
 	p->DDraw->DTextOut(x + 6, y + 2, line1, COLOR_YELLOW);
 	p->DDraw->DTextOut(x + 6, y + 18, line2, COLOR_WHITE);
