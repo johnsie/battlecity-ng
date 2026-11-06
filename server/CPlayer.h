@@ -76,6 +76,16 @@ class CPlayer {
 		bool isCloaked;
 		float timeUncloak;
 
+		// Hot updates: a client that is about to reload itself says so (cmResumeLater). If its connection then drops, the
+		// player keeps their seat in the game ("lingering") for a short while, and the same account logging in again
+		// takes it straight back, in the same place, instead of the city being torn down around a mayor who left.
+		time_t holdUntil;            // while the clock is before this, a dropped connection lingers instead of leaving
+		bool lingering;              // in the game with no connection, waiting for the account to come back
+		time_t lingerExpires;
+		bool resumePending;          // the next JoinGame puts the player at resumeX/Y instead of at the Command Center
+		float resumeX, resumeY;
+		void StartLinger();
+
 		int Socket;
 		COutQueue Out;               // data the socket could not take yet (slow client)
 		char Buffer[2048];

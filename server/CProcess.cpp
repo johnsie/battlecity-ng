@@ -188,6 +188,13 @@ void CProcess::ProcessData(char *TheData, int playerId) {
             this->ProcessCrash(&TheData[1], playerId);
             break;
 
+        // Packet: cmResumeLater (the client is reloading itself for an update)
+        case cmResumeLater:
+            if (this->p->Player[playerId]->isInGame() && !this->p->Player[playerId]->IsBot) {
+                this->p->Player[playerId]->holdUntil = time(NULL) + 20;   // the connection must drop within 20 s for this to count
+            }
+            break;
+
         // Packet: cmNextStep
         case cmNextStep:
             this->ProcessNextStep(TheData[1], playerId);
@@ -795,12 +802,19 @@ void CProcess::ProcessLogin(sCMLogin *login, int Index) {
                 // If the user isn't banned,
                 if (p->Account->CheckAccountBan(login->User) == 0) {
                     foundmatch = 0;
+                    int lingeringSlot = -1;
 
                     // HACK: FIX "- 1"
                     // TODO: FIX "- 1"
                     // For each possible player,
                     for (int j = 0; j < (MAX_PLAYERS-1); j++) {
                         playerToCompare = this->p->Player[j];
+
+                        // The account's own seat, kept for it after a hot-update reload: take it back
+                        if (j != Index && playerToCompare->lingering && p->PlatformCaseCompare(login->User, playerToCompare->Name.c_str()) == 0) {
+                            lingeringSlot = j;
+                            continue;
+                        }
                         
                         // If the account is already in use, clear the player and set foundmatch=1
                         if (p->PlatformCaseCompare(login->User, playerToCompare->Name.c_str()) == 0) {
@@ -817,8 +831,13 @@ void CProcess::ProcessLogin(sCMLogin *login, int Index) {
 */
                     }
 
+                    // The client came back after a hot update: give it its seat back, in the game, where it was
+                    if (foundmatch == 0 && lingeringSlot >= 0) {
+                        this->ResumeSession(Index, lingeringSlot);
+                    }
+
                     // If the account is already logged in,
-                    if (foundmatch == 1) {
+                    else if (foundmatch == 1) {
 
                         // Send account already in use error
                         cout << "Multilog from " << login->User << endl;
@@ -2267,4 +2286,56 @@ void CProcess::ProcessChangeStartingCity(int Index, sCMStartingCity* request) {
     if (CCity::isValidCityIndex(request->City)) {
         this->p->Send->startingCity = request->City;
     }
+}
+
+
+/***************************************************************
+ * Function:	ResumeSession
+ *
+ * The connection in slot newSlot belongs to the account that is lingering in slot oldSlot (see CPlayer::StartLinger).
+ * Moves the connection over, tells the client who it is and starts it joining the game again, at the old position.
+ **************************************************************/
+void CProcess::ResumeSession(int newSlot, int oldSlot) {
+    CPlayer* np = this->p->Player[newSlot];
+    CPlayer* op = this->p->Player[oldSlot];
+    char packet[2];
+    sSMPlayer player;
+
+    // Anything already queued for the new connection goes out first, then the connection changes hands
+    if (np->Socket >= 0) np->Out.Flush(np->Socket);
+    op->Socket = np->Socket;
+    op->IPAddress = np->IPAddress;
+    op->UniqID = np->UniqID;
+    op->Out.Clear();
+    memset(op->Buffer, 0, 2048);
+    memcpy(op->Buffer, np->Buffer, np->BufferLength);
+    op->BufferLength = np->BufferLength;
+    np->Socket = -1;
+    np->Clear(false);    // the new slot is free again (no socket left to close; no reset check, the game goes on)
+    op->lingering = false;
+    op->holdUntil = 0;
+    op->resumePending = true;
+    op->resumeX = op->X;
+    op->resumeY = op->Y;
+    op->lastMove = this->p->Tick;
+    cout << "Resumed::" << op->Name << " in slot " << oldSlot << endl;
+
+    // Same replies as a normal login (the client now knows its slot), then straight into the game
+    memset(packet, 0, sizeof(packet));
+    packet[0] = (unsigned char)oldSlot;
+    packet[1] = (unsigned char)op->playerType;
+    this->p->Winsock->SendData(oldSlot, 1, packet, 2);
+    memset(&player, 0, sizeof(player));
+    strcpy(player.Name, op->Name.c_str());
+    strcpy(player.Town, op->Town.c_str());
+    player.Index = oldSlot;
+    player.playerType = op->playerType;
+    player.Red = op->Red;
+    player.Green = op->Green;
+    player.Blue = op->Blue;
+    player.Member = op->Member;
+    player.Tank = op->displayTank;
+    this->p->Send->SendAllBut(-1, smPlayerData, (char *)&player, sizeof(player));
+    this->p->Send->SendCurrentPlayers(oldSlot);
+    this->p->Send->SendGameData(oldSlot);
 }

@@ -60,6 +60,13 @@
       }).catch(function (error) {
         console.warn('Optional Outiva identity was not available', error);
       }).finally(function () { removeRunDependency('outiva-identity'); });
+      // After a hot update the previous page left the account here (see HotUpdateTick in client/platform/main_sdl.cpp): the game logs in with it
+      // by itself and the server puts the player back where they were. It is read once and removed.
+      try {
+        var saved = sessionStorage.getItem('bc.resume');
+        sessionStorage.removeItem('bc.resume');
+        if (saved) { var r = JSON.parse(saved); if (r && r.u && r.p) { ENV.BC_RESUME_USER = String(r.u).slice(0, 15); ENV.BC_RESUME_PASS = String(r.p).slice(0, 15); } }
+      } catch (e) { /* storage unavailable: the player simply logs in again */ }
       var q = new URLSearchParams(location.search);
       if (q.get('script')) { FS.writeFile('/test-script.txt', q.get('script')); ENV.BC_TEST_SCRIPT = '/test-script.txt'; }
       if (q.get('debug')) { ENV.BC_DEBUG_NET = '1'; }
@@ -73,6 +80,24 @@
     },
     onAbort: function (what) { statusEl.classList.remove('hidden'); errEl.textContent = 'The game stopped: ' + what; }
   };
+  // Hot updates: every release publishes a VERSION file next to the page. When it changes while the game is open, the game is told
+  // (window.bcUpdatePending) and reloads itself at a quiet moment, keeping the player's place (see docs/hot-updates.md).
+  (function () {
+    var loaded = null;
+    function current() {
+      return fetch('VERSION?t=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : null; }).then(function (t) { return t && t.trim().slice(0, 64); }).catch(function () { return null; });
+    }
+    function check() {
+      current().then(function (v) {
+        if (!v) return;
+        if (loaded === null) { loaded = v; return; }
+        if (v !== loaded) window.bcUpdatePending = true;
+      });
+    }
+    check();
+    setInterval(check, 60000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+  })();
   // Called by the game when it ends (quit, disconnected): the canvas would otherwise just freeze
   window.bcEnded = function () {
     statusEl.classList.remove('hidden'); statusEl.classList.add('ended');

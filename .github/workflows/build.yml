@@ -57,6 +57,8 @@ jobs:
         run: ci/relay-test.sh build-asan/server/bc-server data/map.dat
       - name: Server-side bots (solo play)
         run: ci/bots-test.sh build-asan/server/bc-server data/map.dat
+      - name: Hot-update seat keeping
+        run: ci/resume-test.sh build-asan/server/bc-server data/map.dat
       - name: Load test (20 bots)
         run: ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 

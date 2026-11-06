@@ -165,12 +165,114 @@ static void HandleEvent(const SDL_Event &e) {
 // asking twice forces it.
 static bool QuitNow() { return g_quit && (!BCMessagesPending() || g_quitRequests >= 2); }
 
+
+// ---- Hot updates ----------------------------------------------------------------------------------------------------
+// The browser page watches for a newer release (see web/shell.html). When one is ready the game waits for a quiet moment
+// (standing still, not chatting or building, not dead), tells the server it is about to reload (cmResumeLater: the server
+// keeps the player's seat in the game for a minute), remembers who is logged in, and reloads. The new page logs in by
+// itself and the server puts the player straight back where they were, so an update costs a few seconds, not the session.
+#include "resource.h"
+#ifdef __EMSCRIPTEN__
+EM_JS(int, bc_update_pending, (), { return window.bcUpdatePending ? 1 : 0; });
+EM_JS(void, bc_store_resume, (const char *u, const char *p), {
+	try { sessionStorage.setItem('bc.resume', JSON.stringify({ u: UTF8ToString(u), p: UTF8ToString(p) })); } catch (e) {}
+});
+#endif
+
+static bool UpdatePending() {
+#ifdef __EMSCRIPTEN__
+	return bc_update_pending() != 0;
+#else
+	// Test hook for the desktop client: BC_TEST_UPDATE_AT=<n> makes an update "arrive" after n frames in the game
+	static const char *at = getenv("BC_TEST_UPDATE_AT");
+	static int ticks = 0;
+	if (!at || g_game->State != STATE_GAME) return false;
+	return ++ticks > atoi(at);
+#endif
+}
+
+static void StoreResume(const char *user, const char *pass) {
+#ifdef __EMSCRIPTEN__
+	bc_store_resume(user, pass);
+#else
+	// the desktop client re-executes itself with the same environment
+#ifdef _WIN32
+	_putenv_s("BC_RESUME_USER", user);
+	_putenv_s("BC_RESUME_PASS", pass);
+#else
+	setenv("BC_RESUME_USER", user, 1);
+	setenv("BC_RESUME_PASS", pass, 1);
+#endif
+#endif
+}
+
+static void HotUpdateTick() {
+	static Uint32 reloadAt = 0, idleSince = 0, lastTick = 0;
+	static bool told = false;
+	static float lastX = -1, lastY = -1, lastShot = -1;
+	if (!UpdatePending()) return;
+	CGame &g = *g_game;
+	Uint32 now = SDL_GetTicks();
+	if (reloadAt) {                                    // the announcement is on its way: give it a moment to leave
+		if (now >= reloadAt) {
+			g.Winsock->CloseWinsock();                 // (a re-executed desktop client would otherwise keep the old connection open)
+			BCRestartApplication();
+		}
+		return;
+	}
+	if (g.State != STATE_GAME || g.Winsock->MyIndex < 0 || g.Winsock->MyIndex >= MAX_PLAYERS) return;
+	if (now - lastTick < 100) return;
+	lastTick = now;
+	CPlayer *me = g.Player[g.Winsock->MyIndex];
+	if (!told) {
+		told = true;
+		g.InGame->AppendInfo("A new version is ready. It installs the next time you stop for a moment, and you come back to the same spot.");
+	}
+	bool busy = me->isDead || me->isMoving || me->isTurning || g.InGame->IsChatting || g.InGame->ShowBuildMenu || g.InGame->IsBuilding != 0
+	            || BCDialogsActive() || me->X != lastX || me->Y != lastY || g.Input->LastShotValue() != lastShot;
+	lastX = me->X; lastY = me->Y; lastShot = g.Input->LastShotValue();
+	if (busy) { idleSince = 0; return; }
+	if (!idleSince) idleSince = now;
+	if (now - idleSince < 3000) return;                // standing still for three seconds
+	g.Winsock->SendData(cmResumeLater, " ");
+	StoreResume(g.Login->user, g.Login->pass);
+	reloadAt = now + 500;
+}
+
+// After such a reload the new page has the account in its environment (BC_RESUME_USER/PASS): log in without the dialog
+static void AutoLoginTick() {
+	static int phase = 0;                              // 0 first try, 1 waiting for the answer, 2 second try, 3 finished
+	static Uint32 mark = 0;
+	if (phase >= 3) return;
+	const char *u = getenv("BC_RESUME_USER"), *pw = getenv("BC_RESUME_PASS");
+	if (!u || !*u || !pw || !*pw) { phase = 3; return; }
+	CGame &g = *g_game;
+	Uint32 now = SDL_GetTicks();
+	HWND dlg = BCDialogsActiveHandle();
+	if (phase == 0 || phase == 2) {
+		if (g.State != STATE_LOGIN || !dlg) return;
+		if (!mark) { mark = now; return; }
+		if (now - mark < 1200) return;                 // let the connection and the version check finish
+		SetDlgItemText(dlg, IDUSER, u);
+		SetDlgItemText(dlg, IDPASS, pw);
+		SendMessage(dlg, WM_COMMAND, MAKELONG(1, BN_CLICKED), 0);
+		phase = (phase == 0) ? 1 : 3;
+		mark = now;
+		return;
+	}
+	if (g.State != STATE_LOGIN) { phase = 3; return; }  // in
+	if (dlg) { phase = 3; return; }                     // the server refused: the dialog is back for the player
+	if (now - mark > 5000) { g.Login->ShowLoginDlg(); phase = 2; mark = 0; }   // no answer: try once more
+}
+
 static void MainLoopIteration() {
 	Uint32 t0 = SDL_GetTicks();
 	SDL_Event e;
 	while (SDL_PollEvent(&e)) HandleEvent(e);
 	Uint32 t1 = SDL_GetTicks();
 	RunScript();
+	AutoLoginTick();
+	HotUpdateTick();
 	if (g_game->DDraw && g_game->DDraw->Renderer && !getenv("BC_FIXED_VIEW")) {
 		int ow = 0, oh = 0;
 		SDL_GetRendererOutputSize(g_game->DDraw->Renderer, &ow, &oh);

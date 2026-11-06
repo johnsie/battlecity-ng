@@ -57,6 +57,9 @@ class CInput {
         DIMOUSESTATE oMouseState;
     
         float LastShot;
+    public:
+        float LastShotValue() const { return LastShot; }   // read by the hot-update idle check
+    private:
         float LastTankChange;
         char Tab;
         int NeedRelease;

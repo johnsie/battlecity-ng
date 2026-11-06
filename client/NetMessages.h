@@ -311,7 +311,8 @@ enum ClientMessages {
 	cmAutoBuild,
 	cmCheatCheck,
 	cmStartingCity,
-	cmChangeStartingCity
+	cmChangeStartingCity,
+	cmResumeLater      // the client is about to reload itself (an update): keep my seat for a short while
 };
 
 struct sCMBuild

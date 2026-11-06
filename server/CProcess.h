@@ -55,6 +55,7 @@ class CProcess {
 		void ProcessShot(sCMShot *data, int Index);
 		void ProcessDeath(char *TheData, int Index);
 		void ProcessDemolish(sCMDemolish *data, int Index);
+		void ResumeSession(int newSlot, int oldSlot);
 		void ProcessMedKit(int *data, int Index);
 		void ProcessCloak(int *data, int Index);
 		void ProcessHitObject(sCMItem *data, int Index);

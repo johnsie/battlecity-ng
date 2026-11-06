@@ -219,6 +219,38 @@ void CPlayer::ResetPlayer() {
 	this->timeDeath = 0;
 	this->isCloaked = false;     // was never initialised: reading it (as the bots do) is undefined behaviour
 	this->timeUncloak = 0;
+	this->holdUntil = 0;
+	this->lingering = false;
+	this->lingerExpires = 0;
+	this->resumePending = false;
+	this->resumeX = this->resumeY = 0;
+}
+
+/***************************************************************
+ * Function:	StartLinger
+ *
+ * The connection dropped right after the client announced a reload (hot update): drop the dead socket but keep the
+ * player in the game, where they were, for up to LINGER_SECONDS.
+ **************************************************************/
+void CPlayer::StartLinger() {
+	if (this->Socket >= 0) {
+		shutdown(this->Socket, 2);
+#ifdef WIN32
+		closesocket(this->Socket);
+#else
+		close(this->Socket);
+#endif
+		this->Socket = -1;
+	}
+	this->Out.Clear();
+	memset(this->Buffer, 0, 2048);
+	this->BufferLength = 0;
+	int seconds = 60;
+	if (const char *env = getenv("BC_LINGER_SECONDS")) { int v = atoi(env); if (v > 0 && v <= 600) seconds = v; }
+	this->lingering = true;
+	this->lingerExpires = time(NULL) + seconds;
+	this->holdUntil = 0;
+	cout << "Linger::" << this->Name << " (waiting " << seconds << " s for the client to come back)" << endl;
 }
 
 /***************************************************************
@@ -325,9 +357,14 @@ void CPlayer::JoinGame() {
 	stategame.x = city->x;
 	stategame.y = city->y;
 	
-	// Set the player on the CC
+	// Set the player on the CC (or, after a hot update, back where they were)
 	this->X = stategame.x;
 	this->Y = stategame.y;
+	if (this->resumePending) {
+		this->resumePending = false;
+		this->X = stategame.x = (unsigned short)this->resumeX;
+		this->Y = stategame.y = (unsigned short)this->resumeY;
+	}
 
 	// Set the player's stats
 	this->p->Account->GetStats(this->id);

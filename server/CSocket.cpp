@@ -288,6 +288,13 @@ void CSocket::TCPCycle() {
     for (int i = 0; i < MAX_PLAYERS; i++) {
         //  Initiate CPlayer object
         player = this->p->Player[i];
+        //  A player who is waiting for their client to come back (hot update) leaves for good when the time is up
+        if (player->lingering && time(NULL) > player->lingerExpires) {
+            player->lingering = false;
+            cout << "Linger::" << player->Name << " did not come back" << endl;
+            player->Clear();
+            continue;
+        }
         //  Verify player is connected and player's socket has data to be received
         if (player->isConnected() && player->Socket >= 0 && this->p->Winsock->hasData(player->Socket)) {
             //  Receives data from the player's socket
@@ -306,8 +313,12 @@ void CSocket::TCPCycle() {
                         }
 #endif
                 }
-                //  Handle closing player connection
-                player->Clear();
+                //  Handle closing player connection (a client that announced a hot-update reload keeps its seat for a while)
+                if (player->isInGame() && !player->IsBot && player->holdUntil >= time(NULL)) {
+                    player->StartLinger();
+                } else {
+                    player->Clear();
+                }
             } else {
                 //  Player bufferLength expanded to include incoming byte size
                 player->BufferLength += nBytes;
