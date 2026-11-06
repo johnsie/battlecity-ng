@@ -7,14 +7,24 @@
 
 #include <cstdlib>
 #include <string>
+
 #ifdef __EMSCRIPTEN__
-#include <emscripten.h>
+// Defined in CLogin.cpp with EM_JS (plain JavaScript functions). emscripten_run_script* would need eval, which the site's Content Security Policy forbids.
+extern "C" int bc_ticket_load(int which);   // copies window.bcTicket (0) or window.bcTicketCallsign (1) aside as UTF-8 and returns its length
+extern "C" int bc_ticket_byte(int index);
+extern "C" void bc_ticket_used();
+
+inline std::string BCTicketText(int which) {
+	int length = bc_ticket_load(which);
+	std::string out;
+	for (int i = 0; i < length && i < 400; i++) out += (char)bc_ticket_byte(i);
+	return out;
+}
 #endif
 
 inline std::string OutivaTicket() {
 #ifdef __EMSCRIPTEN__
-	const char *ticket = emscripten_run_script_string("window.bcTicket || ''");
-	return ticket ? ticket : "";
+	return BCTicketText(0);
 #else
 	const char *ticket = std::getenv("BC_OUTIVA_TICKET");
 	return ticket ? ticket : "";
@@ -23,8 +33,7 @@ inline std::string OutivaTicket() {
 
 inline std::string OutivaCallsign() {
 #ifdef __EMSCRIPTEN__
-	const char *callsign = emscripten_run_script_string("window.bcTicketCallsign || ''");
-	return callsign ? callsign : "";
+	return BCTicketText(1);
 #else
 	const char *callsign = std::getenv("BC_OUTIVA_CALLSIGN");
 	return callsign ? callsign : "";
@@ -34,7 +43,7 @@ inline std::string OutivaCallsign() {
 /** A ticket works once: tell the page, so it fetches the next one. */
 inline void OutivaTicketUsed() {
 #ifdef __EMSCRIPTEN__
-	emscripten_run_script("if (window.bcTicketUsed) window.bcTicketUsed();");
+	bc_ticket_used();
 #endif
 }
 

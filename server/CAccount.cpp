@@ -278,13 +278,17 @@ string CAccount::CreateOutivaCharacter(string sub, string callsign) {
 /***************************************************************
  * Function:	CreateGuest
  *
- * A temporary character for someone playing without an account. It is a row so that everything that looks a player up by name works,
+ * A temporary character for someone playing without an account, named "<name> (nonreg)" (a number goes before the suffix if the name is taken). It is a row so that everything that looks a player up by name works,
  * but it is flagged, left out of every ranking and deleted when the player leaves. Returns its name, or "".
  **************************************************************/
 string CAccount::CreateGuest(string requested) {
 	std::random_device entropy;
 	string digits = to_string(1000 + entropy() % 9000);
-	string name = UniqueAccountName(this, OutivaTicket::GuestName(requested, digits));
+	string name;
+	for (int n = 0; n < 10000; n++) {
+		string candidate = OutivaTicket::GuestName(requested, digits, n);
+		if (this->CheckAccount(candidate) == 0) { name = candidate; break; }
+	}
 	if (name.empty()) return "";
 	try {
 		string DMLString = "INSERT INTO tAccounts (Account, Password, Email, Fullname, Town, State, OutivaSub, Guest) VALUES ('" + SqlEscape(name) + "', '" + RandomPassword() + "', '', '', '', '', '', 1);";

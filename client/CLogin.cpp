@@ -34,6 +34,16 @@ HDC hdcStaticLogin;
 
 void *CLogPointer;
 
+#ifdef __EMSCRIPTEN__
+EM_JS(int, bc_ticket_load, (int which), {
+	var text = which ? (window.bcTicketCallsign || '') : (window.bcTicket || '');
+	Module.bcTicketBytes = new TextEncoder().encode(text);
+	return Module.bcTicketBytes.length;
+});
+EM_JS(int, bc_ticket_byte, (int index), { return Module.bcTicketBytes ? Module.bcTicketBytes[index] : 0; });
+EM_JS(void, bc_ticket_used, (), { if (window.bcTicketUsed) window.bcTicketUsed(); });
+#endif
+
 static void BeginOutivaSignIn()
 {
 #ifdef __EMSCRIPTEN__

@@ -218,13 +218,15 @@ private:
 
 // ---------------------------------------------------------------------------------------------------------------- names
 const size_t NAME_MAX_LENGTH = 15;   // the account name column and every protocol struct hold 15 characters
-const char GUEST_PREFIX[] = "Guest-";
+const char GUEST_SUFFIX[] = " (nonreg)";   // every guest name ends with this; Outiva character names can never contain parentheses
+const size_t GUEST_SUFFIX_LENGTH = sizeof(GUEST_SUFFIX) - 1;
+const size_t GUEST_NAME_MAX = NAME_MAX_LENGTH - GUEST_SUFFIX_LENGTH;   // what is left of the 15 characters for the name itself
 
 inline bool IsNameChar(char c) {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == ' ' || c == '_' || c == '-';
 }
 
-/** Keep the allowed characters, collapse spaces, trim and cut to `limit`. */
+/** Keep the allowed characters (no parentheses), collapse spaces, trim and cut to `limit`. */
 inline std::string CleanName(const std::string &text, size_t limit = NAME_MAX_LENGTH) {
 	std::string out;
 	for (char c : text) {
@@ -237,31 +239,23 @@ inline std::string CleanName(const std::string &text, size_t limit = NAME_MAX_LE
 	return out;
 }
 
-inline bool StartsWithGuest(const std::string &name) {
-	if (name.size() < sizeof(GUEST_PREFIX) - 1) return false;
-	for (size_t i = 0; i < sizeof(GUEST_PREFIX) - 1; i++) {
-		char a = name[i], b = GUEST_PREFIX[i];
-		if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
-		if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
-		if (a != b) return false;
-	}
-	return true;
+inline bool IsGuestName(const std::string &name) {
+	return name.size() > GUEST_SUFFIX_LENGTH && name.compare(name.size() - GUEST_SUFFIX_LENGTH, GUEST_SUFFIX_LENGTH, GUEST_SUFFIX) == 0;
 }
 
-/** The character name for an Outiva callsign. It can never look like a guest, and is never shorter than 3 characters. */
+/** The character name for an Outiva callsign. Parentheses are not allowed, so it can never end in "(nonreg)"; never shorter than 3 characters. */
 inline std::string CharacterName(const std::string &callsign) {
 	std::string name = CleanName(callsign);
-	if (StartsWithGuest(name)) name = CleanName("P-" + name);
 	if (name.size() < 3) name = "Player";
 	return name;
 }
 
-/** A guest's name: always starts with "Guest-", so it cannot be mistaken for an Outiva character. */
-inline std::string GuestName(const std::string &requested, const std::string &fallbackDigits) {
-	std::string rest = CleanName(requested, NAME_MAX_LENGTH - (sizeof(GUEST_PREFIX) - 1));
-	if (StartsWithGuest(rest)) rest = rest.substr(sizeof(GUEST_PREFIX) - 1);
-	if (rest.empty()) rest = fallbackDigits;
-	return std::string(GUEST_PREFIX) + rest;
+/** A guest's name: the name asked for (at most 6 characters, or `fallback` if nothing usable) followed by " (nonreg)". `number` makes it unique. */
+inline std::string GuestName(const std::string &requested, const std::string &fallback, int number = 0) {
+	std::string tag = number > 1 ? std::to_string(number) : "";
+	std::string rest = CleanName(requested, GUEST_NAME_MAX > tag.size() ? GUEST_NAME_MAX - tag.size() : 1);
+	if (rest.empty()) rest = fallback.substr(0, GUEST_NAME_MAX - tag.size());
+	return rest + tag + GUEST_SUFFIX;
 }
 
 } // namespace OutivaTicket

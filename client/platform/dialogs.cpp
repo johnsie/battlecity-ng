@@ -750,11 +750,11 @@ void DrawModernLogin(Dlg *d) {
 			ImGui::TextUnformatted("Play as a guest");
 			ImGui::SetWindowFontScale(1.0f);
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.65f, 0.71f, 0.78f, 1.0f));
-			ImGui::TextWrapped("Jump straight in. Nothing is saved: no points, history or ranking. Guests can join other players' cities but cannot found one.");
+			ImGui::TextWrapped("Jump straight in. Nothing is saved: no points, history or ranking. Guests can join other players' cities but cannot found one. \"(nonreg)\" is added to your name.");
 			ImGui::PopStyleColor();
 			ImGui::Dummy(ImVec2(0, 12.0f));
 			ImGui::TextUnformatted("Guest name");
-			bool enter = DrawLoginEdit(d, user, "Any name you like", false, wide);
+			bool enter = DrawLoginEdit(d, user, "Up to 6 characters", false, wide);
 			ImGui::Dummy(ImVec2(0, 14.0f));
 			if (enter) Notify(d, IDGUESTLOGIN, BN_CLICKED, nullptr);
 			if (d->open) {

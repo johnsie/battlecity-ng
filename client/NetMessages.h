@@ -319,7 +319,7 @@ enum ClientMessages {
 	cmVoiceSet,       // voice chat on/off and who hears me: [on][scope]
 	cmVoice,          // my voice: [seq 2][ADPCM predictor 2][step index 1][audio]
 	cmVoiceReport,    // report a player's voice: [slot]
-    cmGuestLogin,     // play without an account: [name 15]. The server names the guest "Guest-<name>"; nothing about a guest is kept
+    cmGuestLogin,     // play without an account: [name 15]. The server names the guest "<name> (nonreg)" (name cut to 6 characters); nothing about a guest is kept
     cmTicketLogin     // sign in with a ticket from the Outiva login broker: [ticket 200]
 };
 

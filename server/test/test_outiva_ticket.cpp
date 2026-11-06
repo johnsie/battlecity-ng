@@ -53,15 +53,18 @@ int main() {
 	assert(CleanName("  Mav  erick!! ") == "Mav erick");
 	assert(CleanName("ABCDEFGHIJKLMNOPQRSTUVWXYZ") == "ABCDEFGHIJKLMNO");
 	assert(CharacterName("Maverick") == "Maverick");
-	assert(CharacterName("Guest-Bob") == "P-Guest-Bob");
-	assert(CharacterName("guest-bob") == "P-guest-bob");
+	assert(CharacterName("Bob (nonreg)") == "Bob nonreg");   // parentheses are stripped, so no character can look like a guest
+	assert(!IsGuestName(CharacterName("Bob (nonreg)")));
 	assert(CharacterName("!!") == "Player");
 	assert(CharacterName("ab") == "Player");
-	assert(GuestName("Bob", "1234") == "Guest-Bob");
-	assert(GuestName("", "1234") == "Guest-1234");
-	assert(GuestName("Guest-Zed", "1234") == "Guest-Zed");
-	assert(GuestName("A very long name indeed", "1234").size() <= NAME_MAX_LENGTH);
-	assert(StartsWithGuest("GUEST-x") && !StartsWithGuest("Guesty"));
+	assert(GuestName("Bob", "1234") == "Bob (nonreg)");
+	assert(GuestName("", "1234") == "1234 (nonreg)");
+	assert(GuestName("Bob", "1234", 2) == "Bob2 (nonreg)");
+	assert(GuestName("Bobby Tables", "1234") == "Bobby (nonreg)");
+	assert(GuestName("Bobby Tables", "1234", 12) == "Bobb12 (nonreg)");
+	assert(GuestName("A very long name indeed", "1234", 9999).size() <= NAME_MAX_LENGTH);
+	assert(GuestName("(nonreg)", "1234") == "nonreg (nonreg)");
+	assert(IsGuestName("Bob (nonreg)") && !IsGuestName(" (nonreg)") && !IsGuestName("Bob nonreg") && !IsGuestName("Bob (nonreg) x"));
 	std::printf("outiva ticket: ok\n");
 	return 0;
 }

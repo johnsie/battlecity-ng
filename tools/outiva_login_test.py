@@ -108,15 +108,19 @@ def main():
     check(c.wait(lambda: len([1 for p, d in c.seen if p == SM_ERROR]) >= 2), "password login is refused")
     c.close()
 
-    # a guest plays under a Guest- name, appears in the table flagged, and leaves nothing behind
+    # a guest plays as "<name> (nonreg)", appears in the table flagged, and leaves nothing behind
     g = Client(host, port)
     g.send(CM_GUESTLOGIN, field(b"Bob", 15))
     check(g.wait(g.logged_in), "a guest can log in")
-    check(("Guest-Bob", "", 1) in rows(db), "the guest is a flagged temporary row named Guest-Bob")
+    check(("Bob (nonreg)", "", 1) in rows(db), "the guest is a flagged temporary row named 'Bob (nonreg)'")
     g.send(CM_GUESTLOGIN, field(b"Bob", 15))   # already logged in: ignored
     g2 = Client(host, port)
-    g2.send(CM_GUESTLOGIN, field(b"Guest-Bob", 15))
-    check(g2.wait(g2.logged_in) and ("Guest-Bob2", "", 1) in rows(db), "a second guest with the same name gets a different one")
+    g2.send(CM_GUESTLOGIN, field(b"Bob", 15))
+    check(g2.wait(g2.logged_in) and ("Bob2 (nonreg)", "", 1) in rows(db), "a second guest with the same name gets a number before the suffix")
+    g3 = Client(host, port)
+    g3.send(CM_GUESTLOGIN, field(b"Bobby Tables", 15))
+    check(g3.wait(g3.logged_in) and ("Bobby (nonreg)", "", 1) in rows(db), "a long guest name is cut so the whole name fits 15 characters")
+    g3.close()
     # a guest cannot take an empty city as its mayor
     g.send(CM_SETSTATE, bytes([5]))
     g.send(CM_JOBAPP, bytes([0]))
@@ -149,6 +153,12 @@ def main():
     clash.send(CM_TICKETLOGIN, field(ticket(secret, "sub-other", "Maverick").encode(), 200))
     check(clash.wait(clash.logged_in) and ("Maverick2", "sub-other", 0) in rows(db), "a callsign someone already has gets a number")
     clash.close()
+
+    # a callsign cannot be made to look like a guest: parentheses are removed
+    look = Client(host, port)
+    look.send(CM_TICKETLOGIN, field(ticket(secret, "sub-look", "Eve (nonreg)").encode(), 200))
+    check(look.wait(look.logged_in) and ("Eve nonreg", "sub-look", 0) in rows(db), "an Outiva callsign can never end in (nonreg)")
+    look.close()
 
     for label, bad in (
         ("a ticket signed with another secret", ticket("some other secret value", "sub-x", "X")),
