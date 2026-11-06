@@ -29,6 +29,10 @@ CDDraw::CDDraw(CGame *game)
 {
     Canvas = NULL;
     canvasW = canvasH = 0;
+    ttfTried = false;
+    TextAtlas = NULL;
+    atlasScale = 0;
+    atlasSize = 0;
     lastOutputW = lastOutputH = 0;
     FullScreen = 0;
     XOff = 0;
@@ -296,6 +300,7 @@ void CDDraw::DestroySurfaces()
     FreeImage(imgTurretHead);
     FreeImage(Font);
     if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
+    if (TextAtlas) { SDL_DestroyTexture(TextAtlas); TextAtlas = NULL; }
     if (Renderer) {
         SDL_DestroyRenderer(Renderer);
         Renderer = NULL;
@@ -333,6 +338,7 @@ void CDDraw::Clear()
 {
     if (!Renderer) return;
     EnsureCanvas();
+    textQueue.clear();
     if (Canvas) SDL_SetRenderTarget(Renderer, Canvas);   // everything the game draws now lands in the canvas
     SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
     SDL_RenderClear(Renderer);
@@ -362,6 +368,7 @@ void CDDraw::Flip()
         dst.y = (oh - dst.h) / 2;
         SDL_RenderSetLogicalSize(Renderer, 0, 0);
         SDL_RenderCopy(Renderer, Canvas, NULL, &dst);
+        FlushText(dst, sc);
         SDL_RenderSetLogicalSize(Renderer, p->ResolutionX, p->ResolutionY);
     }
     BCDialogsRender();   // Dear ImGui dialogs are drawn on top of the game frame
@@ -405,6 +412,12 @@ void CDDraw::Draw(BCImage* Surface, int X, int Y, int width, int height, int _sX
 void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)
 {
     if (!Renderer || !Font) return;
+    if (!ttfTried) { ttfTried = true; ttf.Load("Vera.ttf"); }
+    if (ttf.Loaded() && Canvas) {
+        // Smooth text is drawn after the game image is scaled, at the window's real resolution (see FlushText)
+        textQueue.push_back({ X, Y, Text, ColorVal });
+        return;
+    }
     const int cw = 8, ch = 16, cols = 16;
 
     // Drop shadow first (black, offset by 1,2) then the text itself, like the original
@@ -422,6 +435,68 @@ void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)
             SDL_RenderCopy(Renderer, Font->texture, &src, &dst);
         }
     }
+}
+
+/// <summary> (Re)bakes the text atlas for the current output scale (quantised so it does not thrash) </summary>
+bool CDDraw::EnsureTextAtlas(float scale)
+{
+    float q = std::floor(std::min(std::max(scale, 0.75f), 4.0f) * 8.0f + 0.5f) / 8.0f;
+    if (TextAtlas && q == atlasScale) return true;
+    if (TextAtlas) { SDL_DestroyTexture(TextAtlas); TextAtlas = NULL; }
+    float px = 14.5f * q;
+    int size = px > 24.0f ? 1024 : 512;
+    std::vector<unsigned char> rgba;
+    if (!ttf.Bake(px, size, rgba)) return false;
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(rgba.data(), size, size, 32, size * 4, SDL_PIXELFORMAT_RGBA32);
+    if (!surf) return false;
+    TextAtlas = SDL_CreateTextureFromSurface(Renderer, surf);
+    SDL_FreeSurface(surf);
+    if (!TextAtlas) return false;
+    SDL_SetTextureBlendMode(TextAtlas, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(TextAtlas, SDL_ScaleModeNearest);
+    atlasScale = q;
+    atlasSize = size;
+    return true;
+}
+
+/// <summary> Width in game pixels of text as DTextOut draws it </summary>
+int CDDraw::MeasureText(const string &text)
+{
+    if (!ttfTried) { ttfTried = true; ttf.Load("Vera.ttf"); }
+    if (!ttf.Loaded() || !Renderer || !EnsureTextAtlas(TextAtlas ? atlasScale : 1.0f)) return (int)text.length() * TextWidth;
+    float w = 0;
+    for (unsigned char c : text) {
+        const BCGlyph *g = ttf.Glyph(c);
+        const BCGlyph *sp = ttf.Glyph(' ');
+        w += g ? g->advance : sp->advance;
+    }
+    return (int)(w / atlasScale + 0.5f);
+}
+
+/// <summary> Draws the frame's queued text on top of the scaled game image, at output resolution </summary>
+void CDDraw::FlushText(const SDL_Rect &dst, float sc)
+{
+    if (textQueue.empty()) return;
+    if (!EnsureTextAtlas(sc)) { textQueue.clear(); return; }
+    const BCGlyph *space = ttf.Glyph(' ');
+    int shadowX = std::max(1, (int)(sc + 0.5f)), shadowY = std::max(1, (int)(1.5f * sc + 0.5f));
+    for (int pass = 0; pass < 2; pass++) {
+        for (const QueuedText &t : textQueue) {
+            COLORREF colour = (pass == 0) ? RGB(0,0,0) : t.colour;
+            SDL_SetTextureColorMod(TextAtlas, GetRValue(colour), GetGValue(colour), GetBValue(colour));
+            float pen = dst.x + t.x * sc + (pass == 0 ? shadowX : 0);
+            float baseline = dst.y + (t.y + 12.5f) * sc + (pass == 0 ? shadowY : 0);
+            for (unsigned char c : t.text) {
+                const BCGlyph *g = ttf.Glyph(c);
+                if (!g) { pen += space->advance; continue; }
+                SDL_Rect src = { (int)g->x0, (int)g->y0, (int)(g->x1 - g->x0), (int)(g->y1 - g->y0) };
+                SDL_Rect out = { (int)std::floor(pen + g->xoff + 0.5f), (int)std::floor(baseline + g->yoff + 0.5f), src.w, src.h };
+                if (src.w > 0 && src.h > 0) SDL_RenderCopy(Renderer, TextAtlas, &src, &out);
+                pen += g->advance;
+            }
+        }
+    }
+    textQueue.clear();
 }
 
 void CDDraw::DFillRectColor(int X, int Y, int width, int height, int r, int g, int b)

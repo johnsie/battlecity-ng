@@ -1622,11 +1622,11 @@ void CDrawing::drawPlayerName(CPlayer *player, CPlayer *me) {
 	}
 
 	// Get text lengths
-	nameWidth = (nameString.length() * p->DDraw->TextWidth) / 2;
+	nameWidth = p->DDraw->MeasureText(nameString) / 2;
 	if (player->Member) {
 		nameWidth -= 8;
 	}
-	townWidth = (townString.length() * p->DDraw->TextWidth) / 2;
+	townWidth = p->DDraw->MeasureText(townString) / 2;
 	centerPoint = relativeX + 16 + 3;
 
 	// Draw text

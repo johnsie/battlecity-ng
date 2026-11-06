@@ -23,6 +23,7 @@
 #ifndef _CDDRAW
 #define _CDDRAW
 
+#include "platform/ttf_font.h"
 #include "CGame.h"
 #include <SDL.h>
 
@@ -49,6 +50,7 @@ public:
     void Flip();
     void Draw(BCImage* Surface, int X, int Y, int width, int height, int _sX = 0, int _sY = 0, int _clipwidth = -1, int _clipheight = -1);
     void DTextOut(int X, int Y, string text, COLORREF ColorVal);
+    int MeasureText(const string &text);   // width in game pixels of text as drawn by DTextOut
     void DFillRect(int X, int Y, int width, int height);
     void DFillRectColor(int X, int Y, int width, int height, int r, int g, int b);
     void ApplyLogicalSize();   // call after the game's resolution changed
@@ -116,6 +118,15 @@ private:
     void CreateRenderer(HWND hWnd);
     void UpdateScaleMode();
     void EnsureCanvas();
+    void FlushText(const SDL_Rect &dst, float scale);
+    bool EnsureTextAtlas(float scale);
+    struct QueuedText { int x, y; std::string text; COLORREF colour; };
+    std::vector<QueuedText> textQueue;
+    BCTtfFont ttf;
+    bool ttfTried;
+    SDL_Texture *TextAtlas;
+    float atlasScale;
+    int atlasSize;
     int lastOutputW, lastOutputH;
 
     SDL_Window *Window;
