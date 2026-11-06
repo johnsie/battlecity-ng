@@ -39,6 +39,7 @@ Installs the Emscripten SDK into `~/.cache/bc-emsdk` on first use (several GB, a
 | `ci/fuzz-test.sh <bc-server> <map.dat>` | malformed packets never crash the server |
 | `ci/relay-test.sh <bc-server> <map.dat>` | one bot's movement reaches another steadily; impossible jumps are refused |
 | `ci/load-test.sh <bc-server> <map.dat> [bots] [seconds]` | many bots join, drive, and agree on each other's positions |
+| `ci/bots-test.sh <bc-server> <map.dat>` | the server-side bots, raids, missions, crates, ghost and chat commands (see `docs/solo-play.md`) |
 
 Run the server tests against a build made with `-DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-sanitize=alignment -fno-omit-frame-pointer"` to catch memory errors; CI does.
 

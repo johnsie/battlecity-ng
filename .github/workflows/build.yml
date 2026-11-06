@@ -55,6 +55,8 @@ jobs:
         run: ci/fuzz-test.sh build-asan/server/bc-server data/map.dat
       - name: Movement relay test
         run: ci/relay-test.sh build-asan/server/bc-server data/map.dat
+      - name: Server-side bots (solo play)
+        run: ci/bots-test.sh build-asan/server/bc-server data/map.dat
       - name: Load test (20 bots)
         run: ci/load-test.sh build-asan/server/bc-server data/map.dat 20 60
 

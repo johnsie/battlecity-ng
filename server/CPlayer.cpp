@@ -217,6 +217,8 @@ void CPlayer::ResetPlayer() {
 	this->isDead = false;
 	this->IsBot = false;
 	this->timeDeath = 0;
+	this->isCloaked = false;     // was never initialised: reading it (as the bots do) is undefined behaviour
+	this->timeUncloak = 0;
 }
 
 /***************************************************************
@@ -341,6 +343,7 @@ void CPlayer::JoinGame() {
 	this->p->Send->SendGameAllBut(this->id,smJoinData,(char *)&join,sizeof(join));
 	this->lastMove = this->p->Tick;
 	cout << "Join::" << Name.c_str() << endl;
+	this->p->Bots->HumanJoined(this->id);
 }
 
 /***************************************************************
@@ -451,6 +454,9 @@ void CPlayer::LeaveGame(bool showMessage, bool transferMayor) {
 
 	// If the player is in game,
 	if (this->isInGame()) {
+
+		// Let the bots' event system see the player go (ghost recording, practice, last-online)
+		if (!this->IsBot) this->p->Bots->HumanLeft(this->id);
 
 		// Save the player's stats
 		cout << "Left::" << Name << "::Saving...";

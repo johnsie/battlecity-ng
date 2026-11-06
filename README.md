@@ -38,6 +38,10 @@ This version of the game, "Battle City NG", is about making Battle City easy to 
 
 The steps, and how far along each is, are on the [roadmap](ROADMAP.md).
 
+## Playing alone
+
+Most of the time the server is quiet, so while you are the only player it fills the world for you: raider tanks that hunt you, neutral snowmen to shoot, raids on your city, a bounty boss, supply crates to find, missions, a target range and a time trial, daily challenges, a ghost of the best recent run, and weather in the client. Type `/help` in game. How it works and how to tune it: [docs/solo-play.md](docs/solo-play.md).
+
 ## Play
 
 * Browser: [bc.outiva.com](https://bc.outiva.com)

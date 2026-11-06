@@ -51,6 +51,8 @@ Decisions (2026-10-16):
 - **The Windows machine on the LAN is for testing only**, never production.
 - **Protocol changes force clients to update.** There is no overlap period: the server rejects a mismatched `VERSION` (message F), the web client reloads itself, native clients are told to download the new version.
 
+Added on branch `solo-play` (not merged or deployed): server-side bots and the features built around them (raids, missions, bounty boss, supply crates, challenges, practice range and time trial, ghost, event news, Discord hook) plus client weather. Plan and status: `docs/solo-play-roadmap.md`; behaviour and tuning: `docs/solo-play.md`; tests: `ci/bots-test.sh`.
+
 ## 2. Workstreams
 
 ### Workstream 0: Branch hygiene (mostly done)

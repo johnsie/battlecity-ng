@@ -213,10 +213,21 @@ void CBulletList::cycle() {
 				// If the player is in game, didn't shoot the bullet, and is alive,
 				if (p->Player[pl]->isInGame() && (pl != blt->owner) && (blt->life > 0) && (p->Player[pl]->isDead == false)) {
 
+					// Server-side bots take damage here (a human's own client works out its own hits). Bots do not hurt each other.
+					bool targetIsBot = p->Player[pl]->IsBot;
+					bool shotByBot = (blt->turid == 0) && (blt->owner < MAX_PLAYERS) && p->Player[blt->owner]->IsBot;
+					if (targetIsBot && shotByBot) {
+						continue;
+					}
+
 					// If the bullet hit he player,
 					rp.x = (long)p->Player[pl]->X-48;
 					rp.y = (long)p->Player[pl]->Y-48;
 					if (p->Collision->checkCollision(rp,rb)) {
+
+						if (targetIsBot) {
+							p->Bots->BulletHitBot(pl, blt->damage, (blt->turid == 0 && blt->owner < MAX_PLAYERS) ? (int)blt->owner : -1);
+						}
 
 						// We could implement server-side health management here
 						// That would allow for all players in a sector to know all players' health,

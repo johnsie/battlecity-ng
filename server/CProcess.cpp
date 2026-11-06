@@ -639,6 +639,7 @@ void CProcess::ProcessUpdate(sCMUpdate *data, int Index) {
         update.dir = data->dir;
         update.move = data->move;
         p->Send->SendRadarNotIndex(Index,smUpdate,(char *)&update,sizeof(update));
+        p->Bots->HumanUpdated(Index);
     }
 
     // Else (player not within 300x300),
@@ -1045,7 +1046,7 @@ void CProcess::ProcessDeath(char *TheData, int Index) {
                     playerToGivePoints = this->p->Player[j];
 
                     // If the player is in that city and in game,
-                    if ((playerToGivePoints->isInGame()) && (playerToGivePoints->City == cityIndexThatKilledPlayer)) {
+                    if ((playerToGivePoints->isInGame()) && !playerToGivePoints->IsBot && (playerToGivePoints->City == cityIndexThatKilledPlayer)) {
 
                         // Give that player two points
                         p->Account->AddPoints(j, 2);

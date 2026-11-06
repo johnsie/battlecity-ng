@@ -64,6 +64,8 @@ class Bot:
             elif pid == SM_UPDATE and len(data) >= 8:
                 # sSMUpdate is not packed: one padding byte follows the id
                 _id, x, y = struct.unpack("<BxHH", data[:6])
+                if _id >= 32:
+                    continue      # server-side bots take the highest slots (see docs/solo-play.md): only real players are measured here
                 self.updates.append((now, x, y))
                 self.last_by_id[_id] = (x, y)
 

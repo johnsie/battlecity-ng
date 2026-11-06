@@ -289,7 +289,7 @@ void CSocket::TCPCycle() {
         //  Initiate CPlayer object
         player = this->p->Player[i];
         //  Verify player is connected and player's socket has data to be received
-        if (player->isConnected() && this->p->Winsock->hasData(player->Socket)) {
+        if (player->isConnected() && player->Socket >= 0 && this->p->Winsock->hasData(player->Socket)) {
             //  Receives data from the player's socket
             //  http://msdn.microsoft.com/en-us/library/windows/desktop/ms740121(v=vs.85).aspx
             if ((nBytes = recv(player->Socket, player->Buffer + player->BufferLength, 2048 - player->BufferLength, 0)) <= 0) {
@@ -410,6 +410,7 @@ void CSocket::ProcessBuffer(int playerId) {
 /// <returns></returns>
 void CSocket::QueueSend(int playerId, const char *data, int length) {
     CPlayer *player = p->Player[playerId];
+    if (player->IsBot || player->Socket < 0) return;   // server-side bots have no connection
     if (!player->Out.Send(player->Socket, data, length)) {
         //  Real connection error: the receive path notices the closed socket and clears the player
         return;
@@ -424,7 +425,7 @@ void CSocket::QueueSend(int playerId, const char *data, int length) {
 void CSocket::FlushQueues() {
     for (int i = 0; i < MAX_PLAYERS; i++) {
         CPlayer *player = p->Player[i];
-        if (player->Out.Pending() > 0 && player->isConnected()) {
+        if (player->Out.Pending() > 0 && player->isConnected() && player->Socket >= 0) {
             player->Out.Flush(player->Socket);
         }
     }

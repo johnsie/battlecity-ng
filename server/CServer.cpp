@@ -54,6 +54,7 @@ CServer::CServer() {
 	EMail = new CEMail(this);
 	Database = new CDatabase(this);
 	StatusEndpoint = new CStatusEndpoint(this);
+	Bots = new CBotManager(this);
 	//Build = new CBuildingList(this);
 	//Item = new CItemList(this);
 	//Bullet = new CBulletList(this);
@@ -95,6 +96,7 @@ CServer::~CServer() {
 	delete EMail;
 	delete Database;
 	delete StatusEndpoint;
+	delete Bots;
 
 	// For each possible player, delete the player object
 	for (int i = 0; i < MAX_PLAYERS; i++) {
@@ -130,6 +132,7 @@ void CServer::Init() {
 	cout << "+ CServer::Init() @ Database->LoadDatabase" << endl;
     //  Load database into object
 	this->Database->LoadDatabase();
+	this->Bots->Init();
     cout << "+ CServer::Init() @ Loading news" << endl;
     //  Load news into Server object
 	this->LoadNews();
@@ -310,7 +313,7 @@ void CServer::respawnPlayers() {
 		player = this->Player[i];
 
 		// If the player is in game,
-		if (player->isInGame()) {
+		if (player->isInGame() && !player->IsBot) {
 
 			// If the player is dead, and the Respawn timer is up,
 			if ((player->isDead == true) && ((this->Tick - player->timeDeath) > TIMER_RESPAWN)) {
@@ -343,14 +346,17 @@ void CServer::respawnPlayers() {
  **************************************************************/
 void CServer::reset() {
 
-	// If any player is connected, return
+	// If any (human) player is connected, return: server-side bots do not keep the world alive
 	for (int i = 0; i < MAX_PLAYERS; i++) {
-		if (this->Player[i] && this->Player[i]->isConnected()) {
+		if (this->Player[i] && this->Player[i]->isConnected() && !this->Player[i]->IsBot) {
 			return;
 		}
 	}
 
 	cout << "CServer::reset()" << endl;
+
+	// Nobody is here: drop the bots before the world they live in is rebuilt
+	if (this->Bots) this->Bots->ResetState();
 
 	// Rebuild the Build list
 	cout << " - Rebuilding building list" << endl;

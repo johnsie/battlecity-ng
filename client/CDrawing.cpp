@@ -59,6 +59,7 @@ void CDrawing::DrawGame() {
 	this->DrawExplosions();
 	this->PlayerOffsetX = baseX;
 	this->PlayerOffsetY = baseY;
+	this->DrawWeather();
 
 	// Screen-wide mood: vignette, red pulse when badly hurt, grey-out when dead, fade-in on respawn
 	bool dead = p->Player[me]->isDead;
@@ -1597,6 +1598,79 @@ void CDrawing::DrawExplosions() {
 		p->DDraw->DrawGlow(sx, sy, 5 - (int)(t * 3.0f), 255, g, 40, (int)(255.0f * (1.0f - t)), MaxMapX, MaxMapY);
 	}
 	sparks.resize(keep);
+}
+
+/***************************************************************
+ * Function:	DrawWeather
+ *
+ * Every five minutes of play has a chance of a spell of rain or a dust storm. The schedule comes from the clock alone, so
+ * it needs no server support. BC_WEATHER=rain|dust|off forces or disables it (tests).
+ **************************************************************/
+void CDrawing::DrawWeather() {
+	static int forced = -1;
+	if (forced == -1) {
+		const char *w = getenv("BC_WEATHER");
+		forced = !w ? 0 : (!strcmp(w, "rain") ? 1 : (!strcmp(w, "dust") ? 2 : (!strcmp(w, "off") ? 3 : 0)));
+	}
+	if (forced == 3) return;
+	const float PERIOD = 300000.0f;
+	float now = p->Tick;
+	int period = (int)(now / PERIOD);
+	unsigned int hs = (unsigned int)(period * 2654435761u) ^ 0x9e3779b9u;
+	hs ^= hs >> 15; hs *= 0x2c1b3c6du; hs ^= hs >> 12;
+	int kind = forced ? forced : ((hs % 10) < 4 ? 0 : ((hs % 10) < 8 ? 1 : 2));    // 40% clear, 40% rain, 20% dust
+	float start = 25000.0f + (hs >> 8) % 90000, dur = 70000.0f + (hs >> 16) % 80000;
+	float t = fmodf(now, PERIOD);
+	float intensity = 0;
+	if (forced) intensity = 1.0f;
+	else if (kind != 0 && t > start && t < start + dur) {
+		float ramp = 9000.0f;
+		intensity = std::min(1.0f, std::min((t - start) / ramp, (start + dur - t) / ramp));
+	}
+	if (intensity <= 0.01f) return;
+
+	std::vector<int> lines;
+	if (kind == 1) {
+		// rain: slanted streaks falling at slightly different speeds, with a cool wash over everything
+		p->DDraw->DrawOverlay(MaxMapX, MaxMapY, 10, 22, 44, (int)(34 * intensity));
+		int n = (int)(300 * intensity);
+		for (int i = 0; i < n; i++) {
+			unsigned int hi = (unsigned int)(i + 1) * 2654435761u;
+			float sp = 0.55f + ((hi >> 4) % 50) / 100.0f;
+			int x = (int)fmodf((float)((hi >> 8) % MaxMapX) - now * 0.10f * sp + 100000.0f, (float)MaxMapX);
+			int y = (int)fmodf((float)((hi >> 16) % MaxMapY) + now * 0.62f * sp, (float)MaxMapY);
+			int x1 = x, y1 = y, x2 = x - 5, y2 = y + 17;
+			if (x2 < 0 || y2 >= MaxMapY) continue;
+			lines.push_back(x1); lines.push_back(y1); lines.push_back(x2); lines.push_back(y2);
+		}
+		p->DDraw->DrawStreaks(lines, 200, 222, 250, (int)(150 * intensity));
+		// splashes where drops land
+		for (int i = 0; i < (int)(26 * intensity); i++) {
+			unsigned int hi = (unsigned int)((i + 1) * 40503u) ^ (unsigned int)((int)(now / 180.0f) * 2654435761u);
+			hi ^= hi >> 13; hi *= 0x5bd1e995u;
+			p->DDraw->DrawGlow((int)((hi >> 3) % MaxMapX), (int)((hi >> 14) % MaxMapY), 3, 200, 220, 240, 70, MaxMapX, MaxMapY);
+		}
+		// now and then, lightning
+		float ph = fmodf(now, 23000.0f);
+		if (intensity > 0.8f && ph < 110.0f) p->DDraw->DrawOverlay(MaxMapX, MaxMapY, 235, 240, 255, (int)(90 * (1.0f - ph / 110.0f)));
+	}
+	else {
+		// dust storm: a tan haze and long streaks blowing across
+		p->DDraw->DrawOverlay(MaxMapX, MaxMapY, 160, 118, 66, (int)(78 * intensity));
+		int n = (int)(140 * intensity);
+		for (int i = 0; i < n; i++) {
+			unsigned int hi = (unsigned int)(i + 1) * 2246822519u;
+			float sp = 0.8f + ((hi >> 4) % 60) / 100.0f;
+			int x = (int)fmodf((float)((hi >> 8) % (MaxMapX + 120)) + now * 0.55f * sp, (float)(MaxMapX + 120)) - 60;
+			int y = (int)((hi >> 16) % MaxMapY) + (int)(3.0f * sinf(now / 600.0f + i));
+			int len = 26 + (int)((hi >> 3) % 34);
+			int x1 = x, x2 = x + len;
+			if (x1 < 0 || x2 >= MaxMapX || y < 0 || y >= MaxMapY) continue;
+			lines.push_back(x1); lines.push_back(y); lines.push_back(x2); lines.push_back(y + 1);
+		}
+		p->DDraw->DrawStreaks(lines, 236, 206, 160, (int)(130 * intensity));
+		p->DDraw->DrawVignette(MaxMapX, MaxMapY, (int)(70 * intensity), 120, 85, 40);
+	}
 }
 
 /***************************************************************

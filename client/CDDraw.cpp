@@ -639,6 +639,18 @@ void CDDraw::DrawRing(int cx, int cy, int radius, int r, int g, int b, int alpha
     DrawCalls++;
 }
 
+/// <summary> A batch of translucent one-pixel lines (rain, wind streaks), drawn with one blend-mode change </summary>
+void CDDraw::DrawStreaks(const std::vector<int> &lines, int r, int g, int b, int alpha)
+{
+    if (!FxEnabled() || !Renderer || alpha <= 0 || lines.size() < 4) return;
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(Renderer, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)std::min(255, alpha));
+    for (size_t i = 0; i + 3 < lines.size(); i += 4)
+        SDL_RenderDrawLine(Renderer, XOff + lines[i], YOff + lines[i + 1], XOff + lines[i + 2], YOff + lines[i + 3]);
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_NONE);
+    DrawCalls++;
+}
+
 /// <summary> A translucent colour wash over the w x h map view (fades, death tint) </summary>
 void CDDraw::DrawOverlay(int w, int h, int r, int g, int b, int alpha)
 {

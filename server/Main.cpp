@@ -90,6 +90,8 @@ int main(int argc, char *argv[]) {
 			Server.Winsock->Cycle();
 			// A loopback-only, non-blocking status source for the public web adapter.
 			Server.StatusEndpoint->Cycle();
+			//  Server-side bots, raids, missions and drops
+			Server.Bots->Cycle();
             //  Verify current time interval is greater than item time interval
 			if (Server.Tick > ItemTick) {
                 //  Perform item cycle
@@ -180,6 +182,7 @@ int main(int argc, char *argv[]) {
 	}
     //  Print to the console
 	cout << "Server::Close" << endl;
+	Server.Bots->Shutdown();
     //  Loop through available players
 	for (int i = 0; i < MAX_PLAYERS; i++) {
         //  Verify player is not disconnected

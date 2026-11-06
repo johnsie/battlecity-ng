@@ -55,6 +55,7 @@ class CDrawing {
         void DrawDust();   // dust puffs kicked up by moving tanks
         void DrawRadar();
         void DrawExplosions();
+        void DrawWeather();   // rain and dust storms that roll through now and then
         void DrawMiniMap();
 
         string CashFormat(long Number);

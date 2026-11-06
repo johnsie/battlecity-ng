@@ -312,6 +312,10 @@ void CSend::SendCityList(int Index) {
  * @param global
  **************************************************************/
 void CSend::SendChatMessage(int WhoSent, char Message[255], char global) {
+	// Solo-play commands (/help, /range, /trial ...) are answered by the server and not broadcast
+	if (p->Player[WhoSent]->State == State_Game && Message[0] == '/' && p->Bots->HandleChat(WhoSent, Message)) {
+		return;
+	}
 	char tmpstring[255];
 	int length = (int)strnlen(Message, 250);
 	tmpstring[0] = (unsigned char)WhoSent;
@@ -450,24 +454,16 @@ void CSend::SendCurrentPlayers(int Index) {
  * @param Index
  **************************************************************/
 void CSend::SendNews(int Index) {
-	int Length = (int)p->Top20.length();
-	int DataChunks = int(Length / 220) + 1;
-	int startpos = 0;
+	// the top 20 plus what has been happening lately (raids, records, last player online)
+	std::string text = p->Top20 + p->Bots->RecentEvents();
 	char TempString[255];
 
-	// For each "chunk" of 220 bytes in the News's length,
-	for (int i = 0; i < DataChunks; i++) {
-
-		// If there is data to send, 
-		if (p->Top20[startpos] != 0) {
-
-			// Send the data
-			memset(TempString, 0, 255);
-			memcpy(TempString, &p->Top20[startpos], 220);
-			p->Winsock->SendData(Index, smAppendNews, TempString);
-			startpos = startpos + 220;
-		}
-	}	
+	// Send it in chunks of up to 220 bytes
+	for (size_t startpos = 0; startpos < text.length(); startpos += 220) {
+		memset(TempString, 0, 255);
+		memcpy(TempString, text.c_str() + startpos, std::min((size_t)220, text.length() - startpos));
+		p->Winsock->SendData(Index, smAppendNews, TempString);
+	}
 }
 
 /***************************************************************
