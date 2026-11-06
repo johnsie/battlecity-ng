@@ -3,6 +3,9 @@
  */
 #include "compat.h"
 #include "net.h"
+#include "dialogs.h"
+#include <string>
+#include <iterator>
 #include <SDL.h>
 #include <sys/stat.h>
 #include <vector>
@@ -281,6 +284,80 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 	*mouseWindowY = y;
 }
 
+
+
+// ---- Remembered login ----
+// Stored on this device only, and only while the "Remember me" box is ticked (unticking erases it).
+// Format: "R=<0|1>\n<user>\n<password>\n". The password is the game's own (legacy, 15 characters) one, kept as
+// plain text: browser localStorage is origin-private, the desktop file is created readable by the user alone.
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+EM_JS(int, bc_login_load, (), {
+	try {
+		var v = localStorage.getItem('bc.login');
+		if (!v) { Module.bcLoginBytes = null; return 0; }
+		Module.bcLoginBytes = new TextEncoder().encode(v);
+		return Module.bcLoginBytes.length;
+	} catch (e) { Module.bcLoginBytes = null; return 0; }
+});
+EM_JS(int, bc_login_byte, (int i), { return Module.bcLoginBytes ? Module.bcLoginBytes[i] : 0; });
+EM_JS(void, bc_login_begin, (), { Module.bcLoginOut = []; });
+EM_JS(void, bc_login_push, (int b), { Module.bcLoginOut.push(b & 255); });
+EM_JS(void, bc_login_commit, (), {
+	try { localStorage.setItem('bc.login', new TextDecoder().decode(new Uint8Array(Module.bcLoginOut))); } catch (e) {}
+});
+#else
+static std::string SavedLoginPath() {
+	std::string path;
+	if (char *pref = SDL_GetPrefPath("Outiva", "BattleCity")) { path = pref; SDL_free(pref); }
+	return path + "login.dat";
+}
+#endif
+
+static bool ParseSavedLogin(const std::string &text, std::string &user, std::string &pass, bool &remember) {
+	size_t a = text.find('\n');
+	if (a == std::string::npos || text.compare(0, 2, "R=") != 0) return false;
+	size_t b = text.find('\n', a + 1);
+	if (b == std::string::npos) return false;
+	remember = text.substr(0, a) != "R=0";
+	user = text.substr(a + 1, b - a - 1);
+	size_t c = text.find('\n', b + 1);
+	pass = text.substr(b + 1, c == std::string::npos ? std::string::npos : c - b - 1);
+	return true;
+}
+
+bool BCLoadSavedLogin(std::string &user, std::string &pass, bool &remember) {
+	std::string text;
+#ifdef __EMSCRIPTEN__
+	int n = bc_login_load();
+	for (int i = 0; i < n && i < 256; i++) text += (char)bc_login_byte(i);
+#else
+	std::ifstream in(SavedLoginPath(), std::ios::binary);
+	if (!in) return false;
+	text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+#endif
+	return ParseSavedLogin(text, user, pass, remember);
+}
+
+void BCStoreLogin(const std::string &user, const std::string &pass, bool remember) {
+	// When the box is unticked keep only the choice itself, never the name or password
+	std::string text = std::string(remember ? "R=1\n" : "R=0\n") + (remember ? user : "") + "\n" + (remember ? pass : "") + "\n";
+#ifdef __EMSCRIPTEN__
+	bc_login_begin();
+	for (unsigned char c : text) bc_login_push(c);
+	bc_login_commit();
+#else
+	std::string path = SavedLoginPath();
+	if (path == "login.dat") return;          // no writable preferences folder
+#ifndef _WIN32
+	std::ofstream touch(path, std::ios::binary | std::ios::trunc);   // create, then restrict to the owner
+	touch.close();
+	chmod(path.c_str(), 0600);
+#endif
+	std::ofstream out(path, std::ios::binary | std::ios::trunc);
+	out << text;
+#endif
+}
 
 // ---- Restart after a lost connection ----
 #ifdef __EMSCRIPTEN__

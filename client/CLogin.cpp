@@ -57,6 +57,7 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 					GetDlgItemText(hwnd, IDPASS, p->Login->pass, 15);
 					if ((strlen(p->Login->user) > 0) && (strlen(p->Login->pass) > 0))
 					{
+						BCStoreLogin(p->Login->user, p->Login->pass, BCLoginRemember());
 						p->Send->SendLogin(0);
 						p->Dialog->StartDialog = 0;
 						EndDialog(hwnd, 1);

@@ -109,6 +109,9 @@ std::string StripMnemonics(const char *s) {
 	return out;
 }
 
+Ctl *FindCtl(Dlg *d, int id);
+bool g_rememberLogin = true;      // "Remember me on this device" (on by default; unticking forgets the saved login)
+
 void ResetDialog(Dlg *d) {
 	for (Ctl &c : d->ctls) {
 		c.text = c.def->text;
@@ -123,6 +126,16 @@ void ResetDialog(Dlg *d) {
 		if (c.isEditable()) SetEditText(c, "");
 	}
 	d->loginMode = std::getenv("BC_OUTIVA_NAME") ? 1 : 0;
+	if (d->def->id == ID_LOGIN) {
+		// Fill the form from the login remembered on this device
+		std::string user, pass;
+		bool remember = true;
+		if (BCLoadSavedLogin(user, pass, remember)) {
+			g_rememberLogin = remember;
+			if (Ctl *u = FindCtl(d, IDUSER)) SetEditText(*u, user.c_str());
+			if (Ctl *w = FindCtl(d, IDPASS)) SetEditText(*w, pass.c_str());
+		}
+	}
 }
 
 Dlg *GetOrCreateDialog(int id) {
@@ -382,6 +395,8 @@ void BCDialogsShutdown() {
 	g_imguiReady = false;
 }
 
+bool BCLoginRemember() { return g_rememberLogin; }
+
 void BCSetLoginLayout(bool active) {
 #ifdef __EMSCRIPTEN__
 	EM_ASM({ if (window.bcSetLoginLayout) window.bcSetLoginLayout(!!$0); }, active ? 1 : 0);
@@ -568,13 +583,15 @@ void DrawControl(Dlg *d, Ctl &c, int index, float originY) {
 	ImGui::PopID();
 }
 
+static float g_loginPad = 24.0f;   // right margin of the login form (matches its left padding)
+
 bool DrawLoginEdit(Dlg *d, Ctl *c, const char *hint, bool password, bool focus) {
 	if (!c) return false;
 	if (c->buffer.empty()) SetEditText(*c, c->text.c_str());
 	ImGuiInputTextFlags flags = ImGuiInputTextFlags_EnterReturnsTrue;
 	if (password) flags |= ImGuiInputTextFlags_Password;
 	ImGui::PushID(c->def->id);
-	ImGui::SetNextItemWidth(-1);
+	ImGui::SetNextItemWidth(-g_loginPad);
 	if (focus && d->focusFirst) { ImGui::SetKeyboardFocusHere(); d->focusFirst = false; }
 	bool entered = ImGui::InputTextWithHint("##field", hint, c->buffer.data(), c->buffer.size(), flags);
 	c->text = c->buffer.data();
@@ -602,7 +619,7 @@ void DrawLoginSubmit(Dlg *d, const char *label) {
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.91f, 0.18f, 0.13f, 1.0f));
 	ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 0.25f, 0.18f, 1.0f));
 	ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.78f, 0.12f, 0.09f, 1.0f));
-	if (ImGui::Button(label, ImVec2(-1, 43.0f * g_scale))) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
+	if (ImGui::Button(label, ImVec2(-g_loginPad, 43.0f * g_scale))) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
 	ImGui::PopStyleColor(3);
 }
 
@@ -623,6 +640,7 @@ void DrawModernLogin(Dlg *d) {
 	const float width = std::min(wide ? 900.0f : 520.0f, io.DisplaySize.x - margin * 2.0f);
 	const float height = std::min(wide ? 560.0f : 620.0f, io.DisplaySize.y - margin * 2.0f);
 	const float padding = wide ? 30.0f : 20.0f;
+	g_loginPad = padding;
 
 	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 	ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Always);
@@ -681,7 +699,7 @@ void DrawModernLogin(Dlg *d) {
 			ImGui::Dummy(ImVec2(0, 8.0f));
 		}
 
-		float available = panelWidth - padding * 2.0f;
+		float available = panelWidth - padding * 2.0f - 4.0f;
 		float tabWidth = (available - 8.0f) * 0.5f;
 		ImGui::SetCursorPosX(padding);
 		DrawLoginTab(d, "Battle City account", 0, tabWidth);
@@ -711,7 +729,9 @@ void DrawModernLogin(Dlg *d) {
 			ImGui::Dummy(ImVec2(0, 8.0f));
 			ImGui::TextUnformatted("Password");
 			enter = DrawLoginEdit(d, pass, "Your password", true, false) || enter;
-			ImGui::Dummy(ImVec2(0, 14.0f));
+			ImGui::Dummy(ImVec2(0, 6.0f));
+			ImGui::Checkbox("Remember me on this device", &g_rememberLogin);
+			ImGui::Dummy(ImVec2(0, 8.0f));
 			if (enter) Notify(d, IDOK, BN_CLICKED, FindCtl(d, IDOK));
 			if (d->open) DrawLoginSubmit(d, "Enter Battle City");
 			if (d->open) {
@@ -735,7 +755,7 @@ void DrawModernLogin(Dlg *d) {
 			if (!hasOutiva) {
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.38f, 0.62f, 1.0f));
 				ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.47f, 0.75f, 1.0f));
-				if (ImGui::Button("Continue with Outiva", ImVec2(-1, 46.0f * g_scale)))
+				if (ImGui::Button("Continue with Outiva", ImVec2(-g_loginPad, 46.0f * g_scale)))
 					Notify(d, IDOUTIVALOGIN, BN_CLICKED, nullptr);
 				ImGui::PopStyleColor(2);
 				ImGui::Dummy(ImVec2(0, 12.0f));

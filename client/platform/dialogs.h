@@ -11,6 +11,7 @@
 
 #include "compat.h"
 #include <functional>
+#include <string>
 
 #ifdef _WIN32
 	// <windows.h> (pulled in by winsock/SDL) declares the real versions of everything this layer emulates.
@@ -162,6 +163,11 @@ bool BCMessagesPending();
 void BCDialogsInit(void *sdlWindow, void *sdlRenderer);   // SDL_Window*, SDL_Renderer*
 void BCDialogsProcessEvent(const void *sdlEvent);   // SDL_Event*, feeds Dear ImGui
 void BCDialogsRender();                              // draws the active dialog on top of the frame
+// Remembered login (opt-in checkbox on the login form). The platform layer stores it on this device only:
+// browser localStorage, or a private file in the user's data folder.
+bool BCLoadSavedLogin(std::string &user, std::string &pass, bool &remember);
+void BCStoreLogin(const std::string &user, const std::string &pass, bool remember);   // remember=false forgets the login
+bool BCLoginRemember();                              // state of the "Remember me" checkbox
 void BCSetLoginLayout(bool active);                  // browser: full viewport while authentication is visible
 void BCDialogsCloseActive();                         // closes the open dialog (if any) without calling its procedure
 bool BCDialogsActive();
