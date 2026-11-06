@@ -1714,14 +1714,14 @@ void CBotManager::Objectives(int slot, std::vector<WaypointInfo> &out) {
 	if (other >= 0) out.push_back(WaypointInfo{ WP_DROP, (float)(drops[other].x * 48), (float)(drops[other].y * 48) });
 	if (raid.active && raid.city == city) {
 		float px = p->Player[slot]->X, py = p->Player[slot]->Y, best = 1e30f;
-		const BotInfo *near = NULL;
+		const BotInfo *nearest = NULL;
 		for (int i = 0; i < 24; i++) {
 			const BotInfo &b = bots[i];
 			if (!b.used || b.dead || b.raidCity != city) continue;
 			float d = (b.x - px) * (b.x - px) + (b.y - py) * (b.y - py);
-			if (d < best) { best = d; near = &b; }
+			if (d < best) { best = d; nearest = &b; }
 		}
-		if (near) out.push_back(WaypointInfo{ WP_RAID, near->x, near->y });
+		if (nearest) out.push_back(WaypointInfo{ WP_RAID, nearest->x, nearest->y });
 	}
 	for (int i = 0; i < 24; i++) {
 		const BotInfo &b = bots[i];
