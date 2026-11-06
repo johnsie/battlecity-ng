@@ -42,4 +42,4 @@ grep -Eiq '^Access-Control-Allow-Origin: https://outiva\.com$' "$CHECK_DIR/heade
 grep -Eiq '^Cache-Control: public, max-age=15$' "$CHECK_DIR/headers.lf" || {
   echo "status endpoint is missing the 15-second cache header"; exit 1;
 }
-ls -1dt "$ROOT"/releases/* | tail -n +6 | xargs -r rm -rf   # keep the 5 newest
+ls -1dt "$ROOT"/releases/* | tail -n +6 | xargs -r rm -rf || echo "warning: could not prune some old releases (not fatal)"   # keep the 5 newest

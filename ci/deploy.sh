@@ -40,7 +40,7 @@ sudo -n /usr/bin/systemctl restart "$SERVICE"
 
 if wait_for_health; then
   echo "== Healthy: $SERVICE is accepting connections and its loopback status source answered"
-  ls -1dt "$APP"/releases/* | tail -n +6 | xargs -r rm -rf   # keep the 5 newest releases
+  ls -1dt "$APP"/releases/* | tail -n +6 | xargs -r rm -rf || echo "warning: could not prune some old releases (not fatal)"   # keep the 5 newest releases
   exit 0
 fi
 
