@@ -296,6 +296,23 @@ int main(int argc, char *argv[]) {
 			g.Draw->ApplyResolution(); g.Draw->resetPlayerOffset();
 		}
 		if (getenv("BC_TEST_SCENE") && frames > 5) { BCDialogsCloseActive(); game.State = STATE_GAME; if (getenv("BC_TEST_DRIVE")) { game.Player[0]->X -= 5.0f; game.Player[0]->Y += 2.0f; } }
+		// BC_TEST_MAP=1: the mouse mapping must invert how the frame is scaled to the window
+		if (getenv("BC_TEST_MAP") && frames == 20) {
+			CGame &g = game;
+			int ow = 0, oh = 0;
+			SDL_GetRendererOutputSize(g.DDraw->Renderer, &ow, &oh);
+			float fit = std::min((float)ow / g.ResolutionX, (float)oh / g.ResolutionY);
+			bool integerFit = fit >= 1.0f && (fit - std::floor(fit)) / fit < 0.08f;
+			float sc = integerFit ? std::floor(fit) : fit;
+			int dw = (int)(g.ResolutionX * sc + 0.5f), dh = (int)(g.ResolutionY * sc + 0.5f), dx = (ow - dw) / 2, dy = (oh - dh) / 2;
+			printf("script: window %dx%d game %dx%d scale %.3f integer=%d dst at %d,%d\n", ow, oh, g.ResolutionX, g.ResolutionY, sc, (int)integerFit, dx, dy);
+			int pts[4][2] = { { 10, 10 }, { 300, 400 }, { 700, 100 }, { g.ResolutionX - 50, g.ResolutionY - 50 } };
+			for (auto &pt : pts) {
+				int wx = dx + (int)(pt[0] * sc + sc / 2), wy = dy + (int)(pt[1] * sc + sc / 2), gx, gy;
+				g.DDraw->WindowToGame(wx, wy, &gx, &gy);
+				printf("script:   game %d,%d is drawn at window %d,%d and maps back to %d,%d (error %d,%d)\n", pt[0], pt[1], wx, wy, gx, gy, gx - pt[0], gy - pt[1]);
+			}
+		}
 		// BC_TEST_PLACE=1: put a building cursor at a fixed mouse position and a real building on the tile a click there would use;
 		// they must coincide on screen
 		if (getenv("BC_TEST_PLACE") && getenv("BC_TEST_SCENE") && frames == 20) {

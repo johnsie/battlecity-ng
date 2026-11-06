@@ -149,6 +149,8 @@ private:
     BCImage *Font;
     SDL_Texture *UpscaleTex;  // canvas enlarged by a whole number (nearest), the first step of the sharp-bilinear upscale
     int upscaleK;
+    SDL_Rect lastDst;         // where the last frame was drawn in the window (output pixels) and at what scale: the mouse mapping inverts exactly this
+    float lastScale;
     SDL_Texture *Canvas;      // the game is drawn here at its own resolution, then scaled to the window in one step
     int canvasW, canvasH;
 

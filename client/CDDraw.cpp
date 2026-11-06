@@ -35,6 +35,8 @@ static bool FxEnabled()
 CDDraw::CDDraw(CGame *game)
 {
     Canvas = NULL;
+    memset(&lastDst, 0, sizeof(lastDst));
+    lastScale = 0;
     UpscaleTex = NULL;
     upscaleK = 0;
     canvasW = canvasH = 0;
@@ -475,6 +477,8 @@ void CDDraw::Flip()
         dst.h = (int)(canvasH * sc + 0.5f);
         dst.x = (ow - dst.w) / 2;
         dst.y = (oh - dst.h) / 2;
+        lastDst = dst;
+        lastScale = sc;
         SDL_RenderSetLogicalSize(Renderer, 0, 0);
         SDL_RenderCopy(Renderer, source, NULL, &dst);
         FlushText(dst, sc);
@@ -835,6 +839,19 @@ void CDDraw::ApplyLogicalSize()
 
 void CDDraw::WindowToGame(int wx, int wy, int *gx, int *gy)
 {
+    // Invert exactly what Flip() did. SDL's own logical-size mapping used to be relied on here, but it only matches when the
+    // frame is scaled by a whole number: at any other scale a click landed up to a hundred game pixels from the pointer.
+    if (Renderer && lastScale > 0) {
+        int ow = 0, oh = 0, ww = 0, wh = 0;
+        SDL_GetRendererOutputSize(Renderer, &ow, &oh);
+        SDL_Window *win = SDL_RenderGetWindow(Renderer);
+        if (win) SDL_GetWindowSize(win, &ww, &wh);
+        float fx = (float)wx, fy = (float)wy;
+        if (ww > 0 && wh > 0) { fx = fx * ow / ww; fy = fy * oh / wh; }   // window units -> output pixels (high-DPI)
+        *gx = (int)floorf((fx - lastDst.x) / lastScale);
+        *gy = (int)floorf((fy - lastDst.y) / lastScale);
+        return;
+    }
     float lx = (float)wx, ly = (float)wy;
     if (Renderer) SDL_RenderWindowToLogical(Renderer, wx, wy, &lx, &ly);
     *gx = (int)lx;
