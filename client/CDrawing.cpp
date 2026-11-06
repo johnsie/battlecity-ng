@@ -2140,45 +2140,91 @@ void CDrawing::DrawItemHint() {
 /***************************************************************
  * Function:	DrawVoiceHud
  *
- * One line under the info text says whether voice chat is on and how to talk, and who is talking is listed below it.
- * (A click on the line opens the voice settings.)
+ * A small button under the info text: a microphone icon and a short label (grey when voice is off, green when it is on,
+ * red while you are transmitting). Pointing at it shows how to use it; a click opens the voice settings. Players who are
+ * talking are listed under it with a speaker icon.
  **************************************************************/
+static void VoiceMicIcon(CDDraw *d, int ix, int iy, int r, int g, int b) {
+	d->DFillRectColor(ix + 4, iy, 4, 1, r, g, b);               // the capsule
+	d->DFillRectColor(ix + 3, iy + 1, 6, 8, r, g, b);
+	d->DFillRectColor(ix + 4, iy + 9, 4, 1, r, g, b);
+	d->DFillRectColor(ix + 1, iy + 6, 1, 4, r, g, b);           // the holder around it
+	d->DFillRectColor(ix + 10, iy + 6, 1, 4, r, g, b);
+	d->DFillRectColor(ix + 2, iy + 10, 1, 1, r, g, b);
+	d->DFillRectColor(ix + 9, iy + 10, 1, 1, r, g, b);
+	d->DFillRectColor(ix + 3, iy + 11, 6, 1, r, g, b);
+	d->DFillRectColor(ix + 5, iy + 12, 2, 2, r, g, b);          // the stem and base
+	d->DFillRectColor(ix + 3, iy + 14, 6, 1, r, g, b);
+}
+
+static void VoiceSpeakerIcon(CDDraw *d, int x, int y, int r, int g, int b) {
+	d->DFillRectColor(x, y + 3, 3, 4, r, g, b);
+	d->DFillRectColor(x + 3, y + 2, 1, 6, r, g, b);
+	d->DFillRectColor(x + 4, y + 1, 1, 8, r, g, b);
+	d->DFillRectColor(x + 6, y + 3, 1, 4, r, g, b);             // sound waves
+	d->DFillRectColor(x + 8, y + 2, 1, 6, r, g, b);
+}
+
 void CDrawing::DrawVoiceHud() {
 	CVoice *v = p->Voice;
 	if (!v || !v->serverEnabled) return;
-	const int x = 4, y = 64;
-	string line;
-	COLORREF color;
+	CDDraw *d = p->DDraw;
+	const int x = 4, y = 62, w = 92, h = 22;
+	bool talking = v->on && v->Transmitting();
+	int pulse = (int)(p->Tick / 250) & 1;
+	int br, bg, bb, ir, ig, ib;        // background and icon colours
+	string label;
 	if (!v->on) {
-		line = "Voice off: press V to turn it on";
-		color = RGB(150,150,150);
-	} else if (v->Transmitting()) {
-		line = "TRANSMITTING";
-		color = RGB(255,90,90);
+		br = 30; bg = 34; bb = 44; ir = 160; ig = 165; ib = 175; label = "Voice";
+	} else if (talking) {
+		br = pulse ? 150 : 120; bg = 20; bb = 28; ir = 255; ig = 235; ib = 235; label = "Talking";
 	} else if (!v->status.empty()) {
-		line = v->status;
-		color = COLOR_YELLOW;
-	} else if (v->mode == 0) {
-		line = "Voice on: hold ` to talk (" + string(CVoice::ScopeName(v->scope)) + ")";
-		color = RGB(120,255,140);
+		br = 90; bg = 70; bb = 10; ir = 255; ig = 220; ib = 90; label = "Mic?";
 	} else {
-		line = "Voice on: open mic (" + string(CVoice::ScopeName(v->scope)) + ")";
-		color = RGB(120,255,140);
+		br = 16; bg = 78; bb = 44; ir = 150; ig = 255; ib = 170; label = (v->mode == 0) ? "Hold `" : "Voice on";
 	}
-	p->DDraw->DFillRectAlpha(0, y - 1, p->DDraw->MeasureText(line) + 10, 17, 0, 0, 0, 130);     // (readable over any ground)
-	p->DDraw->DTextOut(x, y, line, color);
-	int row = 1;
-	if (v->on && v->Level() > 0.002f) {
-		int w = (int)(v->Level() * 600.0f);
-		if (w > 100) w = 100;
-		p->DDraw->DFillRectColor(x, y + 16, w < 2 ? 2 : w, 3, v->Transmitting() ? 255 : 90, v->Transmitting() ? 90 : 160, 90);
+	// the button: a pill (corners cut), a lighter edge and the icon
+	d->DFillRectAlpha(x + 2, y, w - 4, h, br, bg, bb, 210);
+	d->DFillRectAlpha(x, y + 2, w, h - 4, br, bg, bb, 210);
+	d->DFillRectAlpha(x + 1, y + 1, w - 2, h - 2, br, bg, bb, 210);
+	d->DFillRectAlpha(x + 2, y, w - 4, 1, ir, ig, ib, 150);
+	d->DFillRectAlpha(x + 2, y + h - 1, w - 4, 1, ir, ig, ib, 150);
+	d->DFillRectAlpha(x, y + 2, 1, h - 4, ir, ig, ib, 150);
+	d->DFillRectAlpha(x + w - 1, y + 2, 1, h - 4, ir, ig, ib, 150);
+	VoiceMicIcon(d, x + 8, y + 3, ir, ig, ib);
+	if (!v->on) {
+		for (int k = 0; k < 14; k++) d->DFillRectColor(x + 7 + k, y + 18 - k, 2, 2, 235, 70, 70);    // a slash through it
+	}
+	d->DTextOut(x + 26, y + 3, label, COLOR_WHITE);
+	if (v->on && v->mode == 1 && !talking) {
+		int lw = (int)(v->Level() * 500.0f);                    // open mic: how loud you are, against the level that opens it
+		if (lw > 60) lw = 60;
+		if (lw > 1) d->DFillRectColor(x + 26, y + h - 4, lw, 2, 120, 255, 150);
+	}
+
+	// pointing at it says what it does; a mic problem is always shown
+	int mx = p->Input->LastMouseX, my = p->Input->LastMouseY;
+	bool hover = mx >= x && mx < x + w && my >= y && my < y + h;
+	string tip;
+	if (!v->status.empty()) tip = v->status;
+	else if (hover) {
+		if (!v->on) tip = "Voice chat is off. Click for settings, or press V to turn it on.";
+		else if (v->mode == 0) tip = "Hold ` to talk to " + string(CVoice::ScopeName(v->scope)) + ". Click for settings, V turns it off.";
+		else tip = "Open mic: you are heard when you speak (" + string(CVoice::ScopeName(v->scope)) + "). Click for settings, V turns it off.";
+	}
+	int row = 0;
+	if (!tip.empty()) {
+		d->DFillRectAlpha(0, y + h + 3, d->MeasureText(tip) + 10, 17, 0, 0, 0, 150);
+		d->DTextOut(4, y + h + 4, tip, v->status.empty() ? COLOR_WHITE : COLOR_YELLOW);
 		row = 1;
 	}
 	for (int i = 0; i < MAX_PLAYERS && row < 6; i++) {
 		if (!v->Speaking(i)) continue;
-		string who = ">> " + p->Player[i]->Name;
-		p->DDraw->DFillRectAlpha(0, y + 5 + 16 * row, p->DDraw->MeasureText(who) + 10, 16, 0, 0, 0, 130);
-		p->DDraw->DTextOut(x, y + 6 + 16 * row, who, RGB(120,255,140));
+		string who = p->Player[i]->Name;
+		int ry = y + h + 4 + 18 * row;
+		d->DFillRectAlpha(0, ry - 1, d->MeasureText(who) + 28, 17, 0, 0, 0, 150);
+		VoiceSpeakerIcon(d, 4, ry + 2, 120, 255, 140);
+		d->DTextOut(18, ry, who, RGB(150,255,170));
 		row++;
 	}
 }

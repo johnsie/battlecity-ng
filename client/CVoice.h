@@ -26,7 +26,7 @@ class CVoice {
 
 		// settings (kept on this device)
 		bool on;                    // voice chat on
-		int mode;                   // 0 push to talk, 1 open mic
+		int mode;                   // 0 push to talk, 1 open mic (the default)
 		int scope;                  // 0 everyone, 1 my city, 2 nearby
 		int sensitivity;            // open mic: 0 low, 1 medium, 2 high
 		int volume;                 // index into the volume table

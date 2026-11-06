@@ -5,9 +5,9 @@ Players can talk to each other. It is **off until a player turns it on**, and tu
 Voice goes through the game server, over the connection the game already has: no extra server, no open ports, and players never connect to each other (nobody sees another player's address). It was modelled on the voice chat in Jimmy's Flying Circus.
 
 ## For players
-- **V** turns voice on and off while you play. The line under the info text at the top left shows the state ("Voice on: hold ` to talk (Everyone)"), and who is talking is listed under it (">> Name"). **Click that line** to open the settings.
+- **V** turns voice on and off while you play. The **Voice button** under the info text at the top left shows the state: a microphone icon, grey when voice is off, green when it is on, red while you are transmitting. Point at it for a hint; who is talking is listed under it with a speaker icon. **Click it** to open the settings.
 - **Settings** are in **Options > Voice chat...** (or by clicking the voice line). They are kept on your device:
-  - **When you talk:** *Push to talk* (hold the **`** key, the one left of 1) or *Open mic* (you are heard when you speak, with a sensitivity setting).
+  - **When you talk:** *Open mic* (the default: you are heard when you speak, with a sensitivity setting) or *Push to talk* (hold the **`** key, the one left of 1).
   - **Who hears you:** *Everyone* (the default, so two players who both turn voice on always hear each other), *My city only* or *Players nearby only* (about 37 tiles). Two players hear each other only if each one's choice includes the other, so someone on "My city only" is never heard by another city.
   - **Volume**, **Mute everyone**, and for any player in the list: **Mute / unmute** (this session), **Block** (remembered by name) and **Report** (written to `voice-reports.log` on the server).
 - If the microphone is refused you can still listen. Use headphones to avoid echo.

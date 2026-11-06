@@ -48,7 +48,7 @@ static void CaptureThunk(void *userdata, Uint8 *stream, int len) {
 
 CVoice::CVoice(CGame *game) {
 	p = game;
-	on = false; mode = 0; scope = 0; sensitivity = 1; volume = 3; muteAll = false;
+	on = false; mode = 1; scope = 0; sensitivity = 1; volume = 3; muteAll = false;
 	serverEnabled = false;
 	capture = 0; openedAt = 0; lastFrameAt = 0; capturedAny = false; wasInGame = false;
 	sentScope = -1; sentOn = false;
@@ -143,7 +143,7 @@ void CVoice::Toggle() {
 	}
 	SetOn(!on);
 	if (on) {
-		p->InGame->AppendChat(mode == 0 ? "Voice chat on. Hold ` (the key left of 1) to talk. Press V to turn it off." : "Voice chat on (open mic). Press V to turn it off.", COLOR_SYSTEM);
+		p->InGame->AppendChat(mode == 0 ? "Voice chat on. Hold ` (the key left of 1) to talk. Press V to turn it off." : "Voice chat on: you are heard when you speak. Click the Voice button for settings, V turns it off.", COLOR_SYSTEM);
 	} else {
 		p->InGame->AppendChat("Voice chat off.", COLOR_SYSTEM);
 	}
