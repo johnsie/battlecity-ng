@@ -378,6 +378,9 @@ int CProcess::ProcessData(char *TheData) {
 		case smWaypoints:
 			this->p->Draw->SetWaypoints(&TheData[1], this->LastPayloadLength);
 			break;
+		case smLeaderboard:
+			this->p->Draw->SetLeaderboard(&TheData[1], this->LastPayloadLength);
+			break;
 		case smVoiceState:
 			this->p->Voice->OnState(&TheData[1], this->LastPayloadLength);
 			break;

@@ -77,6 +77,12 @@ struct Progress {
 	int botPoints;     // points earned from bots today (capped)
 };
 
+struct Streak {
+	int lastDay;       // day number of the last day the player logged in
+	int count;         // consecutive days including lastDay
+	int best;          // longest streak so far
+};
+
 class CBotManager {
 
 	public:
@@ -123,6 +129,11 @@ class CBotManager {
 		std::map<std::string, Progress> progress;
 		std::map<std::string, int> trialBest;     // milliseconds
 		std::map<std::string, int> rangeBest;     // milliseconds
+		std::map<std::string, Streak> streaks;    // daily login streaks (registered players only)
+		std::map<std::string, int> weekScore;     // this week's solo score per player
+		int boardWeek;                            // the leaderboard week weekScore belongs to (weeks start on Monday, UTC)
+		int lastWinnerWeek, lastWinnerScore;      // the previous week's winner
+		std::string lastWinnerName;
 		std::string lastOnlineName;
 		long lastOnlineTime;
 		std::vector<Sample> ghostPath;
@@ -210,7 +221,15 @@ class CBotManager {
 		void GiveBotPoints(int idx, int pts);
 		void GivePoints(const std::string &name, int pts);
 		Progress &ProgressFor(int idx);
-		void Discord(const std::string &text);
+		void Discord(const std::string &text, bool force = false);
+		void AddScore(const std::string &name, int n);          // weekly leaderboard score (registered players who are online)
+		void LoginStreak(int idx);                              // first sighting of a player this session: streak and its reward
+		void RollBoard();                                       // a new week has begun: announce the winner and start over
+		void TellBoard(int idx);
+		void SendBoards(float now);                              // smLeaderboard to every human, every few seconds
+		float nextBoard;
+		std::string BoardText(int count, const char *eol);
+		static int BoardWeekOf(long t);
 		std::string DailyText(int idx);
 
 		// Files

@@ -398,6 +398,11 @@ int main(int argc, char *argv[]) {
 			g.State = STATE_GAME;
 			g.Draw->ApplyResolution(); g.Draw->resetPlayerOffset();
 		}
+		// the weekly leaderboard block under the side panel gets sample text (what smLeaderboard would carry)
+		if (getenv("BC_TEST_SCENE") && frames > 5) {
+			static const char sample[] = "WEEKLY TOP\n1. nightowl 142\n2. redbaron 117\n3. skye 96\n4. tankgirl 71\n5. boltz 58\nYou: #7 34\nStreak: 4 days";
+			game.Draw->SetLeaderboard(sample, (int)sizeof(sample) - 1);
+		}
 		if (getenv("BC_TEST_SCENE") && frames > 5) { BCDialogsCloseActive(); game.State = STATE_GAME; if (getenv("BC_TEST_DRIVE")) { game.Player[0]->X -= 5.0f; game.Player[0]->Y += 2.0f; } }
 		// BC_TEST_MAP=1: the mouse mapping must invert how the frame is scaled to the window
 		if (getenv("BC_TEST_MAP") && frames == 20) {

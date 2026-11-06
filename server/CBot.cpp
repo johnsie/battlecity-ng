@@ -66,6 +66,13 @@ static std::string Lower(const std::string &s) {
 	return r;
 }
 
+/// Name as stored in the state file: lower case and no spaces (the file is whitespace separated)
+static std::string Key(const std::string &s) {
+	std::string r = Lower(s);
+	for (size_t i = 0; i < r.size(); i++) if (r[i] == ' ') r[i] = '_';
+	return r;
+}
+
 CBotManager::CBotManager(CServer *Server) {
 	p = Server;
 	enabled = true;
@@ -81,6 +88,9 @@ CBotManager::CBotManager(CServer *Server) {
 	dirty = false;
 	lastOnlineTime = 0;
 	ghostPoints = 0;
+	boardWeek = 0;
+	nextBoard = 0;
+	lastWinnerWeek = lastWinnerScore = 0;
 	for (int i = 0; i < 24; i++) { bots[i].used = false; }
 	raid = Raid();         // value-initialised (these hold std::set: never memset them)
 	mission = Mission();
@@ -325,6 +335,9 @@ std::string CBotManager::RecentEvents() {
 	std::string s = "\r\n\r\nRecent events\r\n";
 	if (events.empty()) s += "  (none yet: come and make some)\r\n";
 	for (int i = (int)events.size() - 1; i >= 0; i--) s += "  " + events[i] + "\r\n";
+	std::string board = BoardText(3, "\r\n");
+	if (!board.empty()) s += "\r\nWeekly leaderboard (solo score)\r\n" + board;
+	if (!lastWinnerName.empty()) s += "  Last week's winner: " + lastWinnerName + " (" + Num(lastWinnerScore) + ")\r\n";
 	if (!lastOnlineName.empty() && lastOnlineTime > 0) {
 		time_t t = (time_t)lastOnlineTime;
 		struct tm *tmv = gmtime(&t);
@@ -352,6 +365,10 @@ void CBotManager::Load() {
 		}
 		else if (kind == "trial") { std::string n; int ms; ls >> n >> ms; if (!n.empty()) trialBest[n] = ms; }
 		else if (kind == "range") { std::string n; int ms; ls >> n >> ms; if (!n.empty()) rangeBest[n] = ms; }
+		else if (kind == "streak") { std::string n; Streak s; ls >> n >> s.lastDay >> s.count >> s.best; if (!n.empty()) streaks[n] = s; }
+		else if (kind == "score") { std::string n; int v; ls >> n >> v; if (!n.empty() && v > 0) weekScore[n] = v; }
+		else if (kind == "board") { ls >> boardWeek; }
+		else if (kind == "winner") { ls >> lastWinnerWeek >> lastWinnerScore >> lastWinnerName; }
 		else if (kind == "online") { ls >> lastOnlineTime >> lastOnlineName; }
 		else if (kind == "event") { std::string rest; std::getline(ls, rest); if (!rest.empty() && rest[0] == ' ') rest.erase(0, 1); events.push_back(rest); }
 	}
@@ -368,6 +385,10 @@ void CBotManager::Save() {
 	}
 	for (std::map<std::string, int>::iterator it = trialBest.begin(); it != trialBest.end(); ++it) out << "trial " << it->first << " " << it->second << "\n";
 	for (std::map<std::string, int>::iterator it = rangeBest.begin(); it != rangeBest.end(); ++it) out << "range " << it->first << " " << it->second << "\n";
+	for (std::map<std::string, Streak>::iterator it = streaks.begin(); it != streaks.end(); ++it) out << "streak " << it->first << " " << it->second.lastDay << " " << it->second.count << " " << it->second.best << "\n";
+	for (std::map<std::string, int>::iterator it = weekScore.begin(); it != weekScore.end(); ++it) out << "score " << it->first << " " << it->second << "\n";
+	out << "board " << boardWeek << "\n";
+	if (!lastWinnerName.empty()) out << "winner " << lastWinnerWeek << " " << lastWinnerScore << " " << lastWinnerName << "\n";
 	if (!lastOnlineName.empty()) out << "online " << lastOnlineTime << " " << lastOnlineName << "\n";
 	for (size_t i = 0; i < events.size(); i++) out << "event " << events[i] << "\n";
 	dirty = false;
@@ -422,6 +443,139 @@ std::string CBotManager::DailyText(int idx) {
 	std::string s = "Daily: destroy " + Num(dailyGoal) + " raiders: " + Num(g.dailyKills) + "/" + Num(dailyGoal) + (g.dailyDone ? " DONE" : "");
 	s += "   Weekly: destroy 60: " + Num(g.weeklyKills) + "/60" + (g.weeklyDone ? " DONE" : "");
 	return s;
+}
+
+// ---- login streaks and the weekly leaderboard -----------------------------------------------------------------
+
+/// Leaderboard weeks start on Monday 00:00 UTC (the Unix epoch was a Thursday, hence the + 3)
+int CBotManager::BoardWeekOf(long t) {
+	return (int)((t / 86400 + 3) / 7);
+}
+
+void CBotManager::AddScore(const std::string &name, int n) {
+	if (n <= 0) return;
+	const std::string k = Key(name);
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+		if (!IsHuman(i) || Key(p->Player[i]->Name) != k) continue;
+		if (p->Player[i]->guest) return;   // guests leave nothing behind, so they are not ranked
+		if (boardWeek == 0) boardWeek = BoardWeekOf((long)time(NULL));
+		weekScore[k] += n;
+		dirty = true;
+		return;
+	}
+}
+
+std::string CBotManager::BoardText(int count, const char *eol) {
+	std::vector<std::pair<int, std::string> > rows;
+	for (std::map<std::string, int>::iterator it = weekScore.begin(); it != weekScore.end(); ++it) rows.push_back(std::make_pair(-it->second, it->first));
+	std::sort(rows.begin(), rows.end());
+	std::string s;
+	for (int i = 0; i < (int)rows.size() && i < count; i++) s += "  " + Num(i + 1) + ". " + rows[i].second + "  " + Num(-rows[i].first) + eol;
+	return s;
+}
+
+void CBotManager::TellBoard(int idx) {
+	std::string top = BoardText(5, "\n");
+	Tell(idx, "Weekly leaderboard (solo score, resets Monday 00:00 UTC):");
+	if (top.empty()) Tell(idx, "  Nobody has scored yet this week: kill raiders, finish missions and trials to get on it.");
+	std::istringstream ls(top);
+	std::string line;
+	while (std::getline(ls, line)) Tell(idx, line);
+	const std::string k = Key(p->Player[idx]->Name);
+	if (p->Player[idx]->guest) Tell(idx, "Guests are not ranked: log in with an account to take part.");
+	else if (weekScore.count(k)) {
+		int rank = 1;
+		for (std::map<std::string, int>::iterator it = weekScore.begin(); it != weekScore.end(); ++it) if (it->second > weekScore[k]) rank++;
+		Tell(idx, "You: #" + Num(rank) + " with " + Num(weekScore[k]) + " points.");
+	}
+	else Tell(idx, "You have no score yet this week.");
+	if (!lastWinnerName.empty()) Tell(idx, "Last week's winner: " + lastWinnerName + " with " + Num(lastWinnerScore) + ".");
+}
+
+/// Called every manage tick: when the week changes, the leader of the finished week is announced and the board starts over
+void CBotManager::RollBoard() {
+	int week = BoardWeekOf((long)time(NULL));
+	if (boardWeek == week) return;
+	if (boardWeek != 0 && !weekScore.empty()) {
+		std::string best; int bestScore = 0;
+		for (std::map<std::string, int>::iterator it = weekScore.begin(); it != weekScore.end(); ++it) {
+			if (it->second > bestScore) { best = it->first; bestScore = it->second; }
+		}
+		if (!best.empty()) {
+			lastWinnerName = best; lastWinnerScore = bestScore; lastWinnerWeek = boardWeek;
+			Event("Weekly leaderboard won by " + best + " with " + Num(bestScore));
+			for (int i = 0; i < MAX_PLAYERS; i++) {
+				if (IsHuman(i) && Key(p->Player[i]->Name) == best) {
+					p->Account->AddPoints(i, 25);
+					Tell(i, "You won last week's leaderboard with " + Num(bestScore) + "! +25 points.");
+				}
+			}
+			TellAll("Last week's leaderboard was won by " + best + " with " + Num(bestScore) + " points. A new week begins: /top");
+			// the winner is a registered player name (letters, digits, underscore), safe to put in the JSON body
+			std::string safe;
+			for (size_t i = 0; i < best.size(); i++) if (isalnum((unsigned char)best[i]) || best[i] == '_' || best[i] == '-') safe += best[i];
+			Discord("Battle City weekly leaderboard won by " + safe + " with " + Num(bestScore) + " points. A new week starts now: bc.outiva.com", true);
+		}
+	}
+	weekScore.clear();
+	boardWeek = week;
+	dirty = true;
+}
+
+/// The first time a registered player is seen this session: count the day in their streak and pay the reward
+void CBotManager::LoginStreak(int idx) {
+	if (p->Player[idx]->guest) return;
+	const std::string k = Key(p->Player[idx]->Name);
+	int day = (int)((long)time(NULL) / 86400);
+	std::map<std::string, Streak>::iterator it = streaks.find(k);
+	if (it == streaks.end()) {
+		Streak s; s.lastDay = 0; s.count = 0; s.best = 0;
+		it = streaks.insert(std::make_pair(k, s)).first;
+	}
+	Streak &s = it->second;
+	if (s.lastDay == day) {
+		Tell(idx, "Login streak: " + Num(s.count) + " days (best " + Num(s.best) + "). Come back tomorrow to keep it going.");
+		return;
+	}
+	s.count = (s.lastDay == day - 1) ? s.count + 1 : 1;
+	s.lastDay = day;
+	if (s.count > s.best) s.best = s.count;
+	int pts = std::min(s.count, 7);
+	if (s.count % 7 == 0) pts += 10;
+	p->Account->AddPoints(idx, pts);
+	AddScore(p->Player[idx]->Name, 2);
+	dirty = true;
+	if (s.count == 1) Tell(idx, "Daily login: +" + Num(pts) + " point. Come back tomorrow to start a streak (more points each day, up to 7, and a bonus every 7th day).");
+	else Tell(idx, "Login streak: day " + Num(s.count) + "! +" + Num(pts) + " points" + (s.count % 7 == 0 ? " (weekly streak bonus)" : "") + ". Keep it going tomorrow.");
+	if (s.count == 7 || s.count == 30 || s.count == 100) Event(p->Player[idx]->Name + " has logged in " + Num(s.count) + " days in a row");
+}
+
+/// The panel at the bottom right of the client shows these lines: the week's top five, then this player's own standing
+void CBotManager::SendBoards(float now) {
+	if (now < nextBoard) return;
+	nextBoard = now + 5000.0f;
+	std::vector<std::pair<int, std::string> > rows;
+	for (std::map<std::string, int>::iterator it = weekScore.begin(); it != weekScore.end(); ++it) rows.push_back(std::make_pair(-it->second, it->first));
+	std::sort(rows.begin(), rows.end());
+	for (int i = 0; i < MAX_PLAYERS; i++) {
+		if (!IsHuman(i)) continue;
+		std::string text = "WEEKLY TOP";
+		for (int r = 0; r < (int)rows.size() && r < 5; r++) text += "\n" + Num(r + 1) + ". " + rows[r].second.substr(0, 14) + " " + Num(-rows[r].first);
+		if (rows.empty()) text += "\nNo scores yet";
+		const std::string k = Key(p->Player[i]->Name);
+		if (p->Player[i]->guest) text += "\nGuests are not ranked";
+		else {
+			int mine = weekScore.count(k) ? weekScore[k] : 0, rank = 1;
+			for (size_t r = 0; r < rows.size(); r++) if (-rows[r].first > mine) rank++;
+			text += mine > 0 ? "\nYou: #" + Num(rank) + " " + Num(mine) : std::string("\nYou: no score yet");
+			std::map<std::string, Streak>::iterator st = streaks.find(k);
+			if (st != streaks.end() && st->second.count > 1 && st->second.lastDay >= (int)((long)time(NULL) / 86400) - 1) text += "\nStreak: " + Num(st->second.count) + " days";
+		}
+		char buf[255];
+		int len = (int)std::min<size_t>(text.size(), 250);
+		memcpy(buf, text.data(), len);
+		p->Winsock->SendData(i, smLeaderboard, buf, len);
+	}
 }
 
 void CBotManager::GiveBotPoints(int idx, int pts) {
@@ -672,6 +826,7 @@ void CBotManager::AwardKill(BotInfo &b, int killer) {
 		return;
 	}
 
+	if (b.tier == BOT_SCOUT || b.tier == BOT_HEAVY || b.tier == BOT_BOSS) AddScore(name, Points(b));
 	if (b.tier != BOT_BOSS) GiveBotPoints(killer, Points(b));   // the boss pays through the shared bounty below
 
 	if (b.tier == BOT_SCOUT || b.tier == BOT_HEAVY || b.tier == BOT_BOSS) {
@@ -683,12 +838,14 @@ void CBotManager::AwardKill(BotInfo &b, int killer) {
 		if (!g.dailyDone && g.dailyKills >= dailyGoal) {
 			g.dailyDone = true;
 			p->Account->AddPoints(killer, 8);
+			AddScore(name, 5);
 			Tell(killer, "Daily challenge complete! +8 points. Come back tomorrow for a new one.");
 			Event(p->Player[killer]->Name + " completed the daily challenge");
 		}
 		if (!g.weeklyDone && g.weeklyKills >= 60) {
 			g.weeklyDone = true;
 			p->Account->AddPoints(killer, 40);
+			AddScore(name, 20);
 			Tell(killer, "WEEKLY challenge complete! +40 points.");
 			Event(p->Player[killer]->Name + " completed the weekly challenge");
 		}
@@ -702,7 +859,7 @@ void CBotManager::AwardKill(BotInfo &b, int killer) {
 	if (b.tier == BOT_BOSS) {
 		// shared bounty: everyone who hurt it gets paid, and a supply drop lands where it fell
 		for (std::map<std::string, int>::iterator it = b.damageBy.begin(); it != b.damageBy.end(); ++it) {
-			if (it->first != name && it->second >= 10) GivePoints(it->first, 6);
+			if (it->first != name && it->second >= 10) { GivePoints(it->first, 6); AddScore(it->first, 5); }
 		}
 		p->Account->AddPoints(killer, 10);
 		TellAll("The Warlord has been destroyed by " + p->Player[killer]->Name + "! Everyone who hit it earns the bounty.");
@@ -947,6 +1104,7 @@ void CBotManager::Cycle() {
 
 void CBotManager::Manage(float now) {
 	int humans = CountHumans();
+	RollBoard();
 
 	// Nobody here: nothing to entertain. Take everything down so an empty server stays idle.
 	if (humans == 0) {
@@ -977,6 +1135,7 @@ void CBotManager::Manage(float now) {
 	ManageBounty(now, humans);
 	ManageDrops(now, humans);
 	ManageGhost(now, humans);
+	SendBoards(now);
 
 	// range and trial timeouts
 	for (int i = 0; i < MAX_PLAYERS; i++) {
@@ -1085,7 +1244,7 @@ void CBotManager::EndRaid(bool success) {
 	int city = raid.city;
 	std::string town = (p->City[city]->Mayor >= 0 && p->City[city]->Mayor < MAX_PLAYERS) ? p->Player[p->City[city]->Mayor]->Town : "the city";
 	if (success) {
-		for (std::set<std::string>::iterator it = raid.killers.begin(); it != raid.killers.end(); ++it) GivePoints(*it, 3);
+		for (std::set<std::string>::iterator it = raid.killers.begin(); it != raid.killers.end(); ++it) { GivePoints(*it, 3); AddScore(*it, 5); }
 		TellAll("The raid on " + town + " was repelled. Defenders earn 3 points.");
 		Event("Raid on " + town + " repelled");
 	}
@@ -1142,7 +1301,7 @@ void CBotManager::EndMission(bool success) {
 	if (!mission.active) return;
 	mission.active = false;
 	if (success) {
-		for (std::set<std::string>::iterator it = mission.participants.begin(); it != mission.participants.end(); ++it) GivePoints(*it, 5);
+		for (std::set<std::string>::iterator it = mission.participants.begin(); it != mission.participants.end(); ++it) { GivePoints(*it, 5); AddScore(*it, 10); }
 		TellAll("MISSION COMPLETE! " + Num((long)mission.participants.size()) + " player(s) earned 5 points.");
 		Event("Mission completed with " + Num((long)mission.participants.size()) + " player(s)");
 	}
@@ -1383,7 +1542,7 @@ void CBotManager::TrialProgress(int idx) {
 	std::string n = Lower(p->Player[idx]->Name);
 	bool record = !trialBest.count(n) || ms < trialBest[n];
 	std::string line = p->Player[idx]->Name + " finished the trial in " + Num(ms / 1000) + "." + Num((ms % 1000) / 100) + " s";
-	if (record) { trialBest[n] = ms; dirty = true; line += " (personal best)"; }
+	if (record) { trialBest[n] = ms; dirty = true; line += " (personal best)"; AddScore(n, 5); }
 	TellAll(line);
 	Event(line);
 }
@@ -1400,7 +1559,7 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 	arg = Lower(arg);
 
 	if (cmd == "help" || cmd == "solo") {
-		Tell(idx, "Solo play commands: /where  /bots  /challenge  /mission  /range  /trial  /ghost  /events");
+		Tell(idx, "Solo play commands: /where  /bots  /challenge  /mission  /range  /trial  /ghost  /events  /top  /streak");
 		Tell(idx, "Raiders, a bounty Warlord, supply crates and missions appear while you play. Kill raiders for points (capped daily).");
 		return true;
 	}
@@ -1413,6 +1572,11 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 	}
 	if (cmd == "challenge" || cmd == "challenges") {
 		Tell(idx, DailyText(idx));
+		return true;
+	}
+	if (cmd == "top" || cmd == "leaderboard" || cmd == "board") { TellBoard(idx); return true; }
+	if (cmd == "streak") {
+		LoginStreak(idx);
 		return true;
 	}
 	if (cmd == "mission") {
@@ -1458,11 +1622,11 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 
 // ---- player hooks ----------------------------------------------------------------------------------------------------
 
-void CBotManager::Discord(const std::string &text) {
+void CBotManager::Discord(const std::string &text, bool force) {
 #ifndef WIN32
 	if (webhook.empty()) return;
 	if (webhook.compare(0, 8, "https://") != 0) return;
-	if (Now() - lastWebhook < 1800000.0f) return;
+	if (!force && Now() - lastWebhook < 1800000.0f) return;
 	lastWebhook = Now();
 	// fork/exec (never a shell) so nothing in the text or URL can run as a command; the name was already reduced to safe characters
 	std::string body = "{\"content\":\"" + text + "\"}";
@@ -1475,7 +1639,7 @@ void CBotManager::Discord(const std::string &text) {
 		signal(SIGCHLD, SIG_IGN);   // no zombies
 	}
 #else
-	(void)text;
+	(void)text; (void)force;
 #endif
 }
 
@@ -1520,7 +1684,8 @@ void CBotManager::HumanUpdated(int idx) {
 	float now = Now();
 	if (!greeted.count(idx)) {
 		greeted.insert(idx);
-		Tell(idx, "Quiet server? Type /help for solo play: raiders, bounties, missions, a range and a time trial.");
+		Tell(idx, "Quiet server? Type /help for solo play: raiders, bounties, missions, a range and a time trial. /top shows the weekly leaderboard.");
+		LoginStreak(idx);
 	}
 	if (trial[idx].active) TrialProgress(idx);
 	if (now >= recordNext[idx]) {

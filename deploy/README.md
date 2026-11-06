@@ -19,6 +19,13 @@ Backups of the database: `/var/lib/battlecity/backups` (at most one per hour, ne
 
 After changing `battlecity.service`, re-run `sudo ./deploy/setup.sh` on the host (it is safe to repeat).
 
+## Per-host settings and secrets
+Settings that must not be in the repository (the Discord webhook URL, `BC_BOTS`, ...) live in `/etc/battlecity/server.env`, which the service reads. Set one with
+
+    sudo ./deploy/set-server-env.sh BC_DISCORD_WEBHOOK 'https://discord.com/api/webhooks/...'
+
+It restarts the service. The Discord hook posts a short message when the first player comes online (at most once every 30 minutes).
+
 ## Useful commands
     systemctl status battlecity
     journalctl -u battlecity -f

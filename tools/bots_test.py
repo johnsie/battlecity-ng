@@ -54,6 +54,7 @@ class Player:
         self.shots = []          # (slot, x, y, dir, type)
         self.deaths = []         # slot
         self.chat = []           # global messages (sender slot, text)
+        self.board = []          # smLeaderboard texts
         self.points = {}         # slot -> points (smPointsUpdate)
         self.joined = set()
         self.hire = False
@@ -81,6 +82,8 @@ class Player:
         name = SM_BY_ID.get(pid)
         if name == "smStateGame" and len(data) >= 4:
             self.x, self.y = struct.unpack("<HH", data[:4])
+        elif name == "smLeaderboard":
+            self.board.append(data.decode(errors="replace"))
         elif name == "smMayorHire":
             self.hire = True
         elif name == "smPlayerData" and len(data) >= 33:
@@ -198,14 +201,18 @@ def main():
 
     # chat commands
     a.chat.clear()
-    for cmd in ("/help", "/bots", "/challenge", "/mission", "/events"):
+    for cmd in ("/help", "/bots", "/challenge", "/mission", "/events", "/top", "/streak"):
         a.say(cmd)
         time.sleep(0.15)
         a.pump()
     a.wait(lambda: len(a.chat) >= 6, 2)
     texts = [t for _, t in a.chat]
-    check(any("Solo play commands" in t for t in texts) and any(t.startswith("Bots:") for t in texts) and any(t.startswith("Daily:") for t in texts),
+    check(any("Solo play commands" in t for t in texts) and any(t.startswith("Bots:") for t in texts) and any(t.startswith("Daily:") for t in texts)
+          and any(t.startswith("Weekly leaderboard") for t in texts) and any("treak" in t or "Guests" in t or "Daily login" in t for t in texts),
           "commands were answered (%d replies)" % len(texts), "missing replies: %s" % texts)
+
+    a.wait(lambda: a.board, 7)
+    check(a.board and a.board[-1].startswith("WEEKLY TOP"), "the panel leaderboard was sent: %r" % (a.board[-1] if a.board else ""), "no smLeaderboard within 7 s")
 
     # range: drive up to a target and shoot it
     a.chat.clear()

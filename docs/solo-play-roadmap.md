@@ -15,6 +15,7 @@ Every feature runs in the server (new module `server/CBot.cpp`) unless a client 
 | 7 | A world that feels lived in | Recent events (raids, boss kills, records, last player online) are shown in the news on the login screen; a "ghost" tank replays the best recent run. | server | done |
 | 8 | Community hooks | When the first player comes online, a Discord webhook (`BC_DISCORD_WEBHOOK`) posts a short message so others can join. Rate limited, off unless configured. | server | done |
 | 9 | Co-op against the environment | Server-wide missions: Raider Sweep (destroy N raiders in time), Boss Hunt, and Hold the Zone (a capture point defended against waves). Everyone who took part shares the reward. | server | done |
+| 10 | Login streak and weekly leaderboard | Logging in on consecutive days pays 1 point on day 1 rising to 7, plus 10 every 7th day (`/streak`). Raider and boss kills, challenges, raids, missions and personal-best trials add to a weekly solo score; `/top` shows the top 5 and your rank, the top 3 are in the login news. On Monday 00:00 UTC the winner gets 25 points, an event, a chat line and a Discord post (not rate limited). Guests are not ranked and get no streak. The top 5 and your standing are also shown in the grey block under the side panel (bottom right; windows taller than 600 px) via `smLeaderboard`. | server and client | done |
 
 ## Rules the bots follow
 

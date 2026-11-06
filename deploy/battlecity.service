@@ -9,6 +9,8 @@ Group=battlecity
 WorkingDirectory=/var/lib/battlecity
 Environment=BC_PORT=9680
 Environment=BC_STATUS_PORT=9682
+# Secrets and per-host settings (for example BC_DISCORD_WEBHOOK=...): see deploy/set-server-env.sh. Optional file.
+EnvironmentFile=-/etc/battlecity/server.env
 UMask=0027
 ExecStartPre=/opt/battlecity/current/prestart.sh
 ExecStart=/opt/battlecity/current/bc-server

@@ -52,6 +52,9 @@ class CDrawing {
         struct WaypointItem { int type; int x, y; };
         WaypointItem Waypoint[8];
         int WaypointCount;
+        void SetLeaderboard(const char *data, int length);   // smLeaderboard: lines for the block below the side panel
+        vector<string> BoardLine;
+        unsigned long BoardTime;
         unsigned long WaypointTime;
         void DrawBuildPlacement();
         void DrawArrow();

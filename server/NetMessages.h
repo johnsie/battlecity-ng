@@ -94,7 +94,8 @@ enum ServerMessages {
     smStartingCity,
     smVoice,            // somebody's voice: [speaker slot][seq 2][ADPCM predictor 2][step index 1][audio]
     smVoiceState,     // voice chat on this server: [enabled][on][scope]
-    smWaypoints       // important places for this player: [count] then per place [type][x 2][y 2], x and y in map pixels
+    smWaypoints,      // important places for this player: [count] then per place [type][x 2][y 2], x and y in map pixels
+    smLeaderboard     // weekly solo leaderboard for the panel: text lines separated by \n (header first), at most 250 bytes
 };
 
 struct sSMUpdate

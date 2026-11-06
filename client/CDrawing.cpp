@@ -184,6 +184,7 @@ void CDrawing::ClearDrawing() {
 	BuildMenuY = 0;
 	WaypointCount = 0;
 	WaypointTime = 0;
+	BoardTime = 0;
 	ShowWaypoints = BCLoadText("waypoints") != "0";
 }
 
@@ -337,6 +338,35 @@ void CDrawing::DrawPanel() {
 		p->DDraw->DFillRectColor(MaxMapX + 193, top + 2, 3, h - 2, 120, 120, 120);
 		p->DDraw->DFillRectColor(MaxMapX, p->ResolutionY - 3, 200, 3, 45, 45, 45); // bottom edge
 		p->DDraw->DFillRectColor(MaxMapX + 3, p->ResolutionY - 4, 190, 1, 130, 130, 130);
+
+		// The weekly solo leaderboard (sent by the server every few seconds; dropped if the updates stop)
+		if (!BoardLine.empty() && BCGetTicks() - BoardTime < 20000) {
+			// an inset screen like the radar and message boxes above: dark teal glass in a bevelled frame
+			const int px = MaxMapX + 10, py = top + 8, pw = 178, ph = p->ResolutionY - top - 8 - 12;
+			p->DDraw->DFillRectColor(px, py, pw, ph, 28, 28, 28);                       // frame, shadowed
+			p->DDraw->DFillRectColor(px + 1, py + ph - 1, pw - 1, 1, 225, 225, 225);    // lit lower edge (it is an inset)
+			p->DDraw->DFillRectColor(px + pw - 1, py + 1, 1, ph - 1, 225, 225, 225);
+			p->DDraw->DFillRectColor(px + 2, py + 2, pw - 4, ph - 4, 14, 34, 48);       // screen
+			p->DDraw->DFillRectColor(px + 3, py + 3, pw - 6, 1, 30, 62, 80);            // faint glare along the top
+			int y = py + 9;
+			for (size_t i = 0; i < BoardLine.size() && y + 14 < py + ph - 4; i++, y += 15) {
+				const string &line = BoardLine[i];
+				COLORREF col = RGB(236, 240, 244);
+				if (i == 0) col = RGB(110, 220, 240);                                            // heading
+				else if (line.compare(0, 3, "1. ") == 0) col = RGB(255, 214, 90);               // first place
+				else if (line.compare(0, 4, "You:") == 0) {
+					p->DDraw->DFillRectColor(px + 5, y - 1, pw - 10, 15, 30, 78, 100);         // your row is lit
+					col = RGB(255, 255, 255);
+				}
+				else if (line.compare(0, 7, "Streak:") == 0) col = RGB(255, 160, 70);
+				else if (line.compare(0, 6, "Guests") == 0) col = RGB(170, 190, 200);
+				p->DDraw->DTextOut(px + 10, y, line, col);
+				if (i == 0) {
+					p->DDraw->DFillRectColor(px + 10, y + 18, pw - 20, 1, 44, 100, 122);   // rule, clear of the letters
+					y += 6;
+				}
+			}
+		}
 	}
 
 	//If the player is Mayor,
@@ -2242,6 +2272,19 @@ void CDrawing::DrawVoiceHud() {
  * a mission zone, the latest fight). Anything out of view gets a pointer at the edge of the screen with its distance in
  * tiles; anything in view gets a small label above it. See docs/waypoints.md.
  **************************************************************/
+void CDrawing::SetLeaderboard(const char *data, int length) {
+	if (length < 1) return;
+	BoardLine.clear();
+	string line;
+	for (int i = 0; i < length; i++) {
+		if (data[i] == '\n') { BoardLine.push_back(line); line.clear(); }
+		else if ((unsigned char)data[i] >= 32) line += data[i];
+		if (BoardLine.size() >= 12) break;
+	}
+	if (!line.empty() && BoardLine.size() < 12) BoardLine.push_back(line);
+	BoardTime = BCGetTicks();
+}
+
 void CDrawing::SetWaypoints(const char *data, int length) {
 	if (length < 1) return;
 	int n = (unsigned char)data[0];
