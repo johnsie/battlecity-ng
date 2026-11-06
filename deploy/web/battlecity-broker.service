@@ -9,6 +9,8 @@ Group=battlecity
 Environment=BC_BROKER_PORT=9684
 Environment=BC_TICKET_SECRET_FILE=/etc/battlecity/ticket.secret
 Environment=BC_OUTIVA_AUDIENCE=battlecity-web
+# Keycloak runs on this machine, which cannot look up accounts.outiva.com; the keys are the same whichever address they are fetched from
+Environment=BC_OUTIVA_JWKS_URL=http://127.0.0.1:8180/realms/outiva/protocol/openid-connect/certs
 ExecStart=/usr/bin/python3 /usr/local/lib/battlecity/outiva_broker.py
 Restart=on-failure
 RestartSec=3

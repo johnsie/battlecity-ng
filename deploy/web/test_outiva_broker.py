@@ -99,6 +99,19 @@ class BrokerTest(unittest.TestCase):
         now[0] = 61
         self.assertTrue(limit.allow("a"))
 
+    def test_unreachable_keys_are_reported_not_treated_as_a_bad_token(self):
+        def down():
+            raise OSError("Name or service not known")
+        b = ob.Broker("a-long-enough-secret-value", ISSUER, ["battlecity-web"], ob.Keys("unused", fetch=down))
+        with self.assertRaises(ob.KeysUnavailable):
+            b.verify_id_token(self.token())
+
+    def test_the_encryption_only_key_is_ignored(self):
+        jwk = {"keys": [dict(self.jwk["keys"][0], kid="enc1", use="enc"), dict(self.jwk["keys"][0], use="sig")]}
+        keys = ob.Keys("unused", fetch=lambda: jwk)
+        self.assertIsNone(keys.get("enc1"))
+        self.assertIsNotNone(keys.get("k1"))
+
     def test_unknown_key_ids_trigger_a_refetch_but_not_a_flood(self):
         calls = []
         clock = [1000.0]

@@ -15,7 +15,9 @@ Environment:
     BC_TICKET_SECRET_FILE     file holding the secret shared with the game server (at least 16 characters)
     BC_OUTIVA_ISSUER          default https://accounts.outiva.com/realms/outiva
     BC_OUTIVA_AUDIENCE        the Keycloak client the tokens are for (default battlecity-web, comma separated for more)
-    BC_OUTIVA_JWKS_URL        where the signing keys are (default <issuer>/protocol/openid-connect/certs)
+    BC_OUTIVA_JWKS_URL        where the signing keys are (default <issuer>/protocol/openid-connect/certs). On the Outiva host use Keycloak's
+                              local address, http://127.0.0.1:8180/realms/outiva/protocol/openid-connect/certs: the host cannot look up its
+                              own public name. Tokens are still checked against the public issuer.
 """
 import base64
 import hashlib
@@ -56,6 +58,10 @@ def rsa_pkcs1_sha256_verify(n, e, message, signature):
     return hmac.compare_digest(block, expected)
 
 
+class KeysUnavailable(Exception):
+    """Keycloak's signing keys could not be fetched (the broker cannot tell good tokens from bad, so it answers 503, not 401)."""
+
+
 class Keys:
     """Keycloak's signing keys, fetched when first needed and refreshed every few minutes (or at once when a key id is unknown)."""
 
@@ -75,8 +81,13 @@ class Keys:
         with self.lock:
             stale = self.clock() - self.fetched > JWKS_SECONDS
             if kid not in self.keys and (stale or self.clock() - self.fetched > 30):
+                try:
+                    document = self.fetch()
+                except (OSError, ValueError) as error:   # includes URLError and a reply that is not JSON
+                    self.fetched = self.clock() - JWKS_SECONDS + 10   # try again in ten seconds, not on every request
+                    raise KeysUnavailable(str(error)) from error
                 self.keys = {k["kid"]: (int.from_bytes(b64url_decode(k["n"]), "big"), int.from_bytes(b64url_decode(k["e"]), "big"))
-                             for k in self.fetch().get("keys", []) if k.get("kty") == "RSA" and k.get("kid")}
+                             for k in document.get("keys", []) if k.get("kty") == "RSA" and k.get("kid") and k.get("use") != "enc"}
                 self.fetched = self.clock()
             return self.keys.get(kid)
 
@@ -110,6 +121,8 @@ class Broker:
             if not isinstance(claims.get("sub"), str) or not claims["sub"] or len(claims["sub"]) > 64:
                 return None
             return claims
+        except KeysUnavailable:
+            raise
         except (ValueError, KeyError, TypeError, AttributeError):
             return None
 
@@ -167,7 +180,11 @@ def make_handler(broker, limiter):
                 token = json.loads(self.rfile.read(length)).get("id_token")
             except (ValueError, AttributeError):
                 return self._send(400, {"error": "bad request"})
-            claims = broker.verify_id_token(token) if isinstance(token, str) else None
+            try:
+                claims = broker.verify_id_token(token) if isinstance(token, str) else None
+            except KeysUnavailable as error:
+                print("outiva-broker: cannot fetch Outiva's signing keys: %s" % error, flush=True)
+                return self._send(503, {"error": "Outiva sign-in is not available right now"})
             if claims is None:
                 return self._send(401, {"error": "that Outiva sign-in was not accepted"})
             ticket, callsign = broker.ticket_for(claims)
