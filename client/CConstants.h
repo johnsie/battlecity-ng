@@ -42,6 +42,7 @@ static const unsigned char	SectorSize = 16;
 static const unsigned char	MaxSectors = (512 / SectorSize);
 
 // Item types
+static const int			BUILD_MENU_ROW = 22;    // height of a row in the build menu, in game pixels
 static const int			ITEM_TYPE_CLOAK = 0;
 static const int			ITEM_TYPE_ROCKET = 1;
 static const int			ITEM_TYPE_MEDKIT = 2;

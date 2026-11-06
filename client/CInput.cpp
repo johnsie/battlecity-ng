@@ -553,40 +553,26 @@ void CInput::MouseDown(DIMOUSESTATE mouse_state, int X, int Y, char buffer[256])
 			// Clear the build menu
 			p->InGame->ShowBuildMenu = 0;
 
-			// If the player clicked inside the build menu,
-			if (X > p->Draw->BuildMenuX-26 && X < p->Draw->BuildMenuX+180 && Y < p->Draw->BuildMenuY+16) {
+			// If the player clicked inside the build menu, work out which row from where the menu is drawn
+			// (row 0 is Demolish at the bottom, the buildings stack upwards; rows are BUILD_MENU_ROW pixels tall, edges inclusive)
+			if (X >= p->Draw->BuildMenuX-26 && X <= p->Draw->BuildMenuX+180 && Y < p->Draw->BuildMenuY+BUILD_MENU_ROW) {
 				p->Draw->resetPlayerOffset();
 
-				int Ym = p->Draw->BuildMenuY+16;
-
-				// If the player clicked DEMOLISH,
-				if (Y > Ym -16 && Y < Ym) {
-
-					// Set the player in demolish mode,
+				int row = (p->Draw->BuildMenuY + BUILD_MENU_ROW - 1 - Y) / BUILD_MENU_ROW;    // 0 = Demolish
+				if (row == 0) {
 					p->InGame->IsBuilding = -1;
-
-					// Save the mouse state and return
 					this->endMouseDown(mouse_state);
 					return;
 				}
-
-				// Else (player clicked a building), for each type of building,
+				int n = 0;
 				for (int j = 0; j < 26; j++) {
-
-					// If the player can build that building (or the player is an admin),
 					if (p->InGame->CanBuild[j] || p->Player[p->Winsock->MyIndex]->isAdmin()) {
-						Ym -= 16;
-
-						// If the building is the one the player just clicked in the build menu,
-						if (Y > Ym -16 && Y < Ym) {
-
-							// Set IsBuilding to the type of building the player clicked
+						n++;
+						if (n == row) {
 							p->InGame->IsBuilding = j+1;
-
-							// Save the mouse state and return
 							this->endMouseDown(mouse_state);
 							return;
-						}	
+						}
 					}
 				}
 			}
@@ -869,8 +855,8 @@ void CInput::MouseDown(DIMOUSESTATE mouse_state, int X, int Y, char buffer[256])
 				if (X < 16) {
 					p->Draw->BuildMenuX = 16;
 				}
-				if (Y > (p->ResolutionY - 16)) {
-					p->Draw->BuildMenuY = p->ResolutionY - 16;
+				if (Y > (p->ResolutionY - BUILD_MENU_ROW - 4)) {
+					p->Draw->BuildMenuY = p->ResolutionY - BUILD_MENU_ROW - 4;
 				}
 
 				// Save the mouse state and return

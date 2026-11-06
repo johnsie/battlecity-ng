@@ -86,6 +86,7 @@ void CDrawing::DrawGame() {
 	this->DrawChat();
 	this->DrawInfo();
 	this->DrawInventory();
+	this->DrawItemHint();
 
 	// If the player is Mayor,
 	if (p->Player[p->Winsock->MyIndex]->isMayor) {
@@ -590,6 +591,7 @@ void CDrawing::DrawPlayers() {
  *
  **************************************************************/
 void CDrawing::DrawBuildMenu() {
+	const int R = BUILD_MENU_ROW;
 	int minY = 0;
 
 	// For each item,
@@ -597,9 +599,7 @@ void CDrawing::DrawBuildMenu() {
 
 		// If the player can build the item, or the player is an admin,
 		if (p->InGame->CanBuild[i] || p->Player[p->Winsock->MyIndex]->isAdmin()) {
-
-			// Increment the height of the build menu
-			minY += 16;
+			minY += R;
 		}
 	}
 
@@ -608,16 +608,24 @@ void CDrawing::DrawBuildMenu() {
 	if (minY > this->BuildMenuY) {
 		this->BuildMenuY = minY;
 	}
-	int DrawY = this->BuildMenuY;
+	int DrawY = this->BuildMenuY;       // top of the Demolish row; the rows above it are the buildings
 
+	// Draw the background box (a little padding around the rows)
+	p->DDraw->DFillRect(BuildMenuX-24, DrawY-minY-3, 204, minY+R+6);
 
-	// Draw the background box
-	p->DDraw->DFillRect(BuildMenuX, DrawY-minY, 180, minY+16);
+	// Highlight the row under the pointer so it is clear what a click will pick
+	{
+		int mx = p->Input->LastMouseX, my = p->Input->LastMouseY;
+		if (mx >= BuildMenuX-26 && mx <= BuildMenuX+180 && my >= DrawY-minY && my < DrawY+R) {
+			int rowTop = DrawY - R * ((DrawY + R - 1 - my) / R);
+			p->DDraw->DFillRectColor(BuildMenuX-24, rowTop, 204, R, 70, 70, 120);
+		}
+	}
 
 	// Draw Demolish
-	p->DDraw->Draw(p->DDraw->imgBuildIcons, BuildMenuX - 16, DrawY, 16, 16, 13*16);
-	p->DDraw->DTextOut(BuildMenuX, DrawY, "Demolish", COLOR_YELLOW);
-	DrawY -= 16;
+	p->DDraw->Draw(p->DDraw->imgBuildIcons, BuildMenuX - 20, DrawY + (R-16)/2, 16, 16, 13*16);
+	p->DDraw->DTextOut(BuildMenuX + 2, DrawY + (R-16)/2, "Demolish", COLOR_YELLOW);
+	DrawY -= R;
 
 	// For each item,
 	for (int i = 0; i < 26; i++) {
@@ -625,10 +633,9 @@ void CDrawing::DrawBuildMenu() {
 		// If the player can build the item, or the player is an admin,
 		if (p->InGame->CanBuild[i] || p->Player[p->Winsock->MyIndex]->isAdmin()) { 
 
-			// Draw the item
-			p->DDraw->Draw(p->DDraw->imgBuildIcons, BuildMenuX - 16, DrawY, 16, 16, buildButton[i]*16);
-			p->DDraw->DTextOut(BuildMenuX, DrawY, buildNames[i], COLOR_YELLOW);
-			DrawY -= 16;
+			p->DDraw->Draw(p->DDraw->imgBuildIcons, BuildMenuX - 20, DrawY + (R-16)/2, 16, 16, buildButton[i]*16);
+			p->DDraw->DTextOut(BuildMenuX + 2, DrawY + (R-16)/2, buildNames[i], COLOR_YELLOW);
+			DrawY -= R;
 		}
 	}
 	
@@ -2094,4 +2101,34 @@ void CDrawing::drawPlayerName(CPlayer *player, CPlayer *me) {
 	if (player->Member) {
 		p->DDraw->Draw(p->DDraw->imgStar, centerPoint - nameWidth - 17, relativeY - 31, 16, 16);
 	}
+}
+
+/***************************************************************
+ * Function:	DrawItemHint
+ *
+ * When the tank is on top of an item, says how to pick it up and what it does
+ * once it is in the inventory.
+ **************************************************************/
+void CDrawing::DrawItemHint() {
+	CPlayer *me = p->Player[p->Winsock->MyIndex];
+	if (!me || !me->isInGame || me->isDead) return;
+	CItem *item = p->Item->findItembyLocation(((int)me->X + 24) / 48, ((int)me->Y + 24) / 48);
+	if (!item) return;
+	static const char *names[] = { "Cloak", "Cougar Missiles", "Medkit", "Bomb", "Mine", "Orb", "Flares", "DFG", "Wall", "Turret", "Sleeper", "Plasma" };
+	static const char *use[] = { "press C to cloak", "fire while standing still", "press H to heal", "press B to drop it", "drops hidden",
+		"press O on an enemy Command Center", "hold CTRL to fire", "drops hidden", "drops as a wall", "press D to drop it", "drops hidden", "drops as a turret" };
+	int t = item->Type;
+	if (t < 0 || t > 11) return;
+	string line1 = string(names[t]) + ": press U to pick it up";
+	string line2 = string("Then ") + use[t] + " (see the Inventory box)";
+	int cx = PlayerOffsetX + 24;
+	int w1 = p->DDraw->MeasureText(line1), w2 = p->DDraw->MeasureText(line2);
+	int w = (w1 > w2 ? w1 : w2) + 12;
+	int x = cx - w / 2, y = PlayerOffsetY - 52;
+	if (x < 4) x = 4;
+	if (x + w > MaxMapX - 4) x = MaxMapX - 4 - w;
+	if (y < 60) y = PlayerOffsetY + 60;
+	p->DDraw->DFillRectColor(x, y, w, 36, 0, 0, 0);
+	p->DDraw->DTextOut(x + 6, y + 2, line1, COLOR_YELLOW);
+	p->DDraw->DTextOut(x + 6, y + 18, line2, COLOR_WHITE);
 }

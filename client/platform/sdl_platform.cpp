@@ -248,10 +248,16 @@ void BCTestSetKey(int dik, bool down) { if (dik >= 0 && dik < 256) g_testKeys[di
 // A click can press and release between two polls (browsers deliver both events in one frame),
 // which SDL_GetMouseState would never show as pressed. Latch presses from events and report each
 // for at least one poll.
+// The pointer position at the moment of the press is kept too: the game polls at its frame rate and the pointer
+// may have moved a few pixels since, which was enough to pick the wrong row of a menu.
 static bool g_mouseLatch[2];
-void BCLatchMouseButton(int sdlButton) {
+static int g_latchX, g_latchY;
+static bool g_latchHasPos;
+void BCLatchMouseButton(int sdlButton, int x, int y) {
 	if (sdlButton == SDL_BUTTON_LEFT) g_mouseLatch[0] = true;
 	else if (sdlButton == SDL_BUTTON_RIGHT) g_mouseLatch[1] = true;
+	else return;
+	g_latchX = x; g_latchY = y; g_latchHasPos = true;
 }
 
 void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int *mouseWindowY) {
@@ -279,7 +285,11 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 	if (buttons & SDL_BUTTON(SDL_BUTTON_RIGHT)) mouse->rgbButtons[1] = 0x80;
 	if (g_mouseLatch[0]) mouse->rgbButtons[0] = 0x80;
 	if (g_mouseLatch[1]) mouse->rgbButtons[1] = 0x80;
+#ifndef __EMSCRIPTEN__   // (the browser build gets exact positions from BCFixMouse)
+	if ((g_mouseLatch[0] || g_mouseLatch[1]) && g_latchHasPos) { x = g_latchX; y = g_latchY; }   // where the button went down
+#endif
 	g_mouseLatch[0] = g_mouseLatch[1] = false;
+	g_latchHasPos = false;
 	*mouseWindowX = x;
 	*mouseWindowY = y;
 }

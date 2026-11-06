@@ -120,7 +120,7 @@ static void HandleEvent(const SDL_Event &e) {
 	BCDialogsProcessEvent(&e);
 	bool dialog = BCDialogsActive();
 
-	if (e.type == SDL_MOUSEBUTTONDOWN && !dialog) BCLatchMouseButton(e.button.button);
+	if (e.type == SDL_MOUSEBUTTONDOWN && !dialog) BCLatchMouseButton(e.button.button, e.button.x, e.button.y);
 
 	switch (e.type) {
 		case SDL_QUIT:
@@ -333,11 +333,15 @@ int main(int argc, char *argv[]) {
 			int menuX = g.Draw->MaxMapX - 180, menuY = 344;
 			for (int row = 0; row < 5; row++) {
 				g.InGame->ShowBuildMenu = 1; g.InGame->IsBuilding = 0; g.Draw->BuildMenuX = menuX; g.Draw->BuildMenuY = menuY;
-				int rowTop = menuY - 16 * (row == 0 ? 0 : row);   // Demolish is the bottom row, then items upward
-				int y = rowTop + 8 - (row == 0 ? 0 : 16) + (row == 0 ? 0 : 0);
+				int y = menuY - BUILD_MENU_ROW * row + BUILD_MENU_ROW / 2;   // Demolish is the bottom row (row 0), then the items upward; click the middle of each
 				g.Input->TestClick(menuX + 40, y);
 				printf("script: menu click row %d at y=%d -> IsBuilding=%d (menu shown=%d)\n", row, y, (int)g.InGame->IsBuilding, (int)g.InGame->ShowBuildMenu);
 			}
+		}
+		// BC_TEST_MENU=2: leave the menu open for a screenshot
+		if (getenv("BC_TEST_MENU") && getenv("BC_TEST_SCENE") && getenv("BC_TEST_MENU")[0] == '2' && frames > 20) {
+			game.InGame->ShowBuildMenu = 1; game.Draw->BuildMenuX = game.Draw->MaxMapX - 180; game.Draw->BuildMenuY = 344;
+			game.Input->LastMouseX = game.Draw->MaxMapX - 120; game.Input->LastMouseY = 344 - BUILD_MENU_ROW * 2 + 9;   // hover the third row
 		}
 		if (getenv("BC_TEST_SCENE") && frames > 5 && frames % 40 == 0 && frames < 400) g_game->Explode->newExplosion((int)g_game->Player[0]->X - 160, (int)g_game->Player[0]->Y - 40, (frames / 40) & 1 ? 1 : 2);
 		if (shotPath) frames++;
