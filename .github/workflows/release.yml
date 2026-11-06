@@ -23,7 +23,7 @@ jobs:
         run: ci/smoke-test-client.sh build/client/bc-client data
       - name: Package
         run: ci/package-client.sh build/client/bc-client "${GITHUB_REF_NAME#v}" linux-x86_64 dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: dist-linux-client, path: dist/* }
 
   linux-server:
@@ -41,7 +41,7 @@ jobs:
           ci/smoke-test.sh build/server/bc-server data/map.dat
       - name: Package
         run: ci/package-server.sh build "${GITHUB_REF_NAME#v}" dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: dist-linux-server, path: dist/* }
 
   windows-client:
@@ -67,7 +67,7 @@ jobs:
           cmake --build build
       - name: Package
         run: ci/package-client.sh build/client/bc-client.exe "${GITHUB_REF_NAME#v}" windows-x64 dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: dist-windows-client, path: dist/* }
 
   windows-server:
@@ -87,7 +87,7 @@ jobs:
           Copy-Item build/server/Release/bc-server.exe, build/server/Release/bc-server.pdb, data/map.dat, LICENSE.txt $d
           Set-Content "$d/VERSION" $v
           Compress-Archive -Path $d -DestinationPath "dist/$d-windows-x64.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: dist-windows-server, path: dist/* }
 
   web-client:
@@ -103,7 +103,7 @@ jobs:
         run: ci/build-web.sh build-web dist-web
       - name: Package
         run: ci/package-web.sh dist-web "${GITHUB_REF_NAME#v}" dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: { name: dist-web, path: dist/* }
 
   publish:
