@@ -115,6 +115,7 @@ class CGame
 {
 public:
     void Init(HWND hWnd, HINSTANCE hInst);
+    void FitViewToWindow(int outputW, int outputH);   // widescreen: the map view follows the window's shape
 
     string ReturnUniqID();
     int CheckFile(string file);

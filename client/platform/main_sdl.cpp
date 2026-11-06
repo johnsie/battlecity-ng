@@ -171,6 +171,11 @@ static void MainLoopIteration() {
 	while (SDL_PollEvent(&e)) HandleEvent(e);
 	Uint32 t1 = SDL_GetTicks();
 	RunScript();
+	if (g_game->DDraw && g_game->DDraw->Renderer && !getenv("BC_FIXED_VIEW")) {
+		int ow = 0, oh = 0;
+		SDL_GetRendererOutputSize(g_game->DDraw->Renderer, &ow, &oh);
+		g_game->FitViewToWindow(ow, oh);
+	}
 	if (g_game->running == 1) g_game->Engine->Frame();
 	else g_game->Engine->IdleFrame();
 #ifdef BC_FRAME_TIMING

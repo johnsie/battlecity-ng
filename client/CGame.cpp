@@ -82,6 +82,23 @@ CGame::CGame() {
 	}
 }
 
+/// <summary>
+/// With the 1024x768 resolution option the view keeps its height and grows sideways to match the window's
+/// shape (up to 1728 wide), so widescreen windows show more of the map instead of black bars. The side panel
+/// stays on the right edge. The 800x600 option is left alone.
+/// </summary>
+void CGame::FitViewToWindow(int outputW, int outputH) {
+	if (!Options->resolution1024 || outputW <= 0 || outputH <= 0 || !DDraw || !Draw) return;
+	int wanted = (int)((768.0 * outputW / outputH) / 8.0 + 0.5) * 8;   // multiples of 8: no jitter while dragging
+	if (wanted < 1024) wanted = 1024;
+	if (wanted > 1728) wanted = 1728;
+	if (wanted == ResolutionX && ResolutionY == 768) return;
+	ResolutionX = wanted;
+	ResolutionY = 768;
+	Draw->ApplyResolution();
+	DDraw->ApplyLogicalSize();
+}
+
 /// <summary>   Destructor. </summary>
 CGame::~CGame() {
     //  Set running state to zero

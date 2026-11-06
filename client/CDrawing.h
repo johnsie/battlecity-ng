@@ -35,6 +35,7 @@ class CDrawing {
 
         void DrawGame();
         void ClearDrawing();
+        void ApplyResolution();   // the game's resolution changed (window reshaped): re-centre the view
 
         void DrawMap();
         void DrawPanel();

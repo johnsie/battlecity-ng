@@ -50,6 +50,8 @@ public:
     void Draw(BCImage* Surface, int X, int Y, int width, int height, int _sX = 0, int _sY = 0, int _clipwidth = -1, int _clipheight = -1);
     void DTextOut(int X, int Y, string text, COLORREF ColorVal);
     void DFillRect(int X, int Y, int width, int height);
+    void DFillRectColor(int X, int Y, int width, int height, int r, int g, int b);
+    void ApplyLogicalSize();   // call after the game's resolution changed
 
     /// <summary> Convert window pixel coordinates to game coordinates (the game is drawn at a fixed logical size). </summary>
     void WindowToGame(int wx, int wy, int *gx, int *gy);
@@ -113,10 +115,13 @@ private:
     void FreeImage(BCImage *&img);
     void CreateRenderer(HWND hWnd);
     void UpdateScaleMode();
+    void EnsureCanvas();
     int lastOutputW, lastOutputH;
 
     SDL_Window *Window;
     BCImage *Font;
+    SDL_Texture *Canvas;      // the game is drawn here at its own resolution, then scaled to the window in one step
+    int canvasW, canvasH;
 
     CGame *p;
 protected:

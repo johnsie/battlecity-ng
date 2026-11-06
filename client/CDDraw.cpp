@@ -27,6 +27,9 @@
 
 CDDraw::CDDraw(CGame *game)
 {
+    Canvas = NULL;
+    canvasW = canvasH = 0;
+    lastOutputW = lastOutputH = 0;
     FullScreen = 0;
     XOff = 0;
     YOff = 0;
@@ -189,6 +192,7 @@ BCImage *CDDraw::LoadImage(const char *file, bool useColorKey, COLORREF colorKey
         return NULL;
     }
     SDL_SetTextureBlendMode(img->texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(img->texture, SDL_ScaleModeNearest);   // sprites are always drawn 1:1 into the canvas
     return img;
 }
 
@@ -291,6 +295,7 @@ void CDDraw::DestroySurfaces()
     FreeImage(imgTurretBase);
     FreeImage(imgTurretHead);
     FreeImage(Font);
+    if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
     if (Renderer) {
         SDL_DestroyRenderer(Renderer);
         Renderer = NULL;
@@ -305,19 +310,30 @@ void CDDraw::UpdateScaleMode()
     if (ow == lastOutputW && oh == lastOutputH) return;
     lastOutputW = ow;
     lastOutputH = oh;
-    // Pixel art stays crisp: an integer multiple of the game's resolution is used when the window is close to
+    // Pixel art stays crisp: an integer multiple of the game's resolution is used when the window is just above
     // one (nearest filtering, thin borders); otherwise the picture is scaled smoothly to fill the window.
     float fit = std::min((float)ow / p->ResolutionX, (float)oh / p->ResolutionY);
-    bool integerFit = fit >= 1.0f && (fit - std::floor(fit)) < 0.34f;
+    bool integerFit = fit >= 1.0f && (fit - std::floor(fit)) / fit < 0.08f;   // rounding down wastes under 8% of the window
     SDL_RenderSetIntegerScale(Renderer, integerFit ? SDL_TRUE : SDL_FALSE);
-    SDL_ScaleMode mode = (fit < 1.0f || !integerFit) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
-    BCImage **all[] = { &imgArrows, &imgArrowsRed, &imgBCLogo, &imgBlackNumbers, &imgBtnStaff, &imgBuildIcons, &imgBuildings, &imgBullets, &imgCompany, &imgCursor, &imgDemolish, &imgGround, &imgHealth, &imgInterface, &imgInterfaceBottom, &imgInventorySelection, &imgItems, &imgLava, &imgLoading, &imgLExplosion, &imgMiniMapColors, &imgMoneyBox, &imgMoneyDown, &imgMoneyUp, &imgMuzzleFlash, &imgPopulation, &imgRadarColors, &imgResearch, &imgResearchComplete, &imgRocks, &imgSExplosion, &imgSmoke, &imgStar, &imgTanks, &imgTurretBase, &imgTurretHead };
-    for (BCImage **img : all) if (*img && (*img)->texture) SDL_SetTextureScaleMode((*img)->texture, mode);
+    if (Canvas) SDL_SetTextureScaleMode(Canvas, (fit < 1.0f || !integerFit) ? SDL_ScaleModeLinear : SDL_ScaleModeNearest);
+}
+
+/// <summary> (Re)creates the offscreen canvas when the game's resolution changed </summary>
+void CDDraw::EnsureCanvas()
+{
+    if (Canvas && canvasW == p->ResolutionX && canvasH == p->ResolutionY) return;
+    if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
+    Canvas = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_TARGET, p->ResolutionX, p->ResolutionY);
+    canvasW = p->ResolutionX;
+    canvasH = p->ResolutionY;
+    lastOutputW = lastOutputH = 0;     // re-apply the scale mode to the new texture
 }
 
 void CDDraw::Clear()
 {
     if (!Renderer) return;
+    EnsureCanvas();
+    if (Canvas) SDL_SetRenderTarget(Renderer, Canvas);   // everything the game draws now lands in the canvas
     SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
     SDL_RenderClear(Renderer);
 }
@@ -327,7 +343,27 @@ void CDDraw::Flip()
     if (!Renderer) return;
     LastFrameDrawCalls = DrawCalls;
     DrawCalls = 0;
-    UpdateScaleMode();
+    if (Canvas) {
+        // One scaling step for the whole picture (no sampling across sprite-sheet neighbours, so no seams)
+        UpdateScaleMode();
+        SDL_SetRenderTarget(Renderer, NULL);
+        SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+        SDL_RenderClear(Renderer);
+        // Scale explicitly (SDL's logical size is kept only so mouse coordinates map back to game pixels)
+        int ow = 0, oh = 0;
+        SDL_GetRendererOutputSize(Renderer, &ow, &oh);
+        float fit = std::min((float)ow / canvasW, (float)oh / canvasH);
+        bool integerFit = fit >= 1.0f && (fit - std::floor(fit)) / fit < 0.08f;
+        float sc = integerFit ? std::floor(fit) : fit;
+        SDL_Rect dst;
+        dst.w = (int)(canvasW * sc + 0.5f);
+        dst.h = (int)(canvasH * sc + 0.5f);
+        dst.x = (ow - dst.w) / 2;
+        dst.y = (oh - dst.h) / 2;
+        SDL_RenderSetLogicalSize(Renderer, 0, 0);
+        SDL_RenderCopy(Renderer, Canvas, NULL, &dst);
+        SDL_RenderSetLogicalSize(Renderer, p->ResolutionX, p->ResolutionY);
+    }
     BCDialogsRender();   // Dear ImGui dialogs are drawn on top of the game frame
     SDL_RenderPresent(Renderer);
 }
@@ -388,7 +424,7 @@ void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)
     }
 }
 
-void CDDraw::DFillRect(int X, int Y, int width, int height)
+void CDDraw::DFillRectColor(int X, int Y, int width, int height, int r, int g, int b)
 {
     if (!Renderer) return;
     X += XOff;
@@ -408,8 +444,20 @@ void CDDraw::DFillRect(int X, int Y, int width, int height)
     if (rect.w <= 0 || rect.h <= 0) return;
 
     // DirectDraw's colour fill with no colour set is black
-    SDL_SetRenderDrawColor(Renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(Renderer, (Uint8)r, (Uint8)g, (Uint8)b, 255);
     SDL_RenderFillRect(Renderer, &rect);
+}
+
+void CDDraw::DFillRect(int X, int Y, int width, int height)
+{
+    DFillRectColor(X, Y, width, height, 0, 0, 0);    // DirectDraw's colour fill with no colour set is black
+}
+
+void CDDraw::ApplyLogicalSize()
+{
+    if (!Renderer) return;
+    SDL_RenderSetLogicalSize(Renderer, p->ResolutionX, p->ResolutionY);
+    lastOutputW = lastOutputH = 0;    // re-pick the scaling mode for the new shape
 }
 
 void CDDraw::WindowToGame(int wx, int wy, int *gx, int *gy)
@@ -427,8 +475,14 @@ bool CDDraw::SaveScreenshot(const char *path)
     SDL_GetRendererOutputSize(Renderer, &w, &h);     // the real output, which can be larger than the logical size
     SDL_Surface *shot = SDL_CreateRGBSurfaceWithFormat(0, w, h, 24, SDL_PIXELFORMAT_BGR24);
     if (!shot) return false;
+    // Read the whole output: with logical scaling active the 'viewport' is only the letterboxed picture
+    int lw = 0, lh = 0;
+    SDL_RenderGetLogicalSize(Renderer, &lw, &lh);
+    SDL_RenderSetLogicalSize(Renderer, 0, 0);
     bool ok = SDL_RenderReadPixels(Renderer, NULL, SDL_PIXELFORMAT_BGR24, shot->pixels, shot->pitch) == 0
               && SDL_SaveBMP(shot, path) == 0;
+    SDL_RenderSetLogicalSize(Renderer, lw, lh);
+    if (!ok) fprintf(stderr, "screenshot failed: %s\n", SDL_GetError());
     SDL_FreeSurface(shot);
     return ok;
 }

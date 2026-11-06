@@ -57,6 +57,27 @@ void CDrawing::DrawGame() {
 }
 
 /***************************************************************
+ * Function:	ApplyResolution
+ *
+ * Follows a change of CGame::ResolutionX/Y: the side panel stays on the
+ * right edge and the player stays centred in the (wider/narrower) map view.
+ **************************************************************/
+void CDrawing::ApplyResolution() {
+	int oldDefaultX = this->defaultPlayerOffsetX;
+	int oldDefaultY = this->defaultPlayerOffsetY;
+	this->MaxMapX = p->ResolutionX - 200;
+	this->MaxMapY = p->ResolutionY;
+	this->defaultPlayerOffsetX = (this->MaxMapX / 2) - 24;
+	this->defaultPlayerOffsetY = (this->MaxMapY / 2) - 24;
+	this->PlayerOffsetX += this->defaultPlayerOffsetX - oldDefaultX;
+	this->PlayerOffsetY += this->defaultPlayerOffsetY - oldDefaultY;
+	if (this->PlayerOffsetX < 0) this->PlayerOffsetX = 0;
+	if (this->PlayerOffsetX > this->MaxMapX - 48) this->PlayerOffsetX = this->MaxMapX - 48;
+	if (this->PlayerOffsetY < 0) this->PlayerOffsetY = 0;
+	if (this->PlayerOffsetY > this->MaxMapY - 48) this->PlayerOffsetY = this->MaxMapY - 48;
+}
+
+/***************************************************************
  * Function:	ClearDrawing
  *
  **************************************************************/
@@ -126,8 +147,11 @@ void CDrawing::DrawMap() {
 	int tileY;
 
 	// Draw the ground tiles (groundTilesToDraw+1 total)
-	for (i = -this->groundTilesToDraw; i < this->groundTilesToDraw; i++) {
-		for (j = -this->groundTilesToDraw; j < this->groundTilesToDraw; j++) {
+	// (the 128px ground texture is anchored at the view's top-left, so it must cover the whole map view,
+	// which is wider than the original 824 pixels on widescreen windows)
+	int groundCols = MaxMapX / 128 + 2, groundRows = MaxMapY / 128 + 2;
+	for (i = -1; i < groundCols; i++) {
+		for (j = -1; j < groundRows; j++) {
 			p->DDraw->Draw(p->DDraw->imgGround, 128*i+goffX, 128*j+goffY, 144, 144, 0, 0, MaxMapX, MaxMapY);
 		}
 	}
@@ -175,6 +199,19 @@ void CDrawing::DrawPanel() {
 
 	// Draw the bottom half of the interface
 	p->DDraw->Draw(p->DDraw->imgInterfaceBottom, MaxMapX, 430, 200, 170);
+
+	// The panel art is 600 pixels tall; on taller views continue it as a bevelled metal block instead of leaving black
+	if (p->ResolutionY > 600) {
+		const int top = 600, h = p->ResolutionY - top;
+		p->DDraw->DFillRectColor(MaxMapX, top, 200, h, 176, 176, 176);
+		p->DDraw->DFillRectColor(MaxMapX, top, 200, 2, 217, 217, 217);            // lit top edge
+		p->DDraw->DFillRectColor(MaxMapX, top, 3, h, 205, 205, 205);              // lit left edge
+		p->DDraw->DFillRectColor(MaxMapX + 3, top + 2, 1, h - 2, 191, 191, 191);
+		p->DDraw->DFillRectColor(MaxMapX + 196, top, 4, h, 45, 45, 45);           // shaded right edge
+		p->DDraw->DFillRectColor(MaxMapX + 193, top + 2, 3, h - 2, 120, 120, 120);
+		p->DDraw->DFillRectColor(MaxMapX, p->ResolutionY - 3, 200, 3, 45, 45, 45); // bottom edge
+		p->DDraw->DFillRectColor(MaxMapX + 3, p->ResolutionY - 4, 190, 1, 130, 130, 130);
+	}
 
 	//If the player is Mayor,
 	if (p->Player[p->Winsock->MyIndex]->isMayor) {
