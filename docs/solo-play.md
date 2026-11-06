@@ -6,9 +6,10 @@ The plan and status are in `docs/solo-play-roadmap.md`. This file explains the b
 
 While at least one human is in the game, the server keeps the world populated:
 
-- **Raiders** (pink scouts, green-camouflage heavies) spawn out of sight, wander, notice a player within about 1,100-1,250 pixels, chase, aim and shoot. Scouts use lasers, heavies rockets. A badly hurt bot runs away for a few seconds.
+- **Raiders** (pink scouts, green-camouflage heavies) spawn out of sight, wander, notice a player within about 900-1,000 pixels, chase, aim and shoot. Scouts use lasers, heavies rockets. A badly hurt bot runs away for a few seconds.
 - **Snowmen** are neutral wandering drones. Shoot one for a point.
-- **Raids**: every 10-15 minutes a raiding party attacks a city that has buildings. The whole server is told, with a compass direction.
+- **Safe zones**: bots stay about 1,500 pixels (30 tiles) away from any city that has a mayor, never fight there and never block a building plot. Only a raid (below) comes in.
+- **Raids**: every 20-30 minutes a raiding party of 2-4 attacks a city that has buildings. The whole server is told, with a compass direction.
 - **Missions** (about every 8-13 minutes, one at a time, shared by everyone): *Raider Sweep* (destroy N raiders in five minutes), *Boss Hunt* (destroy the Warlord in eight) and *Hold the Zone* (stay near a marked tile for 75 seconds while raiders attack). Everyone who took part gets 5 points.
 - **Bounty Warlord**: a 150 HP boss with plasma, worth 10 points to the killer and 6 to each other player who hit it, plus a supply drop where it fell.
 - **Supply crates**: a medkit, cloak or rocket appears on the map for one human's city (only that city can pick it up) with a hint such as "24 tiles north-west of you". It disappears after six minutes.
@@ -37,7 +38,7 @@ All of it is in `server/CBot.cpp` (`CBotManager`), driven from the main loop (`S
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `BC_BOTS` | 4 | maximum fighting bots (1 to 12); `0` turns every feature off |
+| `BC_BOTS` | 3 | maximum fighting bots (1 to 12); `0` turns every feature off |
 | `BC_BOT_CITY` | 63 | city index the bots belong to |
 | `BC_DISCORD_WEBHOOK` | unset | https webhook for the "someone is online" message |
 | `BC_BOTS_TEMPO` | 1 | test hook: scales the gaps between events (0.02 makes them seconds) |
@@ -47,7 +48,7 @@ How many fighters spawn depends on how many humans are online: all of `BC_BOTS` 
 
 ## Tests
 
-`ci/bots-test.sh <bc-server> <map.dat>` runs three headless players against the server (use the sanitizer build):
+`ci/bots-test.sh <bc-server> <map.dat>` runs three headless cases at the same time, each against its own server on its own port, and each case moves on as soon as what it waits for has happened (about 25 seconds in all). Use the sanitizer build:
 
 - `tools/bots_test.py`: bots are announced and move, chat commands are answered, a range can be cleared by shooting, a snowman pays a point, a trial starts, the public count excludes bots.
 - `tools/bots_events_test.py` (with `BC_BOTS_TEMPO=0.02`): raid, mission, bounty and crate announcements, a crate is picked up, bots shoot, a ghost appears for the next player, the login news lists events.

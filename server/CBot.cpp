@@ -70,7 +70,7 @@ CBotManager::CBotManager(CServer *Server) {
 	p = Server;
 	enabled = true;
 	tempo = 1.0f;
-	maxBots = 4;
+	maxBots = 3;
 	botCity = 63;
 	overseer = -1;
 	nextStep = nextManage = nextSave = lastStepTick = 0;
@@ -180,12 +180,31 @@ bool CBotManager::FreeSpot(float x, float y) const {
 	return !Blocked(x, y) && !Blocked(x + 40, y) && !Blocked(x - 40, y) && !Blocked(x, y + 40) && !Blocked(x, y - 40);
 }
 
+/// Bots keep well clear of cities that have a mayor, so nobody is hunted (or blocked by a tank parked on the plot) while building at home
+bool CBotManager::InSafeZone(float x, float y, float *awayX, float *awayY) const {
+	static const float SAFE = 1500.0f;
+	for (int ci = 0; ci < MAX_CITIES; ci++) {
+		if (ci == botCity || p->City[ci]->Mayor == -1) continue;
+		float dx = x - (float)p->City[ci]->x, dy = y - (float)p->City[ci]->y;
+		float d2 = dx * dx + dy * dy;
+		if (d2 < SAFE * SAFE) {
+			if (awayX) {
+				float d = sqrtf(d2) + 1.0f;
+				*awayX = x + dx / d * 900.0f;
+				*awayY = y + dy / d * 900.0f;
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
 bool CBotManager::FindSpawn(float nearX, float nearY, float minDist, float maxDist, float *ox, float *oy) {
 	for (int tries = 0; tries < 40; tries++) {
 		float a = Rand01() * 6.2832f;
 		float d = minDist + Rand01() * (maxDist - minDist);
 		float x = nearX + cosf(a) * d, y = nearY + sinf(a) * d;
-		if (!FreeSpot(x, y)) continue;
+		if (!FreeSpot(x, y) || InSafeZone(x, y)) continue;
 		// never pop in on top of someone
 		float dist;
 		NearestHuman(x, y, &dist, false);
@@ -477,6 +496,8 @@ int CBotManager::SpawnBot(int tier, float x, float y, int raidCity) {
 	b.ghostNext = 0;
 	b.aimX = b.aimY = 0;
 	b.offX = b.offY = 0;
+	b.avoidUntil = 0;
+	b.avoidDir = 8;
 	b.expiresAt = 0;
 	b.owner = -1;
 	b.damageBy.clear();
@@ -703,8 +724,15 @@ void CBotManager::Think(BotInfo &b, float now) {
 	// A short list of what the bot wants: flee if hurt, else fight a human it can see, else raid or wander
 	float dist = 1e9f;
 	int h = NearestHuman(b.x, b.y, &dist, true);
-	float detect = (b.tier == BOT_BOSS) ? 1700.0f : (b.tier == BOT_HEAVY ? 1100.0f : 1250.0f);
+	float detect = (b.tier == BOT_BOSS) ? 1500.0f : (b.tier == BOT_HEAVY ? 900.0f : 1000.0f);
 	b.target = -1;
+
+	// Inside a human city's safe zone (and not raiding): head back out and never fight there
+	if (b.raidCity < 0) {
+		float ax, ay;
+		if (InSafeZone(b.x, b.y, &ax, &ay)) { b.goalX = ax; b.goalY = ay; b.nextGoal = now + 3000.0f; return; }
+		if (h >= 0 && InSafeZone(p->Player[h]->X, p->Player[h]->Y)) h = -1;   // a player at home is left alone
+	}
 
 	if (b.tier == BOT_DRONE) {
 		// harmless: wander, and run from whoever hurt it
@@ -755,7 +783,7 @@ void CBotManager::Think(BotInfo &b, float now) {
 		for (int tries = 0; tries < 12; tries++) {
 			float a = Rand01() * 6.2832f, d = 500.0f + Rand01() * 1400.0f;
 			float gx = b.x + cosf(a) * d, gy = b.y + sinf(a) * d;
-			if (FreeSpot(gx, gy)) { b.goalX = gx; b.goalY = gy; break; }
+			if (FreeSpot(gx, gy) && (b.raidCity >= 0 || !InSafeZone(gx, gy))) { b.goalX = gx; b.goalY = gy; break; }
 		}
 		b.nextGoal = now + 6000.0f + Rand01() * 6000.0f;
 	}
@@ -797,6 +825,8 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 		aim = true;
 	}
 	else if (dgoal > 24.0f) want = DirTo(dx, dy);
+	// just ran into rock, water or a building: head off to one side for a moment, then try the direct line again
+	if (now < b.avoidUntil && !aim) want = (want + b.avoidDir + 32) % 32;
 
 	if (now >= b.nextTurn && want != b.dir) {
 		int diff = ((want - b.dir + 16) % 32 + 32) % 32 - 16;
@@ -815,10 +845,10 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 		else if (!Blocked(nx, b.y)) { b.x = nx; }
 		else if (!Blocked(b.x, ny)) { b.y = ny; }
 		else {
-			// boxed in: pick somewhere else
-			b.nextGoal = 0;
-			b.goalX = b.x; b.goalY = b.y;
-			b.dir = (b.dir + 8 + rand() % 16) % 32;
+			// boxed in: sidestep (alternating sides) and keep the goal; a wanderer also picks somewhere new
+			b.avoidUntil = now + 1000.0f + (float)(rand() % 900);
+			b.avoidDir = -b.avoidDir;
+			if (b.raidCity < 0) { b.nextGoal = 0; b.goalX = b.x; b.goalY = b.y; }
 		}
 	}
 	p->Player[b.slot]->X = b.x;
@@ -829,7 +859,11 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 		float mx = b.x - b.lastX, my = b.y - b.lastY;
 		if (b.stuckSince == 0) { b.stuckSince = now; b.lastX = b.x; b.lastY = b.y; }
 		else if (now - b.stuckSince > 2000.0f) {
-			if (mx * mx + my * my < 30.0f * 30.0f) { b.nextGoal = 0; b.goalX = b.x; b.goalY = b.y; b.dir = (b.dir + 8 + rand() % 16) % 32; }
+			if (mx * mx + my * my < 30.0f * 30.0f) {
+				b.avoidUntil = now + 1500.0f + (float)(rand() % 1000);
+				b.avoidDir = (rand() % 2) ? 8 : -8;
+				if (b.raidCity < 0) { b.nextGoal = 0; b.goalX = b.x; b.goalY = b.y; }
+			}
 			b.stuckSince = 0;
 		}
 	}
@@ -848,7 +882,7 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 	}
 	if (wantsFire && now >= b.nextShot) {
 		Fire(b);
-		float base = (b.tier == BOT_SCOUT) ? 1100.0f : (b.tier == BOT_HEAVY ? 1700.0f : 1400.0f);
+		float base = (b.tier == BOT_SCOUT) ? 1500.0f : (b.tier == BOT_HEAVY ? 2000.0f : 1600.0f);
 		b.nextShot = now + base + Rand01() * 500.0f;
 	}
 }
@@ -1000,13 +1034,13 @@ void CBotManager::ManageRaid(float now, int humans) {
 		for (CBuilding *bld = p->Build->buildingListHead; bld; bld = bld->next) if (bld->City == c && !bld->isCC()) n++;
 		if (n >= 1) cities.push_back(c);
 	}
-	nextRaid = now + (600000.0f + Rand01() * 300000.0f) * tempo;
+	nextRaid = now + (1200000.0f + Rand01() * 600000.0f) * tempo;
 	if (cities.empty()) { nextRaid = now + 120000.0f * tempo; return; }
 
 	int city = cities[rand() % cities.size()];
 	int inCity = 0;
 	for (int i = 0; i < MAX_PLAYERS; i++) if (IsHuman(i) && p->Player[i]->City == city) inCity++;
-	int count = 2 + std::min(3, inCity);
+	int count = 2 + (inCity >= 2 ? 1 : 0) + (inCity >= 3 ? 1 : 0);
 	float cx = (float)p->City[city]->x, cy = (float)p->City[city]->y;
 	float sx, sy;
 	if (!FindSpawn(cx, cy, 1500, 2200, &sx, &sy)) { nextRaid = now + 60000.0f * tempo; return; }
@@ -1446,7 +1480,7 @@ void CBotManager::HumanLeft(int idx) {
 	if (range[idx].active) { range[idx].active = false; for (int i = 0; i < 24; i++) if (bots[i].used && bots[i].tier == BOT_DUMMY && bots[i].owner == idx) RemoveBot(bots[i]); }
 	// keep the run if it is long enough and from a player at least as good as the current ghost's owner
 	std::vector<Sample> &rec = recording[idx];
-	if (rec.size() >= 45 && p->Player[idx]->Points >= ghostPoints) {
+	if (rec.size() >= (tempo < 1.0f ? 20u : 45u) && p->Player[idx]->Points >= ghostPoints) {
 		ghostPath = rec;
 		ghostName = p->Player[idx]->Name;
 		for (size_t i = 0; i < ghostName.size(); i++) if (ghostName[i] == ' ') ghostName[i] = '_';
@@ -1468,7 +1502,7 @@ void CBotManager::HumanUpdated(int idx) {
 	}
 	if (trial[idx].active) TrialProgress(idx);
 	if (now >= recordNext[idx]) {
-		recordNext[idx] = now + 1000.0f;
+		recordNext[idx] = now + std::max(100.0f, 1000.0f * tempo);   // (shortened with BC_BOTS_TEMPO so tests need seconds, not a minute)
 		std::vector<Sample> &rec = recording[idx];
 		Sample s;
 		s.x = p->Player[idx]->X; s.y = p->Player[idx]->Y; s.dir = 0;

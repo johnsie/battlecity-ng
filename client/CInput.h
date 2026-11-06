@@ -31,6 +31,8 @@ class CGame;
 class CInput {
 
     public:
+        void TileUnderMouse(int mouseX, int mouseY, int *tileX, int *tileY);   // the map tile a click at this position builds or demolishes on
+        void TestClick(int X, int Y);   // test hook: a left click at game coordinates (used by BC_TEST_MENU)
         CInput(CGame *game);
         ~CInput();
         void ReleaseDInput();

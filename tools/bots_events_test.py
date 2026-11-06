@@ -9,7 +9,7 @@ BC_BOTS_TEMPO=0.02 so that the gaps between events are seconds instead of minute
 
 Usage: tools/bots_events_test.py <host> <port>
 """
-import importlib.util, math, struct, sys, time
+import importlib.util, math, re, struct, sys, time
 
 spec = importlib.util.spec_from_file_location("bots_test", __file__.rsplit("/", 1)[0] + "/bots_test.py")
 bt = importlib.util.module_from_spec(spec)
@@ -62,25 +62,36 @@ def main():
     seen = set()
     picked_crate = False
     crate_tile = None
-    while time.time() - t0 < 75:
+    requested = False
+    def done():
+        return {"RAID!", "MISSION:", "BOUNTY:", "SUPPLY CRATE"} <= {k for k, _ in seen} and picked_crate and any(
+            a.names.get(s[0], ("", ""))[1] in ("Raiders", "Bounty") for s in a.shots) and t > 4.5   # long enough for the ghost recording
+
+    while time.time() - t0 < 40 and not done():
         now = time.time()
         if now >= nxt:
             nxt = now + 0.15
             t += 0.15
-            if a.items and not picked_crate:
-                # walk to the crate (a believable 0.38 units/ms), then pick it up
-                iid, (cx, cy, city, typ) = next(iter(a.items.items()))
-                dx, dy = cx * 48 - px, cy * 48 - py
+            if crate_tile and not picked_crate:
+                # walk to the announced crate like a player would; ask for its sector when close, as the real client does
+                cx, cy = crate_tile[0] * 48, crate_tile[1] * 48
+                dx, dy = cx - px, cy - py
                 dist = math.hypot(dx, dy)
-                if dist < 60:
+                if dist < 700 and not requested:
+                    a.send(CM["cmRequestSector"], bytes([crate_tile[0] // 16, crate_tile[1] // 16]))
+                    requested = True
+                if dist < 60 and a.items:
+                    iid, (ix, iy, city, typ) = next(iter(a.items.items()))
                     a.send(CM["cmItemUp"], struct.pack("<HbB", iid, 0, typ))
                     a.wait(lambda: a.picked, 1)
                     picked_crate = bool(a.picked)
-                else:
+                elif dist >= 60:
                     step = min(dist, 0.38 * 150 * 0.9)
                     px += dx / dist * step
                     py += dy / dist * step
                     a.update(px, py, bt.dir_to(dx, dy), 2)
+                else:
+                    a.update(px, py, 0, 1)
             else:
                 # otherwise walk a slow loop near the start so the recording has movement
                 px = x0 + 200 * math.sin(t / 3.0) if not picked_crate else px + 8 * math.sin(t)
@@ -88,6 +99,9 @@ def main():
                 a.update(px, py, int(t * 2) % 32, 2)
         a.pump()
         for _, text in a.chat:
+            m = re.search(r"SUPPLY CRATE .* at tile (\d+),(\d+)", text)
+            if m and crate_tile is None:
+                crate_tile = (int(m.group(1)), int(m.group(2)))
             for key in ("RAID!", "MISSION:", "BOUNTY:", "SUPPLY CRATE", "Zone:", "Warlord", "raid", "MISSION COMPLETE", "Mission failed", "Daily"):
                 if key in text and (key, text[:30]) not in seen:
                     seen.add((key, text[:30]))

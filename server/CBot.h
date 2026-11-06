@@ -54,6 +54,8 @@ struct BotInfo {
 	float ghostNext;
 	float aimX, aimY;                // raider in range of a building: where to point
 	float offX, offY;                // ghost: translation applied to the recorded path
+	float avoidUntil;                // after bumping into terrain: steer sideways until then
+	int avoidDir;                    // +8 or -8 direction steps
 	float expiresAt;                 // 0 = never
 	int owner;                       // dummy: the human who asked for the range
 	std::map<std::string, int> damageBy;   // boss: damage per human name (for shared rewards)
@@ -148,6 +150,7 @@ class CBotManager {
 		int NearestHuman(float x, float y, float *distOut, bool aliveOnly) const;
 		bool Blocked(float x, float y) const;
 		bool FreeSpot(float x, float y) const;
+		bool InSafeZone(float x, float y, float *awayX = NULL, float *awayY = NULL) const;   // near a human city: bots keep out (raiders on a raid excepted)
 		bool FindSpawn(float nearX, float nearY, float minDist, float maxDist, float *ox, float *oy);
 		static int DirTo(float dx, float dy);
 		static std::string Compass(float dx, float dy);

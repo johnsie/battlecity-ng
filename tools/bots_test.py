@@ -157,7 +157,7 @@ check.failed = False
 
 def main():
     host, port = sys.argv[1], int(sys.argv[2])
-    seconds = float(sys.argv[3]) if len(sys.argv) > 3 else 25
+    seconds = float(sys.argv[3]) if len(sys.argv) > 3 else 15       # an upper bound: the test goes on as soon as the bots have appeared
     tag = str(int(time.time()) % 100000).encode()
     a = Player(host, port, b"bot" + tag)
     a.login(0)
@@ -165,10 +165,15 @@ def main():
     if not a.wait(lambda: a.x is not None):
         raise SystemExit("FAIL: the test player never joined")
     start_x, start_y = float(a.x), float(a.y)
-    # keep reporting a position so the server sees us standing still
+    # stand still (reporting a position) until the bots have shown themselves: enough announced, one moving, the greeting heard
+    def settled():
+        bots = {s for s, (n, t) in a.names.items() if t in ("Raiders", "Wildlife", "Bounty")}
+        movers = [s for s in bots if len(a.history.get(s, [])) >= 5 and
+                  max(math.hypot(x - a.history[s][0][0], y - a.history[s][0][1]) for x, y in a.history[s]) > 40]
+        return len(bots) >= 3 and movers and a.chat
     end = time.time() + seconds
     nxt = 0
-    while time.time() < end:
+    while time.time() < end and not settled():
         if time.time() >= nxt:
             a.update(start_x, start_y)
             nxt = time.time() + 0.15
@@ -245,7 +250,7 @@ def main():
     before = max([v for k, v in a.points.items() if k < 32] or [0])
     a.deaths.clear()
     target = None
-    t_end = time.time() + 60
+    t_end = time.time() + 40
     while time.time() < t_end:
         a.pump()
         live = [s for s in drones() if s not in a.deaths]

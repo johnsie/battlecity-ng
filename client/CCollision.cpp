@@ -226,6 +226,7 @@ int CCollision::CheckBuildingCollision(int X, int Y) {
 
 	// For each possible player,
 	for (int a = 0; a < MAX_PLAYERS; a++) {
+		if (!p->Player[a]->isInGame || p->Player[a]->isDead) continue;   // a wreck or a vanished player is not in the way
 		if (p->Player[a]->X-48 <= X*48 && p->Player[a]->X+48 >= (X-2)*48 && p->Player[a]->Y-48 <= Y*48 && p->Player[a]->Y+48 >= (Y-2)*48) {
 			return 1;
 		}

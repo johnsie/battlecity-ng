@@ -296,6 +296,32 @@ int main(int argc, char *argv[]) {
 			g.Draw->ApplyResolution(); g.Draw->resetPlayerOffset();
 		}
 		if (getenv("BC_TEST_SCENE") && frames > 5) { BCDialogsCloseActive(); game.State = STATE_GAME; if (getenv("BC_TEST_DRIVE")) { game.Player[0]->X -= 5.0f; game.Player[0]->Y += 2.0f; } }
+		// BC_TEST_PLACE=1: put a building cursor at a fixed mouse position and a real building on the tile a click there would use;
+		// they must coincide on screen
+		if (getenv("BC_TEST_PLACE") && getenv("BC_TEST_SCENE") && frames == 20) {
+			CGame &g = game;
+			g.Player[0]->isMayor = 1;
+			g.InGame->IsBuilding = 4;     // a house
+			g.Input->LastMouseX = 300; g.Input->LastMouseY = 420;
+			int tx, ty;
+			g.Input->TileUnderMouse(g.Input->LastMouseX, g.Input->LastMouseY, &tx, &ty);
+			g.Build->newBuilding(tx, ty, 4, 0, 5000);
+			printf("script: click at %d,%d builds on tile %d,%d (tank tile %d,%d)\n", g.Input->LastMouseX, g.Input->LastMouseY, tx, ty, (int)g.Player[0]->X / 48, (int)g.Player[0]->Y / 48);
+		}
+		// BC_TEST_MENU=1: open the build menu in the scene and click each row, printing what each click selected
+		if (getenv("BC_TEST_MENU") && getenv("BC_TEST_SCENE") && frames == 20) {
+			CGame &g = game;
+			g.Player[0]->isMayor = 1;
+			g.InGame->CanBuild[1] = 1; g.InGame->CanBuild[3] = 1; g.InGame->CanBuild[4] = 1;
+			int menuX = g.Draw->MaxMapX - 180, menuY = 344;
+			for (int row = 0; row < 5; row++) {
+				g.InGame->ShowBuildMenu = 1; g.InGame->IsBuilding = 0; g.Draw->BuildMenuX = menuX; g.Draw->BuildMenuY = menuY;
+				int rowTop = menuY - 16 * (row == 0 ? 0 : row);   // Demolish is the bottom row, then items upward
+				int y = rowTop + 8 - (row == 0 ? 0 : 16) + (row == 0 ? 0 : 0);
+				g.Input->TestClick(menuX + 40, y);
+				printf("script: menu click row %d at y=%d -> IsBuilding=%d (menu shown=%d)\n", row, y, (int)g.InGame->IsBuilding, (int)g.InGame->ShowBuildMenu);
+			}
+		}
 		if (getenv("BC_TEST_SCENE") && frames > 5 && frames % 40 == 0 && frames < 400) g_game->Explode->newExplosion((int)g_game->Player[0]->X - 160, (int)g_game->Player[0]->Y - 40, (frames / 40) & 1 ? 1 : 2);
 		if (shotPath) frames++;
 		if (shotPath && frames >= shotFrames) {

@@ -52,6 +52,9 @@ class CDrawing {
         void DrawInfo();
         void DrawInventory();
         void DrawBullets();
+        int refOffsetX();   // where the tank sat on screen in the original 1024x768 / 800x600 views (the click offsets were tuned for that)
+        int refOffsetY();
+        static int floorDiv(int a, int b) { int q = a / b; return (a % b != 0 && ((a < 0) != (b < 0))) ? q - 1 : q; }
         void DrawDust();   // dust puffs kicked up by moving tanks
         void DrawRadar();
         void DrawExplosions();

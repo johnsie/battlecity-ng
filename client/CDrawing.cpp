@@ -638,6 +638,9 @@ void CDrawing::DrawBuildMenu() {
  * Function:	DrawBuildPlacement
  *
  **************************************************************/
+int CDrawing::refOffsetX() { return p->Options->resolution1024 ? 388 : 276; }
+int CDrawing::refOffsetY() { return p->Options->resolution1024 ? 360 : 276; }
+
 void CDrawing::DrawBuildPlacement() {
 	
 	// If the player has a Building or Demolish on the cursor,
@@ -645,8 +648,10 @@ void CDrawing::DrawBuildPlacement() {
 		int me = p->Winsock->MyIndex;
 		int offX = (int)p->Player[me]->X % 48;
 		int offY = (int)p->Player[me]->Y % 48;
-		int tX = (p->Input->LastMouseX / 48) * 48 + this->buildingCursorOffsetX;
-		int tY = (p->Input->LastMouseY / 48) * 48 + this->buildingCursorOffsetY;
+		// The offsets below were tuned with the tank at its original on-screen spot; shift by how far it is from there now
+		int shiftX = this->PlayerOffsetX - this->refOffsetX(), shiftY = this->PlayerOffsetY - this->refOffsetY();
+		int tX = floorDiv(p->Input->LastMouseX - shiftX, 48) * 48 + this->buildingCursorOffsetX + shiftX;
+		int tY = floorDiv(p->Input->LastMouseY - shiftY, 48) * 48 + this->buildingCursorOffsetY + shiftY;
 		int buildingType = buildingTypes[p->InGame->IsBuilding-1] / 100;
 		int buildingSubType = buildingTypes[p->InGame->IsBuilding-1] - buildingType*100;
 		int moffX = 0;
@@ -654,8 +659,8 @@ void CDrawing::DrawBuildPlacement() {
 
 		// If the player has a Building on the cursor,
 		if (p->InGame->IsBuilding > 0) {
-			tX = (p->Input->LastMouseX / 48) * 48 + this->buildingCursorOffsetX;
-			tY = (p->Input->LastMouseY / 48) * 48 + this->buildingCursorOffsetY;
+			tX = floorDiv(p->Input->LastMouseX - shiftX, 48) * 48 + this->buildingCursorOffsetX + shiftX;
+			tY = floorDiv(p->Input->LastMouseY - shiftY, 48) * 48 + this->buildingCursorOffsetY + shiftY;
 
 			p->DDraw->Draw(p->DDraw->imgBuildings, tX+offX, tY+offY, 144, 144, 0, (buildingTypes[p->InGame->IsBuilding-1]/100)*144, MaxMapX, MaxMapY);
 			int imgX = buildingSubType * 32;
@@ -675,8 +680,8 @@ void CDrawing::DrawBuildPlacement() {
 
 		// Else (player has Demolish on the cursor),
 		else {
-			tX = (p->Input->LastMouseX / 48) * 48 + this->demoCursorOffsetX;
-			tY = (p->Input->LastMouseY / 48) * 48 + this->demoCursorOffsetY;
+			tX = floorDiv(p->Input->LastMouseX - shiftX, 48) * 48 + this->demoCursorOffsetX + shiftX;
+			tY = floorDiv(p->Input->LastMouseY - shiftY, 48) * 48 + this->demoCursorOffsetY + shiftY;
 
 			p->DDraw->Draw(p->DDraw->imgDemolish, tX+offX+moffX, tY+offY+moffY, 32, 32, 0, 0, MaxMapX, MaxMapY); 
 		}

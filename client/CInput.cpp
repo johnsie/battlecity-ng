@@ -437,6 +437,29 @@ void CInput::MouseMove(DIMOUSESTATE mouse_state, int X, int Y, char buffer[256])
  * @param Y
  * @param buffer
  **************************************************************/
+void CInput::TileUnderMouse(int mouseX, int mouseY, int *tileX, int *tileY) {
+	int me = p->Winsock->MyIndex;
+	int myX = (int)p->Player[me]->X / 48;
+	int myY = (int)p->Player[me]->Y / 48;
+	// clickOffsetX/Y were tuned with the tank at its original on-screen spot: allow for where it is now (a widescreen view
+	// puts it further right, and the building used to land that far from the cursor)
+	int shiftX = p->Draw->PlayerOffsetX - p->Draw->refOffsetX(), shiftY = p->Draw->PlayerOffsetY - p->Draw->refOffsetY();
+	int tX = CDrawing::floorDiv(mouseX - shiftX, 48);
+	int tY = CDrawing::floorDiv(mouseY - shiftY, 48);
+	*tileX = myX - tX + p->Draw->clickOffsetX;
+	*tileY = myY - tY + p->Draw->clickOffsetY;
+}
+
+void CInput::TestClick(int X, int Y) {
+	DIMOUSESTATE ms;
+	memset(&ms, 0, sizeof(ms));
+	ms.rgbButtons[0] = 0x80;
+	char kb[256];
+	memset(kb, 0, sizeof(kb));
+	NeedRelease = 0;
+	MouseDown(ms, X + p->DDraw->XOff, Y + p->DDraw->YOff, kb);
+}
+
 void CInput::MouseUp(DIMOUSESTATE mouse_state, int X, int Y, char buffer[256]) {
 	// Set class variable NeedRelease to 0 to show that mouse button was released
 	NeedRelease = 0;
@@ -463,10 +486,8 @@ void CInput::MouseDown(DIMOUSESTATE mouse_state, int X, int Y, char buffer[256])
 	int me = p->Winsock->MyIndex;
 	int myX = (int)p->Player[me]->X / 48;
 	int myY = (int)p->Player[me]->Y / 48;
-	int tX = p->Input->LastMouseX / 48;
-	int tY = p->Input->LastMouseY / 48;
-	int Xloc = myX - tX + p->Draw->clickOffsetX;
-	int Yloc = myY - tY + p->Draw->clickOffsetY;
+	int Xloc, Yloc;
+	TileUnderMouse(p->Input->LastMouseX, p->Input->LastMouseY, &Xloc, &Yloc);
 	bool success = false;
 
 	/************************************************

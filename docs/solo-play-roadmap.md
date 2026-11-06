@@ -7,7 +7,7 @@ Every feature runs in the server (new module `server/CBot.cpp`) unless a client 
 | # | Idea | What it is | Where | Status |
 |---|------|-----------|-------|--------|
 | 1 | AI bot tanks | Scouts (laser, fast), heavies (rockets, slow, tough) and a boss. They wander, notice you, chase, aim, shoot and flee when hurt. Killable (server-side health), respawning. Count scales with how many humans are online and drops to zero when nobody is there. | server | done |
-| 2 | Raids | Every 10-15 minutes a raid party attacks a human city's buildings. The city is warned in global chat; repelling it earns points. | server | done |
+| 2 | Raids | Every 20-30 minutes a raid party attacks a human city's buildings. The city is warned in global chat; repelling it earns points. | server | done |
 | 3 | Solo goals and progression | Daily and weekly challenges (kill counts) with point rewards, a daily cap on points from bots, promotions through the existing rank system. `/challenge` shows progress. | server | done |
 | 4 | Things to find | Supply crates (medkit, cloak, rocket) dropped somewhere on the map with a hint of where, and a roaming bounty boss worth extra points and a drop. | server | done |
 | 5 | Targets and practice | `/range` builds a ring of target dummies and times how long you take to clear them. `/trial` is a four-checkpoint time trial with personal bests. | server | done |
@@ -18,8 +18,9 @@ Every feature runs in the server (new module `server/CBot.cpp`) unless a client 
 
 ## Rules the bots follow
 
+- Bots keep out of a zone around every city that has a mayor (raiders on a raid excepted), so building at home is never interrupted by bots.
 - Bots exist only while at least one human is in the game. With nobody online the bots are removed, so an empty server costs nothing.
-- Settings (environment variables, all optional): `BC_BOTS` (maximum fighting bots, default 4, `0` turns every bot feature off), `BC_BOT_CITY` (the city index bots belong to, default 63), `BC_DISCORD_WEBHOOK`.
+- Settings (environment variables, all optional): `BC_BOTS` (maximum fighting bots, default 3, `0` turns every bot feature off), `BC_BOT_CITY` (the city index bots belong to, default 63), `BC_DISCORD_WEBHOOK`.
 - Bots never receive or lose points in the database. Points awarded to humans for bot kills are small and capped per day.
 - Bots shoot with the same bullets and damage as players, so the existing client damage and death code works unchanged.
 - State that must survive a restart (challenge progress, trial records, the ghost, recent events) lives in small text files in the server's working directory next to `map.dat`.
