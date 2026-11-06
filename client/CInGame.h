@@ -131,6 +131,7 @@ class CInGame {
 		void setPlayerInfoLine(string infoText, int lineIndex, COLORREF color);
 
 		void RefreshArea();
+		int SectorRadius();   // sectors kept loaded around the player (1 = the 3x3 block)
 		void ClearSector(int SectorX, int SectorY);
 		void PrintWhoData();
 		void PrintFinanceReport();

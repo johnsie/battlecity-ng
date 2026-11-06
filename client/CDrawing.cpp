@@ -35,7 +35,7 @@ void CDrawing::DrawGame() {
 	float dt = p->Tick - lastFrameTick;
 	if (dt < 0 || dt > 200) dt = 16;
 	lastFrameTick = p->Tick;
-	if (shakeAmp > 0.5f) {
+	if (shakeAmp > 0.5f && !getenv("BC_NO_FX")) {
 		shX = (int)(((rand() % 201) - 100) / 100.0f * shakeAmp);
 		shY = (int)(((rand() % 201) - 100) / 100.0f * shakeAmp);
 		shakeAmp -= dt * 0.012f;
@@ -1824,10 +1824,12 @@ bool CDrawing::isPositionInSight(int myX, int myY, int positionX, int positionY)
  * @param tileY
  **************************************************************/
 bool CDrawing::isTileInSight(int myX, int myY, int tileX, int tileY) {
-	return
-		(abs(tileX - (myX / 48)) < this->tilesToDraw)
-		&&
-		(abs(tileY - (myY / 48)) < this->tilesToDraw);
+	// How far the view reaches: the original 18-tile limit was sized for the 800/1024 pixel view; a widescreen view is wider,
+	// and anything beyond the limit used to vanish (and pop back in as you drove)
+	int reachX = std::max(this->tilesToDraw, this->MaxMapX / 48 + 3);
+	int reachY = std::max(this->tilesToDraw, this->MaxMapY / 48 + 3);
+	int dx = (myX / 48) - tileX, dy = (myY / 48) - tileY;   // positive: towards the right/bottom of the screen (the view is mirrored)
+	return dx > -this->tilesToDraw && dx < reachX && dy > -this->tilesToDraw && dy < reachY;
 }
 
 /***************************************************************

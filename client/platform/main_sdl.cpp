@@ -282,6 +282,10 @@ int main(int argc, char *argv[]) {
 			g.Build->newBuilding(mx - 4, my - 3, 0, 0, 1000 + 1);
 			g.Build->newBuilding(mx + 3, my - 3, 100, 0, 1000 + 2);
 			g.Build->newBuilding(mx - 4, my + 3, 300, 0, 1000 + 3);
+			g.Build->newBuilding(mx - 14, my - 2, 100, 0, 1000 + 4);   // far to one side, to check the widescreen reach
+			g.Build->newBuilding(mx + 14, my - 2, 100, 0, 1000 + 5);
+			g.Build->newBuilding(mx - 17, my + 2, 100, 0, 1000 + 6);
+			g.Build->newBuilding(mx + 12, my + 6, 100, 0, 1000 + 7);
 			g.Item->newItem(mx + 2, my + 2, ITEM_TYPE_ORB, 0, 2000, 0);
 			g.Item->newItem(mx + 3, my + 2, ITEM_TYPE_MEDKIT, 0, 2001, 0);
 			g.Item->newItem(mx + 4, my + 2, ITEM_TYPE_BOMB, 0, 2002, 1);

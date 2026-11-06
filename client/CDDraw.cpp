@@ -25,6 +25,13 @@
 #include <cmath>
 #include <algorithm>
 
+/// <summary> BC_NO_FX=1 turns off every lighting effect (shadows, glows, rings, vignette, washes): a quick way to tell whether a rendering problem comes from them </summary>
+static bool FxEnabled()
+{
+    static const bool on = getenv("BC_NO_FX") == NULL;
+    return on;
+}
+
 CDDraw::CDDraw(CGame *game)
 {
     Canvas = NULL;
@@ -542,7 +549,7 @@ void CDDraw::DTextOut(int X, int Y, string Text, COLORREF ColorVal)
 /// <summary> A soft elliptical drop shadow (black, fading to nothing at the edge), clipped to the map view </summary>
 void CDDraw::DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH)
 {
-    if (!Renderer) return;
+    if (!FxEnabled() || !Renderer) return;
     if (!ShadowTex) {
         const int w = 64, h = 32;
         std::vector<Uint32> px((size_t)w * h);
@@ -593,7 +600,7 @@ static SDL_Texture *MakeRadialTexture(SDL_Renderer *r, int w, int h, bool white,
 /// <summary> Additive light: a soft round glow tinted (r,g,b), clipped to the map view </summary>
 void CDDraw::DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH, bool additive)
 {
-    if (!Renderer || radius <= 0 || alpha <= 0) return;
+    if (!FxEnabled() || !Renderer || radius <= 0 || alpha <= 0) return;
     SDL_Texture *&tex = additive ? GlowTex : PuffTex;
     if (!tex) {
         if (additive)
@@ -616,7 +623,7 @@ void CDDraw::DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha
 /// <summary> A thin glowing ring (an expanding shockwave), additive, clipped to the map view </summary>
 void CDDraw::DrawRing(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH)
 {
-    if (!Renderer || radius <= 0 || alpha <= 0) return;
+    if (!FxEnabled() || !Renderer || radius <= 0 || alpha <= 0) return;
     if (!RingTex) {
         RingTex = MakeRadialTexture(Renderer, 128, 128, true, [](float d) { float a = 1.0f - std::fabs(d - 0.85f) / 0.15f; return a <= 0 ? 0.0f : a * a * (3.0f - 2.0f * a); });
         if (!RingTex) return;
@@ -635,7 +642,7 @@ void CDDraw::DrawRing(int cx, int cy, int radius, int r, int g, int b, int alpha
 /// <summary> A translucent colour wash over the w x h map view (fades, death tint) </summary>
 void CDDraw::DrawOverlay(int w, int h, int r, int g, int b, int alpha)
 {
-    if (!Renderer || alpha <= 0) return;
+    if (!FxEnabled() || !Renderer || alpha <= 0) return;
     SDL_Rect rc = { XOff, YOff, w, h };
     SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(Renderer, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)std::min(255, alpha));
@@ -647,7 +654,7 @@ void CDDraw::DrawOverlay(int w, int h, int r, int g, int b, int alpha)
 /// <summary> Darkens the edges of the w x h map view so the eye stays on the action </summary>
 void CDDraw::DrawVignette(int w, int h, int alpha, int r, int g, int b)
 {
-    if (!Renderer || alpha <= 0) return;
+    if (!FxEnabled() || !Renderer || alpha <= 0) return;
     if (!VignetteTex) {
         VignetteTex = MakeRadialTexture(Renderer, 128, 128, true, [](float d) { float t = (d - 0.55f) / 0.75f; return t <= 0 ? 0.0f : t * t; });
         if (!VignetteTex) return;

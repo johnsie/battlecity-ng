@@ -538,14 +538,24 @@ void CInGame::SendCheatCheck() {
  * Function:	RefreshArea
  *
  **************************************************************/
+int CInGame::SectorRadius() {
+	int halfView = std::max(p->Draw->MaxMapX, p->Draw->MaxMapY) / 96;   // tiles from the tank to the screen edge when centred
+	int needed = halfView + 4;                                         // plus a building's size and a little slack
+	return std::min(3, std::max(1, (needed + SectorSize - 1) / SectorSize));
+}
+
 void CInGame::RefreshArea() {
 	bool requestedSector = false;
 	char me = p->Winsock->MyIndex;
 	sCMSector sector;
 
-	// For each sector in the nearby grid of 9 sectors,
-	for (int i = -1; i <= 1; i++) {
-		for (int j = -1; j <= 1; j++) {
+	// How many sectors out to keep loaded: the 3x3 block is enough for the original view, but a widescreen view shows
+	// (and the tank can look) further than the 16 tiles it guarantees, so those buildings and items would vanish
+	const int R = SectorRadius();
+
+	// For each sector in the nearby grid (3x3 normally, wider for widescreen),
+	for (int i = -R; i <= R; i++) {
+		for (int j = -R; j <= R; j++) {
 
 			// If the sector is on the map,
 			if (
@@ -596,7 +606,7 @@ void CInGame::RefreshArea() {
 			if( this->HasSector[i][j] ) {
 
 				// If the player is no longer near the sector, clear it
-				if ((abs(i - p->Player[me]->SectorX) > 1) | (abs(j - p->Player[me]->SectorY) > 1)) {
+				if ((abs(i - p->Player[me]->SectorX) > R) | (abs(j - p->Player[me]->SectorY) > R)) {
 					ClearSector(i, j);
 				}
 			}
