@@ -164,6 +164,8 @@ class CBotManager {
 		void Tell(int idx, const std::string &text);
 		void TellAll(const std::string &text);
 		void TellCity(int city, const std::string &text);
+		std::string Rel(int idx, float x, float y) const;
+		void TellEachRel(const std::string &before, float x, float y, const std::string &after);
 		void Event(const std::string &text);
 
 		// Bots

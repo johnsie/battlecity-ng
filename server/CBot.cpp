@@ -293,6 +293,19 @@ void CBotManager::TellAll(const std::string &text) {
 	for (int i = 0; i < MAX_PLAYERS; i++) if (IsHuman(i)) Tell(i, text);
 }
 
+/// "25 tiles north-west of you": where a spot is relative to this player (map coordinates mean nothing to someone who cannot see their own)
+std::string CBotManager::Rel(int idx, float x, float y) const {
+	float dx = x - p->Player[idx]->X, dy = y - p->Player[idx]->Y;
+	long tiles = (long)(sqrtf(dx * dx + dy * dy) / 48.0f);
+	if (tiles < 5) return "right here";
+	return Num(tiles) + " tiles " + Compass(dx, dy) + " of you";
+}
+
+/// Tells every human `before` + where (x, y) is relative to them + `after`
+void CBotManager::TellEachRel(const std::string &before, float x, float y, const std::string &after) {
+	for (int i = 0; i < MAX_PLAYERS; i++) if (IsHuman(i)) Tell(i, before + Rel(i, x, y) + after);
+}
+
 void CBotManager::TellCity(int city, const std::string &text) {
 	for (int i = 0; i < MAX_PLAYERS; i++) if (IsHuman(i) && p->Player[i]->City == city) Tell(i, text);
 }
@@ -1061,7 +1074,7 @@ void CBotManager::ManageRaid(float now, int humans) {
 	if (raid.spawned == 0) { raid.active = false; return; }
 	std::string town = p->Player[p->City[city]->Mayor]->Town;
 	if (town.empty()) town = "your city";
-	TellAll("RAID! " + Num(raid.spawned) + " raiders are attacking " + town + " from the " + Compass(sx - cx, sy - cy) + ". Defend it!");
+	TellEachRel("RAID! " + Num(raid.spawned) + " raiders are attacking " + town + " from the " + Compass(sx - cx, sy - cy) + ". The city is ", cx, cy, ". Defend it!");
 	Event("Raiders attacked " + town);
 }
 
@@ -1119,7 +1132,7 @@ void CBotManager::StartMission(int type, int humans) {
 		float zx = 0, zy = 0;
 		if (h < 0 || !FindSpawn(p->Player[h]->X, p->Player[h]->Y, 800, 1500, &zx, &zy)) { mission.active = false; return; }
 		mission.zoneX = zx; mission.zoneY = zy;
-		TellAll("MISSION: Hold the Zone at tile " + Num((long)(zx / 48)) + "," + Num((long)(zy / 48)) + ". Stay near it for " + Num(mission.goal) + " seconds while raiders try to break you. Everyone who takes part earns 5 points.");
+		TellEachRel("MISSION: Hold the Zone, ", zx, zy, ". Stay close to it for " + Num(mission.goal) + " seconds while raiders try to break you. Everyone who takes part earns 5 points. /where shows the way.");
 	}
 	Event("Mission started");
 }
@@ -1170,19 +1183,14 @@ void CBotManager::ManageMission(float now, int humans) {
 		}
 		if (now >= mission.nextHint) {
 			mission.nextHint = now + 45000.0f;
-			int h = NearestHuman(mission.zoneX, mission.zoneY, NULL, false);
-			if (h >= 0) {
-				float dx = mission.zoneX - p->Player[h]->X, dy = mission.zoneY - p->Player[h]->Y;
-				TellAll("Zone: " + Num(mission.progress) + "/" + Num(mission.goal) + " s held. It is at tile " + Num((long)(mission.zoneX / 48)) + "," + Num((long)(mission.zoneY / 48)) + ", " + Compass(dx, dy) + " of " + p->Player[h]->Name + ".");
-			}
+			TellEachRel("Zone: " + Num(mission.progress) + "/" + Num(mission.goal) + " s held. It is ", mission.zoneX, mission.zoneY, ".");
 		}
 	}
 	else if (mission.type == 1 && now >= mission.nextHint) {
 		mission.nextHint = now + 60000.0f;
 		for (int i = 0; i < 24; i++) {
 			if (bots[i].used && bots[i].tier == BOT_BOSS && !bots[i].dead) {
-				int h = NearestHuman(bots[i].x, bots[i].y, NULL, false);
-				if (h >= 0) TellAll("Warlord last seen " + Compass(bots[i].x - p->Player[h]->X, bots[i].y - p->Player[h]->Y) + " of " + p->Player[h]->Name + ", about " + Num((long)(sqrtf(powf(bots[i].x - p->Player[h]->X, 2) + powf(bots[i].y - p->Player[h]->Y, 2)) / 48)) + " tiles away.");
+				TellEachRel("Warlord last seen ", bots[i].x, bots[i].y, ".");
 			}
 		}
 	}
@@ -1208,7 +1216,7 @@ void CBotManager::ManageBounty(float now, int humans) {
 	int bi = SpawnBot(BOT_BOSS, sx, sy);
 	if (bi < 0) return;
 	bots[bi].expiresAt = now + 600000.0f;
-	TellAll("BOUNTY: a Warlord (150 HP) roams the map, about " + Num((long)(sqrtf(powf(sx - p->Player[h]->X, 2) + powf(sy - p->Player[h]->Y, 2)) / 48)) + " tiles " + Compass(sx - p->Player[h]->X, sy - p->Player[h]->Y) + " of " + p->Player[h]->Name + ". Destroy it for 10 points and a supply drop.");
+	TellEachRel("BOUNTY: a Warlord (150 HP) roams the map, ", sx, sy, ". Destroy it for 10 points and a supply drop. /where shows the way.");
 	Event("A Warlord is on the loose");
 }
 
@@ -1246,8 +1254,9 @@ void CBotManager::DropCrate(int humanSlot, int itemType, float x, float y, bool 
 	if (announce) {
 		static const char *names[] = { "cloak", "rocket", "medkit" };
 		std::string what = (itemType >= 0 && itemType <= 2) ? names[itemType] : "supplies";
-		float dx = tx * 48 - p->Player[humanSlot]->X, dy = ty * 48 - p->Player[humanSlot]->Y;
-		TellCity(city, "SUPPLY CRATE (" + what + ") at tile " + Num(tx) + "," + Num(ty) + ", " + Num((long)(sqrtf(dx * dx + dy * dy) / 48)) + " tiles " + Compass(dx, dy) + " of " + p->Player[humanSlot]->Name + ". Your city can pick it up for 6 minutes.");
+		for (int i = 0; i < MAX_PLAYERS; i++)
+			if (IsHuman(i) && p->Player[i]->City == city)
+				Tell(i, "SUPPLY CRATE (" + what + "): " + Rel(i, (float)(tx * 48), (float)(ty * 48)) + " (tile " + Num(tx) + "," + Num(ty) + "). Your city can pick it up for 6 minutes.");
 	}
 }
 
@@ -1390,7 +1399,7 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 	arg = Lower(arg);
 
 	if (cmd == "help" || cmd == "solo") {
-		Tell(idx, "Solo play commands: /bots  /challenge  /mission  /range  /trial  /ghost  /events");
+		Tell(idx, "Solo play commands: /where  /bots  /challenge  /mission  /range  /trial  /ghost  /events");
 		Tell(idx, "Raiders, a bounty Warlord, supply crates and missions appear while you play. Kill raiders for points (capped daily).");
 		return true;
 	}
@@ -1408,7 +1417,17 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 	if (cmd == "mission") {
 		if (!mission.active) { Tell(idx, "No mission right now. The next one starts soon."); return true; }
 		static const char *names[] = { "Raider Sweep", "Boss Hunt", "Hold the Zone" };
-		Tell(idx, std::string("Mission: ") + names[mission.type] + ", " + Num(mission.progress) + "/" + Num(mission.goal) + ", " + Num((long)std::max(0.0f, (mission.endsAt - Now()) / 1000)) + " s left.");
+		Tell(idx, std::string("Mission: ") + names[mission.type] + ", " + Num(mission.progress) + "/" + Num(mission.goal) + ", " + Num((long)std::max(0.0f, (mission.endsAt - Now()) / 1000)) + " s left." + (mission.type == 2 ? " The zone is " + Rel(idx, mission.zoneX, mission.zoneY) + "." : ""));
+		return true;
+	}
+	if (cmd == "where") {
+		Tell(idx, "You are at tile " + Num((long)(p->Player[idx]->X / 48)) + "," + Num((long)(p->Player[idx]->Y / 48)) + " (also shown under the radar).");
+		bool any = false;
+		if (mission.active && mission.type == 2) { Tell(idx, "Zone: " + Rel(idx, mission.zoneX, mission.zoneY) + "."); any = true; }
+		for (int i = 0; i < 24; i++) if (bots[i].used && bots[i].tier == BOT_BOSS && !bots[i].dead) { Tell(idx, "Warlord: " + Rel(idx, bots[i].x, bots[i].y) + "."); any = true; }
+		for (int i = 0; i < 4; i++) if (drops[i].active && drops[i].city == p->Player[idx]->City) { Tell(idx, "Supply crate: " + Rel(idx, (float)(drops[i].x * 48), (float)(drops[i].y * 48)) + " (tile " + Num(drops[i].x) + "," + Num(drops[i].y) + ")."); any = true; }
+		if (raid.active) { Tell(idx, "Raid on city " + Num(raid.city) + ": " + Rel(idx, (float)p->City[raid.city]->x, (float)p->City[raid.city]->y) + "."); any = true; }
+		if (!any) Tell(idx, "No objective is active right now.");
 		return true;
 	}
 	if (cmd == "range") { StartRange(idx); return true; }

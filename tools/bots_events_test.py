@@ -99,7 +99,7 @@ def main():
                 a.update(px, py, int(t * 2) % 32, 2)
         a.pump()
         for _, text in a.chat:
-            m = re.search(r"SUPPLY CRATE .* at tile (\d+),(\d+)", text)
+            m = re.search(r"SUPPLY CRATE .*\(tile (\d+),(\d+)\)", text)
             if m and crate_tile is None:
                 crate_tile = (int(m.group(1)), int(m.group(2)))
             for key in ("RAID!", "MISSION:", "BOUNTY:", "SUPPLY CRATE", "Zone:", "Warlord", "raid", "MISSION COMPLETE", "Mission failed", "Daily"):

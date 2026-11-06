@@ -1412,6 +1412,14 @@ void CDrawing::DrawBullets() {
  *
  **************************************************************/
 void CDrawing::DrawRadar() {
+	// Your own tile, so the "tile X,Y" in server messages (and /where) can be matched to somewhere
+	{
+		int me0 = p->Winsock->MyIndex;
+		std::ostringstream pos;
+		pos << (int)(p->Player[me0]->X / 48) << "," << (int)(p->Player[me0]->Y / 48);
+		std::string txt = pos.str();
+		p->DDraw->DTextOut(MaxMapX + 99 - p->DDraw->MeasureText(txt) / 2, 122, txt, COLOR_WHITE);
+	}
 	// A sweeping beam with a fading trail, drawn first so the blips stay on top
 	{
 		int cx = MaxMapX + 97, cy = 71;

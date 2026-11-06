@@ -18,7 +18,7 @@ While at least one human is in the game, the server keeps the world populated:
 - **A ghost** tank replays the longest recent run of the best player who left, and the login news lists recent events (raids, boss kills, records, the last player online).
 - **Weather** (client only): rain and dust storms roll through on a five-minute schedule. `BC_WEATHER=rain|dust|off` forces or disables it.
 
-Commands (typed in game chat, answered by the server and never broadcast): `/help`, `/bots`, `/challenge`, `/mission`, `/range`, `/trial` (`stop`, `best`), `/ghost`, `/events`.
+Every announcement tells each player how far away something is and in which direction ("25 tiles north-west of you"), because nothing in the game shows map coordinates. Your own tile is shown under the radar crosshair, and `/where` lists every active objective with its direction. Commands (typed in game chat, answered by the server and never broadcast): `/help`, `/where`, `/bots`, `/challenge`, `/mission`, `/range`, `/trial` (`stop`, `best`), `/ghost`, `/events`.
 
 ## How it works
 
