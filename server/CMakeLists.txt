@@ -38,6 +38,10 @@ if(NOT WIN32)
   target_compile_options(test-status-count PRIVATE -Wall)
   add_test(NAME status-count COMMAND test-status-count)
 
+  add_executable(test-outiva-ticket test/test_outiva_ticket.cpp)
+  target_compile_options(test-outiva-ticket PRIVATE -Wall -UNDEBUG)
+  add_test(NAME outiva-ticket COMMAND test-outiva-ticket)
+
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_test(NAME outiva-status-adapter
     COMMAND ${Python3_EXECUTABLE} test_outiva_status.py)

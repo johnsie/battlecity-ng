@@ -21,6 +21,8 @@
 ===============================================================================
 */
 #include "CAccount.h"
+#include "OutivaTicket.h"
+#include <random>
 
 /***************************************************************
  * Constructor:	CBuilding
@@ -210,6 +212,105 @@ int CAccount::NewAccount(string account, string password, string email, string f
 }
 
 /***************************************************************
+ * Function:	UniqueName
+ *
+ * The first free name of the form base, base2, base3, ... that fits in 15 characters.
+ **************************************************************/
+static string UniqueAccountName(CAccount *accounts, const string &base) {
+	if (accounts->CheckAccount(base) == 0) return base;
+	for (int n = 2; n < 10000; n++) {
+		string suffix = to_string(n);
+		string name = base.substr(0, 15 - suffix.size()) + suffix;
+		if (accounts->CheckAccount(name) == 0) return name;
+	}
+	return "";
+}
+
+static string RandomPassword() {
+	// Nobody is given this: an Outiva character signs in with a ticket, and the old password login for it can never succeed
+	static const char digits[] = "0123456789abcdef";
+	std::random_device entropy;
+	string out;
+	for (int i = 0; i < 15; i++) out += digits[entropy() % 16];
+	return out;
+}
+
+/***************************************************************
+ * Function:	FindOutivaCharacter
+ *
+ * The account name of the character that belongs to this Outiva id, or "" if there is none.
+ **************************************************************/
+string CAccount::FindOutivaCharacter(string sub) {
+	try {
+		string QueryString = "SELECT Account FROM tAccounts WHERE OutivaSub = '" + SqlEscape(sub) + "' AND OutivaSub <> '' AND Guest = 0;";
+		p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
+		string name;
+		if (!p->Database->Query.eof()) name = p->Database->Query.getStringField("Account");
+		p->Database->Query.finalize();
+		return name;
+	}
+	catch (CppSQLite3Exception& e) {
+		cerr << "CAccount::FindOutivaCharacter : " << e.errorCode() << " : " << e.errorMessage() << endl;
+		return "";
+	}
+}
+
+/***************************************************************
+ * Function:	CreateOutivaCharacter
+ *
+ * A new persistent character for an Outiva id, named after the person's callsign (made unique if someone has it). Returns its name, or "".
+ **************************************************************/
+string CAccount::CreateOutivaCharacter(string sub, string callsign) {
+	string name = UniqueAccountName(this, OutivaTicket::CharacterName(callsign));
+	if (name.empty()) return "";
+	try {
+		string DMLString = "INSERT INTO tAccounts (Account, Password, Email, Fullname, Town, State, OutivaSub, Guest) VALUES ('" + SqlEscape(name) + "', '" + RandomPassword() + "', '', '', '', '', '" + SqlEscape(sub) + "', 0);";
+		p->Database->Database.execDML(DMLString.c_str());
+		cout << "NewOutivaCharacter::" << name << endl;
+		return name;
+	}
+	catch (CppSQLite3Exception& e) {
+		cerr << "CAccount::CreateOutivaCharacter : " << e.errorCode() << " : " << e.errorMessage() << endl;
+		return "";
+	}
+}
+
+/***************************************************************
+ * Function:	CreateGuest
+ *
+ * A temporary character for someone playing without an account. It is a row so that everything that looks a player up by name works,
+ * but it is flagged, left out of every ranking and deleted when the player leaves. Returns its name, or "".
+ **************************************************************/
+string CAccount::CreateGuest(string requested) {
+	std::random_device entropy;
+	string digits = to_string(1000 + entropy() % 9000);
+	string name = UniqueAccountName(this, OutivaTicket::GuestName(requested, digits));
+	if (name.empty()) return "";
+	try {
+		string DMLString = "INSERT INTO tAccounts (Account, Password, Email, Fullname, Town, State, OutivaSub, Guest) VALUES ('" + SqlEscape(name) + "', '" + RandomPassword() + "', '', '', '', '', '', 1);";
+		p->Database->Database.execDML(DMLString.c_str());
+		return name;
+	}
+	catch (CppSQLite3Exception& e) {
+		cerr << "CAccount::CreateGuest : " << e.errorCode() << " : " << e.errorMessage() << endl;
+		return "";
+	}
+}
+
+/***************************************************************
+ * Function:	DeleteGuest
+ **************************************************************/
+void CAccount::DeleteGuest(string name) {
+	try {
+		string DMLString = "DELETE FROM tAccounts WHERE Guest = 1 AND lower(Account) = lower('" + SqlEscape(name) + "');";
+		p->Database->Database.execDML(DMLString.c_str());
+	}
+	catch (CppSQLite3Exception& e) {
+		cerr << "CAccount::DeleteGuest : " << e.errorCode() << " : " << e.errorMessage() << endl;
+	}
+}
+
+/***************************************************************
  * Function:	GenerateTop20
  *
  **************************************************************/
@@ -250,7 +351,7 @@ void CAccount::GenerateTop20() {
 	 * Top 20 - Month
 	 ************************************************/
 	// Select the top 20 accounts for Monthly Top 20
-	QueryString = "SELECT Account, Points, MonthlyTop20 FROM tAccounts WHERE Points AND MonthlyTop20 ORDER BY MonthlyTop20 DESC LIMIT 20";
+	QueryString = "SELECT Account, Points, MonthlyTop20 FROM tAccounts WHERE Points AND MonthlyTop20 AND Guest = 0 ORDER BY MonthlyTop20 DESC LIMIT 20";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 	// Start the Monthly Top 20
@@ -289,7 +390,7 @@ void CAccount::GenerateTop20() {
 	 * Top 20 - Overall
 	 ************************************************/
 	// Select the top 20 accounts for Top 20
-	QueryString = "SELECT Account, Points FROM tAccounts WHERE Points ORDER BY Points DESC LIMIT 20";
+	QueryString = "SELECT Account, Points FROM tAccounts WHERE Points AND Guest = 0 ORDER BY Points DESC LIMIT 20";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 	// Start the Top 20 
@@ -327,7 +428,7 @@ void CAccount::GenerateTop20() {
 	 * Top 20 - Points Per Death
 	 ************************************************/
 	// Select the top 20 accounts for PPD
-	QueryString = "SELECT Account, Points, Deaths FROM tAccounts WHERE Points AND Deaths > 100 ORDER BY ((Points*10000)/(Deaths)) DESC LIMIT 20";
+	QueryString = "SELECT Account, Points, Deaths FROM tAccounts WHERE Points AND Guest = 0 AND Deaths > 100 ORDER BY ((Points*10000)/(Deaths)) DESC LIMIT 20";
 	p->Database->Query = p->Database->Database.execQuery(QueryString.c_str());
 
 	// Start the Top 20 PPD

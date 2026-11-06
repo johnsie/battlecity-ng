@@ -69,6 +69,16 @@ void CProcess::ProcessData(char *TheData, int playerId) {
             this->ProcessLogin((sCMLogin *)&TheData[1], playerId);
             break;
 
+        // Packet: cmGuestLogin
+        case cmGuestLogin:
+            this->ProcessGuestLogin((sCMGuestLogin *)&TheData[1], playerId);
+            break;
+
+        // Packet: cmTicketLogin
+        case cmTicketLogin:
+            this->ProcessTicketLogin((sCMTicketLogin *)&TheData[1], playerId);
+            break;
+
         // Packet: cmNewAccount
         case cmNewAccount:
             this->ProcessNewAccount((sCMNewAccount *)&TheData[1], playerId);
@@ -282,6 +292,8 @@ void CProcess::ProcessData(char *TheData, int playerId) {
             // If the player is in game, in the city, and mayor,
             if ( ((unsigned char)TheData[1] < MAX_PLAYERS) && (this->p->Player[(unsigned char)TheData[1]]->isInGame())
                 &&
+                (!this->p->Player[(unsigned char)TheData[1]]->guest)
+                &&
                 (this->p->Player[(unsigned char)TheData[1]]->City == this->p->Player[playerId]->City)
                 &&
                 (this->p->Player[playerId]->Mayor)
@@ -465,6 +477,12 @@ void CProcess::ProcessJobApp(char *TheData, int Index) {
 
         // If the city has no mayor,
         if (city->Mayor == -1) {
+
+            // Founding a city needs an Outiva character: a guest's would be gone when they leave
+            if (player->guest) {
+                p->Winsock->SendData(Index, smError, "Y");
+                return;
+            }
 
             // Add the player to the city as mayor
             player->City = (unsigned char)TheData[0];
@@ -797,12 +815,16 @@ void CProcess::ProcessVersion(sCMVersion *vers, int Index) {
 /// <param name="Index">The index.</param>
 void CProcess::ProcessLogin(sCMLogin *login, int Index) {
     int CorrectPassword;
-    int foundmatch;
     CPlayer* player = this->p->Player[Index];
-    CPlayer* playerToCompare;
 
     // If the player's state is Verified (past version check and ban check),
     if (player->State == State_Verified)  {
+
+        // Name-and-password accounts can be switched off once everyone uses Outiva or plays as a guest
+        if (!p->LegacyLogin) {
+            p->Winsock->SendData(Index, smError, "O");
+            return;
+        }
 
         // If the account exists,
         if (p->Account->CheckAccount(login->User) == 1) {
@@ -810,73 +832,7 @@ void CProcess::ProcessLogin(sCMLogin *login, int Index) {
             // If the password is correct,
             CorrectPassword = p->Account->CheckPassword(login->User, login->Pass);
             if (CorrectPassword == 2) {
-
-                // If the user isn't banned,
-                if (p->Account->CheckAccountBan(login->User) == 0) {
-                    foundmatch = 0;
-                    int lingeringSlot = -1;
-
-                    // HACK: FIX "- 1"
-                    // TODO: FIX "- 1"
-                    // For each possible player,
-                    for (int j = 0; j < (MAX_PLAYERS-1); j++) {
-                        playerToCompare = this->p->Player[j];
-
-                        // The account's own seat, kept for it after a hot-update reload: take it back
-                        if (j != Index && playerToCompare->lingering && p->PlatformCaseCompare(login->User, playerToCompare->Name.c_str()) == 0) {
-                            lingeringSlot = j;
-                            continue;
-                        }
-                        
-                        // If the account is already in use, clear the player and set foundmatch=1
-                        if (p->PlatformCaseCompare(login->User, playerToCompare->Name.c_str()) == 0) {
-                            playerToCompare->Clear();
-                            foundmatch = 1;
-                        }
-
-/*
-                        // If the CPU is already connected, clear the player and set foundmatch=2
-                        if (p->PlatformCaseCompare(player->UniqID.c_str(), playerToCompare->UniqID.c_str()) == 0 && Index != j) {
-                            playerToCompare->Clear();
-                            foundmatch = 2;
-                        }
-*/
-                    }
-
-                    // The client came back after a hot update: give it its seat back, in the game, where it was
-                    if (foundmatch == 0 && lingeringSlot >= 0) {
-                        this->ResumeSession(Index, lingeringSlot);
-                    }
-
-                    // If the account is already logged in,
-                    else if (foundmatch == 1) {
-
-                        // Send account already in use error
-                        cout << "Multilog from " << login->User << endl;
-                        p->Winsock->SendData(Index, smError, "E");
-                    }
-
-                    // Else if the computer is already connected,
-/*
-                    else if (foundmatch == 2) {
-
-                        // Send MultiCPU error
-                        cout << "MultiCPU log from " << login->User << endl;
-                        p->Winsock->SendData(Index, smError, "H");
-                    }
-*/
-
-                    // Else (no Multilog, no Multicpu), log the player in
-                    else {	
-                        player->LoggedIn(login->User);
-                    }
-                }
-
-                // Else (ban check failed), send banned message
-                else {
-                    cout << "Banned log from " << login->User << endl;
-                    p->Winsock->SendData(Index, smError, "G");
-                } //Banned
+                this->EnterAccount(Index, login->User, false);
             }
 
             // Else if incorrect password, send incorrect password message
@@ -893,12 +849,135 @@ void CProcess::ProcessLogin(sCMLogin *login, int Index) {
 }
 
 /***************************************************************
+ * Function:	EnterAccount
+ *
+ * The part of every login that comes after the person has been identified (by password, by ticket, or as a guest): the ban check,
+ * the "already logged in" check, taking back a seat kept across a hot update, and finally logging in.
+ **************************************************************/
+void CProcess::EnterAccount(int Index, const char *user, bool guest) {
+    int foundmatch;
+    CPlayer* player = this->p->Player[Index];
+    CPlayer* playerToCompare;
+
+    // If the user isn't banned,
+    if (p->Account->CheckAccountBan(user) == 0) {
+        foundmatch = 0;
+        int lingeringSlot = -1;
+
+        // HACK: FIX "- 1"
+        // TODO: FIX "- 1"
+        // For each possible player,
+        for (int j = 0; j < (MAX_PLAYERS-1); j++) {
+            playerToCompare = this->p->Player[j];
+
+            // The account's own seat, kept for it after a hot-update reload: take it back
+            if (j != Index && playerToCompare->lingering && p->PlatformCaseCompare(user, playerToCompare->Name.c_str()) == 0) {
+                lingeringSlot = j;
+                continue;
+            }
+
+            // If the account is already in use, clear the player and set foundmatch=1
+            if (p->PlatformCaseCompare(user, playerToCompare->Name.c_str()) == 0) {
+                playerToCompare->Clear();
+                foundmatch = 1;
+            }
+        }
+
+        // The client came back after a hot update: give it its seat back, in the game, where it was
+        if (foundmatch == 0 && lingeringSlot >= 0) {
+            this->ResumeSession(Index, lingeringSlot);
+        }
+
+        // If the account is already logged in,
+        else if (foundmatch == 1) {
+
+            // Send account already in use error
+            cout << "Multilog from " << user << endl;
+            p->Winsock->SendData(Index, smError, "E");
+        }
+
+        // Else (no Multilog), log the player in
+        else {
+            player->guest = guest;
+            player->LoggedIn(user);
+        }
+    }
+
+    // Else (ban check failed), send banned message
+    else {
+        cout << "Banned log from " << user << endl;
+        p->Winsock->SendData(Index, smError, "G");
+    } //Banned
+
+    // A guest who did not get in leaves nothing behind
+    if (guest && !player->guest) {
+        p->Account->DeleteGuest(user);
+    }
+}
+
+/***************************************************************
+ * Function:	ProcessGuestLogin
+ *
+ * Play without an account. The guest gets a temporary character called "Guest-<name>"; nothing about it is kept.
+ **************************************************************/
+void CProcess::ProcessGuestLogin(sCMGuestLogin *login, int Index) {
+    CPlayer* player = this->p->Player[Index];
+    if (player->State != State_Verified || !player->Name.empty()) return;   // not yet verified, or already logged in
+    if (!p->GuestLogin) {
+        p->Winsock->SendData(Index, smError, "O");
+        return;
+    }
+    string requested(login->Name, strnlen(login->Name, sizeof(login->Name)));
+    string name = p->Account->CreateGuest(requested);
+    if (name.empty()) {
+        p->Winsock->SendData(Index, smError, "T");
+        return;
+    }
+    this->EnterAccount(Index, name.c_str(), true);
+}
+
+/***************************************************************
+ * Function:	ProcessTicketLogin
+ *
+ * Sign in as the Outiva account a ticket from the login broker names. The first time, the person gets a new character called after their
+ * Outiva callsign. A ticket works once, for a minute or two.
+ **************************************************************/
+void CProcess::ProcessTicketLogin(sCMTicketLogin *login, int Index) {
+    CPlayer* player = this->p->Player[Index];
+    if (player->State != State_Verified || !player->Name.empty()) return;   // not yet verified, or already logged in
+    if (p->TicketSecret.empty()) {
+        p->Winsock->SendData(Index, smError, "T");
+        return;
+    }
+    string ticket(login->Ticket, strnlen(login->Ticket, sizeof(login->Ticket)));
+    OutivaTicket::Claims claims;
+    int64_t now = (int64_t)time(NULL);
+    if (OutivaTicket::Verify(p->TicketSecret, ticket, now, claims) != OutivaTicket::Result::Ok
+        || !p->UsedTickets.Use(claims.id, claims.expires, now)) {
+        cout << "Outiva::TicketRefused from " << player->IPAddress << endl;
+        p->Winsock->SendData(Index, smError, "T");
+        return;
+    }
+    string name = p->Account->FindOutivaCharacter(claims.sub);
+    if (name.empty()) name = p->Account->CreateOutivaCharacter(claims.sub, claims.callsign);
+    if (name.empty()) {
+        p->Winsock->SendData(Index, smError, "T");
+        return;
+    }
+    this->EnterAccount(Index, name.c_str(), false);
+}
+
+/***************************************************************
  * Function:	ProcessNewAccount
  *
  * @param newaccount
  * @param Index
  **************************************************************/
 void CProcess::ProcessNewAccount(sCMNewAccount *newaccount, int Index) {
+    if (!p->LegacyLogin) {
+        p->Winsock->SendData(Index, smError, "O");
+        return;
+    }
     int CreateAccount = p->Account->NewAccount(newaccount->User, newaccount->Pass, newaccount->Email, newaccount->FullName, newaccount->Town, newaccount->State);
 
     // If the account was created, send success
@@ -1572,6 +1651,10 @@ void CProcess::ProcessRequestSector(sCMSector *sector, int Index) {
  * @param Index
  **************************************************************/
 void CProcess::ProcessEditAccount(sCMLogin *login, int Index) {
+    if (!p->LegacyLogin) {
+        p->Winsock->SendData(Index, smError, "O");
+        return;
+    }
     int CorrectPassword;
     int foundmatch = 0;
     CPlayer* player = this->p->Player[Index];

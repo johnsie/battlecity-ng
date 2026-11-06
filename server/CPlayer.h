@@ -80,6 +80,7 @@ class CPlayer {
 		// player keeps their seat in the game ("lingering") for a short while, and the same account logging in again
 		// takes it straight back, in the same place, instead of the city being torn down around a mayor who left.
 		time_t holdUntil;            // while the clock is before this, a dropped connection lingers instead of leaving
+		bool guest;                  // playing without an account: a temporary row that is deleted when the player leaves
 		bool lingering;              // in the game with no connection, waiting for the account to come back
 		time_t lingerExpires;
 		bool resumePending;          // the next JoinGame puts the player at resumeX/Y instead of at the Command Center

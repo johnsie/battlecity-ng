@@ -200,3 +200,14 @@ Fields in wire order.
 * `sCMAutoBuild`: `bool isAllowed`, `char filename[64]`
 * `sCMCheatCheck`: `int maxHealth`, `int costBuilding`, `int damageLaser`, `int damageMine`, `int damageRocket`, `float movementBullet`, `float movementPlayer`, `int timerCloak`, `int timerDfg`, `int timerRespawn`, `int timerLaser`, `int timerRocket`
 * `sCMStartingCity`: `int City`
+
+## Guest and Outiva login
+
+Besides `cmLogin` (name and password), a client may send:
+
+* `cmGuestLogin` `[name 15]`: play without an account. The server names the player `Guest-<name>` (a number is added if it is taken). A guest is a temporary row in `tAccounts` (`Guest = 1`), left out of every ranking, deleted when the player leaves, and cannot become mayor (`smError` `Y`).
+* `cmTicketLogin` `[ticket 200]`: sign in as an Outiva account. The ticket is made by the Outiva login broker (`deploy/web/outiva_broker.py`) after it verified the person's Outiva sign-in, and is described in `server/OutivaTicket.h`. The first login creates a character named after the Outiva callsign; later logins find it by the Outiva id (`OutivaSub`). A ticket works once and expires within two minutes.
+
+`smError` codes added: `O` (that kind of login is switched off), `T` (ticket refused or no character could be made), `Y` (guests cannot found a city).
+
+Server settings: `BC_TICKET_SECRET_FILE` (the shared secret, at least 16 characters; without it ticket logins are refused), `BC_LEGACY_LOGIN=0` (turns the name-and-password login and registration off), `BC_GUEST_LOGIN=0` (turns guest play off).

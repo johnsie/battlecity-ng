@@ -53,6 +53,9 @@ class CProcess {
 		void ProcessVersion(sCMVersion *vers, int Index);
 		void ProcessLogin(sCMLogin *login, int Index);
 		void ProcessNewAccount(sCMNewAccount *newaccount, int Index);
+		void ProcessGuestLogin(sCMGuestLogin *login, int Index);
+		void ProcessTicketLogin(sCMTicketLogin *login, int Index);
+		void EnterAccount(int Index, const char *user, bool guest);
 		void ProcessSetState(char *TheData, int Index);
 		void ProcessShot(sCMShot *data, int Index);
 		void ProcessDeath(char *TheData, int Index);

@@ -136,6 +136,7 @@ void CServer::Init() {
 	cout << "+ CServer::Init() @ Database->LoadDatabase" << endl;
     //  Load database into object
 	this->Database->LoadDatabase();
+	this->LoadOutivaSettings();
 	this->Bots->Init();
     cout << "+ CServer::Init() @ Loading news" << endl;
     //  Load news into Server object
@@ -197,6 +198,28 @@ int CServer::PlatformCaseCompare(string String1, string String2) {
 /// <summary>
 /// Load news into Server object
 /// </summary>
+void CServer::LoadOutivaSettings() {
+	const char *legacy = getenv("BC_LEGACY_LOGIN");
+	const char *guests = getenv("BC_GUEST_LOGIN");
+	this->LegacyLogin = !(legacy && string(legacy) == "0");
+	this->GuestLogin = !(guests && string(guests) == "0");
+	this->TicketSecret.clear();
+	if (const char *file = getenv("BC_TICKET_SECRET_FILE")) {
+		ifstream in(file);
+		string line;
+		if (in && getline(in, line)) {
+			while (!line.empty() && (line.back() == '\r' || line.back() == ' ')) line.pop_back();
+			this->TicketSecret = line;
+		}
+	}
+	if (!this->TicketSecret.empty() && this->TicketSecret.size() < 16) {
+		cout << "Outiva::TicketSecret::TooShort (ticket logins are off)" << endl;
+		this->TicketSecret.clear();
+	}
+	cout << "Outiva::Login legacy=" << (this->LegacyLogin ? "on" : "off") << " guests=" << (this->GuestLogin ? "on" : "off")
+	     << " tickets=" << (this->TicketSecret.empty() ? "off" : "on") << endl << endl;
+}
+
 void CServer::LoadNews() {
 	char buffer[1024];
 	cout << "CServer::LoadNews() @ Loading" << endl << endl;

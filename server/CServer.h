@@ -78,6 +78,7 @@ using namespace std;
 #include "CSocket.h"
 #include "CPlayer.h"
 #include "CProcess.h"
+#include "OutivaTicket.h"
 #include "CAccount.h"
 #include "CCity.h"
 #include "CBuilding.h"
@@ -140,6 +141,12 @@ class CServer {
 		string Top20;
 		string News;
 
+		// Outiva login (see OutivaTicket.h). Without a secret, ticket logins are refused.
+		string TicketSecret;
+		OutivaTicket::UsedTickets UsedTickets;
+		bool LegacyLogin;        // BC_LEGACY_LOGIN=0 turns the old name-and-password login and registration off
+		bool GuestLogin;         // BC_GUEST_LOGIN=0 turns guest play off
+
 		int FreePlayer();
 		int TotalPlayers();
 
@@ -149,6 +156,7 @@ class CServer {
 		void CheckFilesAndPaths();
 		int Exists(string Path);
 		void LoadNews();
+		void LoadOutivaSettings();
 		void ChangeNews(string NewNews);
 		void respawnPlayers();
 		void reset();

@@ -30,6 +30,7 @@
 CPlayer::CPlayer(CServer *Server, int id) {
 	this->p = Server;
 	this->Socket = -1;
+	this->guest = false;
 
 	// Reset the player stats
 	this->ResetPlayer();
@@ -165,6 +166,12 @@ void CPlayer::ResetPlayer() {
 	if (this->p && this->p->Voice) this->p->Voice->Reset(this->id);
 
 	this->Out.Clear();
+
+	// A guest leaves nothing behind
+	if (this->guest && this->p && this->p->Account && !this->Name.empty()) {
+		this->p->Account->DeleteGuest(this->Name);
+	}
+	this->guest = false;
 
 	// Reset the player stats
 	this->City = -1;

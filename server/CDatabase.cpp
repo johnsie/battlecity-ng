@@ -55,6 +55,9 @@ void CDatabase::LoadDatabase() {
 		// Open the database,
 		this->Database.open("dat//BCData.db");
 
+		// Add the Outiva columns to a database made before them
+		this->MigrateOutiva();
+
 		// Clean the database,
 		this->CleanDatabase();
 		
@@ -74,9 +77,10 @@ void CDatabase::LoadDatabase() {
 
 		// Create the Accounts Table
 		cout << "Database::Create::Accounts" << endl;
-		Database.execDML("CREATE TABLE tAccounts(AccountID INT PRIMARY KEY, Account CHAR(15), Password CHAR(15), Email CHAR(50), Fullname CHAR(20), Town char(15), State CHAR(15), Points INT DEFAULT 0, MonthlyTop20 INT DEFAULT 0, Orbs INT DEFAULT 0, Assists INT DEFAULT 0, Deaths INT DEFAULT 0, Member INT DEFAULT 0, IsAdmin INT DEFAULT 0, Red INT DEFAULT 0, Green INT DEFAULT 0, Blue INT DEFAULT 0, Tank INT DEFAULT 0, Tank2 INT DEFAULT 0, Tank3 INT DEFAULT 0, Tank4 INT DEFAULT 0, Tank5 INT DEFAULT 0, Tank6 INT DEFAULT 0, Tank7 INT DEFAULT 0, Tank8 INT DEFAULT 0, Tank9 INT DEFAULT 0);");
+		Database.execDML("CREATE TABLE tAccounts(AccountID INT PRIMARY KEY, Account CHAR(15), Password CHAR(15), Email CHAR(50), Fullname CHAR(20), Town char(15), State CHAR(15), Points INT DEFAULT 0, MonthlyTop20 INT DEFAULT 0, Orbs INT DEFAULT 0, Assists INT DEFAULT 0, Deaths INT DEFAULT 0, Member INT DEFAULT 0, IsAdmin INT DEFAULT 0, Red INT DEFAULT 0, Green INT DEFAULT 0, Blue INT DEFAULT 0, Tank INT DEFAULT 0, Tank2 INT DEFAULT 0, Tank3 INT DEFAULT 0, Tank4 INT DEFAULT 0, Tank5 INT DEFAULT 0, Tank6 INT DEFAULT 0, Tank7 INT DEFAULT 0, Tank8 INT DEFAULT 0, Tank9 INT DEFAULT 0, OutivaSub CHAR(64) DEFAULT '', Guest INT DEFAULT 0);");
 		Database.execDML("CREATE INDEX idxPoints ON tAccounts (Points DESC);");
 		Database.execDML("CREATE UNIQUE INDEX idxName ON tAccounts (Account);");
+		this->MigrateOutiva();
 
 		// Create the Bans Table
 		cout << "Database::Create::Bans" << endl;
@@ -84,6 +88,28 @@ void CDatabase::LoadDatabase() {
 
 		cout << "Database::Create::Success" << endl << endl;
 	}
+}
+
+/***************************************************************
+ * Function:	MigrateOutiva
+ *
+ * Outiva characters are found by the person's Outiva id (OutivaSub). Guests are rows too, so that everything that looks a player up by name
+ * keeps working, but they are flagged and deleted when they leave (and any left by a crash are deleted here).
+ **************************************************************/
+void CDatabase::MigrateOutiva() {
+	bool hasSub = false, hasGuest = false;
+	CppSQLite3Query columns = this->Database.execQuery("PRAGMA table_info(tAccounts);");
+	while (!columns.eof()) {
+		string name = columns.getStringField("name");
+		if (name == "OutivaSub") hasSub = true;
+		if (name == "Guest") hasGuest = true;
+		columns.nextRow();
+	}
+	columns.finalize();
+	if (!hasSub) this->Database.execDML("ALTER TABLE tAccounts ADD COLUMN OutivaSub CHAR(64) DEFAULT '';");
+	if (!hasGuest) this->Database.execDML("ALTER TABLE tAccounts ADD COLUMN Guest INT DEFAULT 0;");
+	this->Database.execDML("CREATE UNIQUE INDEX IF NOT EXISTS idxOutivaSub ON tAccounts (OutivaSub) WHERE OutivaSub <> '';");
+	this->Database.execDML("DELETE FROM tAccounts WHERE Guest = 1;");
 }
 
 /***************************************************************

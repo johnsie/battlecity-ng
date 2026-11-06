@@ -318,7 +318,9 @@ enum ClientMessages {
 	cmResumeLater,     // the client is about to reload itself (an update): keep my seat for a short while
 	cmVoiceSet,       // voice chat on/off and who hears me: [on][scope]
 	cmVoice,          // my voice: [seq 2][ADPCM predictor 2][step index 1][audio]
-	cmVoiceReport     // report a player's voice: [slot]
+	cmVoiceReport,    // report a player's voice: [slot]
+    cmGuestLogin,     // play without an account: [name 15]. The server names the guest "Guest-<name>"; nothing about a guest is kept
+    cmTicketLogin     // sign in with a ticket from the Outiva login broker: [ticket 200]
 };
 
 struct sCMBuild
@@ -380,6 +382,16 @@ struct sCMLogin
 {
 	char User[15];
 	char Pass[15];
+};
+
+struct sCMGuestLogin
+{
+    char Name[15];
+};
+
+struct sCMTicketLogin
+{
+    char Ticket[200];
 };
 
 struct sCMNewAccount

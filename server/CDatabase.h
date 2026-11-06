@@ -35,6 +35,7 @@ class CDatabase {
 
 		void LoadDatabase();
 		void CleanDatabase();
+		void MigrateOutiva();
 
 		CppSQLite3DB Database;
 		CppSQLite3Query Query;
