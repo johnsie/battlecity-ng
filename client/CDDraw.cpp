@@ -32,6 +32,8 @@ CDDraw::CDDraw(CGame *game)
     ttfTried = false;
     TextAtlas = NULL;
     ShadowTex = NULL;
+    GlowTex = NULL;
+    VignetteTex = NULL;
     atlasScale = 0;
     atlasSize = 0;
     lastOutputW = lastOutputH = 0;
@@ -305,6 +307,8 @@ void CDDraw::DestroySurfaces()
     if (Canvas) { SDL_DestroyTexture(Canvas); Canvas = NULL; }
     if (TextAtlas) { SDL_DestroyTexture(TextAtlas); TextAtlas = NULL; }
     if (ShadowTex) { SDL_DestroyTexture(ShadowTex); ShadowTex = NULL; }
+    if (GlowTex) { SDL_DestroyTexture(GlowTex); GlowTex = NULL; }
+    if (VignetteTex) { SDL_DestroyTexture(VignetteTex); VignetteTex = NULL; }
     if (Renderer) {
         SDL_DestroyRenderer(Renderer);
         Renderer = NULL;
@@ -468,6 +472,62 @@ void CDDraw::DrawShadow(int cx, int cy, int width, int height, int alpha, int cl
     SDL_SetTextureAlphaMod(ShadowTex, (Uint8)std::min(255, std::max(0, alpha)));
     SDL_Rect dst = { XOff + cx - width / 2, YOff + cy - height / 2, width, height };
     SDL_RenderCopy(Renderer, ShadowTex, NULL, &dst);
+    SDL_RenderSetClipRect(Renderer, NULL);
+    DrawCalls++;
+}
+
+/// <summary> Builds a white-or-black RGBA texture whose alpha is f(distance from centre), for glows and the vignette </summary>
+static SDL_Texture *MakeRadialTexture(SDL_Renderer *r, int w, int h, bool white, float (*f)(float))
+{
+    std::vector<Uint32> px((size_t)w * h);
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            float dx = (x + 0.5f - w / 2.0f) / (w / 2.0f), dy = (y + 0.5f - h / 2.0f) / (h / 2.0f);
+            float a = f(std::sqrt(dx * dx + dy * dy));
+            a = std::min(1.0f, std::max(0.0f, a));
+            Uint32 rgb = white ? 0x00FFFFFFu : 0u;
+            px[(size_t)y * w + x] = rgb | ((Uint32)(a * 255.0f + 0.5f) << 24);
+        }
+    }
+    SDL_Surface *surf = SDL_CreateRGBSurfaceWithFormatFrom(px.data(), w, h, 32, w * 4, SDL_PIXELFORMAT_RGBA32);
+    SDL_Texture *tex = NULL;
+    if (surf) { tex = SDL_CreateTextureFromSurface(r, surf); SDL_FreeSurface(surf); }
+    if (tex) SDL_SetTextureScaleMode(tex, SDL_ScaleModeLinear);
+    return tex;
+}
+
+/// <summary> Additive light: a soft round glow tinted (r,g,b), clipped to the map view </summary>
+void CDDraw::DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH)
+{
+    if (!Renderer || radius <= 0 || alpha <= 0) return;
+    if (!GlowTex) {
+        GlowTex = MakeRadialTexture(Renderer, 64, 64, true, [](float d) { float a = 1.0f - d; return a <= 0 ? 0.0f : a * a * a; });
+        if (!GlowTex) return;
+        SDL_SetTextureBlendMode(GlowTex, SDL_BLENDMODE_ADD);
+    }
+    SDL_Rect clip = { XOff, YOff, clipW, clipH };
+    SDL_RenderSetClipRect(Renderer, &clip);
+    SDL_SetTextureColorMod(GlowTex, (Uint8)r, (Uint8)g, (Uint8)b);
+    SDL_SetTextureAlphaMod(GlowTex, (Uint8)std::min(255, alpha));
+    SDL_Rect dst = { XOff + cx - radius, YOff + cy - radius, radius * 2, radius * 2 };
+    SDL_RenderCopy(Renderer, GlowTex, NULL, &dst);
+    SDL_RenderSetClipRect(Renderer, NULL);
+    DrawCalls++;
+}
+
+/// <summary> Darkens the edges of the w x h map view so the eye stays on the action </summary>
+void CDDraw::DrawVignette(int w, int h, int alpha)
+{
+    if (!Renderer || alpha <= 0) return;
+    if (!VignetteTex) {
+        VignetteTex = MakeRadialTexture(Renderer, 128, 128, false, [](float d) { float t = (d - 0.55f) / 0.75f; return t <= 0 ? 0.0f : t * t; });
+        if (!VignetteTex) return;
+        SDL_SetTextureBlendMode(VignetteTex, SDL_BLENDMODE_BLEND);
+    }
+    SDL_Rect clip = { XOff, YOff, w, h };
+    SDL_RenderSetClipRect(Renderer, &clip);
+    SDL_SetTextureAlphaMod(VignetteTex, (Uint8)std::min(255, alpha));
+    SDL_RenderCopy(Renderer, VignetteTex, NULL, &clip);
     SDL_RenderSetClipRect(Renderer, NULL);
     DrawCalls++;
 }

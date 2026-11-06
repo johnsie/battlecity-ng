@@ -52,7 +52,9 @@ public:
     void DTextOut(int X, int Y, string text, COLORREF ColorVal);
     int MeasureText(const string &text);   // width in game pixels of text as drawn by DTextOut
     void DFillRect(int X, int Y, int width, int height);
-    void DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH);   // soft elliptical shadow centred on (cx, cy)
+    void DrawShadow(int cx, int cy, int width, int height, int alpha, int clipW, int clipH);
+    void DrawGlow(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH);   // additive light centred on (cx, cy)
+    void DrawVignette(int w, int h, int alpha);   // darkens the corners of the map view   // soft elliptical shadow centred on (cx, cy)
     void DFillRectColor(int X, int Y, int width, int height, int r, int g, int b);
     void ApplyLogicalSize();   // call after the game's resolution changed
 
@@ -127,6 +129,8 @@ private:
     bool ttfTried;
     SDL_Texture *TextAtlas;
     SDL_Texture *ShadowTex;
+    SDL_Texture *GlowTex;
+    SDL_Texture *VignetteTex;
     float atlasScale;
     int atlasSize;
     int lastOutputW, lastOutputH;

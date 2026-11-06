@@ -32,6 +32,7 @@ void CDrawing::DrawGame() {
 	this->DrawPanel();
 	this->DrawTank();
 	this->DrawExplosions();
+	p->DDraw->DrawVignette(MaxMapX, MaxMapY, 110);
 	this->DrawRadar();
 	this->DrawChat();
 	this->DrawInfo();
@@ -1126,7 +1127,8 @@ void CDrawing::DrawBullets() {
 				blt->animation = 0;
 			}
 
-			// Draw the bullet
+			// Draw the bullet, with a small warm glow around it
+			p->DDraw->DrawGlow(tmpX + 4, tmpY + 4, 16, 255, 190, 90, 150, MaxMapX, MaxMapY);
 			p->DDraw->Draw(p->DDraw->imgBullets, tmpX, tmpY, 8, 8, dX, dY, MaxMapX, MaxMapY);
 		}
 
@@ -1223,16 +1225,19 @@ void CDrawing::DrawExplosions() {
 
 			//Small explosion
 			case 1: 
+				p->DDraw->DrawGlow(tX + 24, tY + 24, 54 - xpl->animation * 3, 255, 150, 60, 150 - xpl->animation * 13, MaxMapX, MaxMapY);
 				p->DDraw->Draw(p->DDraw->imgSExplosion, tX, tY, 48, 48, xpl->animation * 48, 0, MaxMapX, MaxMapY);
 				break;
 
 			//Large explosion
 			case 2: 
+				p->DDraw->DrawGlow(tX + 72, tY + 72, 150 - xpl->animation * 8, 255, 140, 50, 190 - xpl->animation * 17, MaxMapX, MaxMapY);
 				p->DDraw->Draw(p->DDraw->imgLExplosion, tX, tY, 144, 144, 0, xpl->animation * 144, MaxMapX, MaxMapY);
 				break;
 
 			//Muzzle flash
 			case 3: 
+				p->DDraw->DrawGlow(tX + 6, tY + 6, 22, 255, 220, 140, 170 - xpl->animation * 50, MaxMapX, MaxMapY);
 				p->DDraw->Draw(p->DDraw->imgMuzzleFlash, tX, tY, 12, 12, xpl->animation * 12, 0, MaxMapX, MaxMapY);
 				break;
 		}
