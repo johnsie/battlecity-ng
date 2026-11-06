@@ -39,7 +39,7 @@ async function verifyIdToken(token, clientId, expectedNonce = '') {
   const cryptoKey = await crypto.subtle.importKey('jwk', key, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
   const valid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', cryptoKey, decode(encodedSignature), encoder.encode(`${encodedHeader}.${encodedClaims}`));
   if (!valid) throw new Error('Invalid identity signature');
-  return { sub: claims.sub, name: claims.name || '', preferred_username: claims.preferred_username || '', email: claims.email || '', exp: claims.exp };
+  return { sub: claims.sub, callsign: claims.callsign || '', name: claims.name || '', preferred_username: claims.preferred_username || '', email: claims.email || '', exp: claims.exp };
 }
 
 async function begin(clientId, { prompt = 'none', returnToConsole: consoleReturn = false } = {}) {
@@ -110,6 +110,6 @@ export async function initialiseOutivaIdentity({ clientId, appId }) {
 }
 
 export function identityCallsign(profile, limit = 16) {
-  const source = profile?.preferred_username || profile?.name || profile?.email?.split('@')[0] || '';
+  const source = profile?.callsign || profile?.preferred_username || profile?.name || profile?.email?.split('@')[0] || '';
   return source.replace(/[^A-Za-z0-9 _-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit);
 }
