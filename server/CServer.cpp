@@ -55,6 +55,7 @@ CServer::CServer() {
 	Database = new CDatabase(this);
 	StatusEndpoint = new CStatusEndpoint(this);
 	Bots = new CBotManager(this);
+	Voice = new CVoice(this);
 	//Build = new CBuildingList(this);
 	//Item = new CItemList(this);
 	//Bullet = new CBulletList(this);
@@ -97,6 +98,7 @@ CServer::~CServer() {
 	delete Database;
 	delete StatusEndpoint;
 	delete Bots;
+	delete Voice;
 
 	// For each possible player, delete the player object
 	for (int i = 0; i < MAX_PLAYERS; i++) {

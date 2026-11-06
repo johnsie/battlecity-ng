@@ -67,6 +67,11 @@ int CALLBACK OptionsDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 					p->Dialog->StartDialog = 0;
 					EndDialog(hwnd, 2);
 				break;
+				case IDOPT_VOICE:
+					// keep the other changes, then open the voice chat settings
+					OptionsDlgProc(hwnd, WM_COMMAND, 1, 0);
+					p->Voice->OpenSettings();
+				break;
             }
         break;
         default:

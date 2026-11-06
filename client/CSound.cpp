@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CSound.h"
+#include "CVoice.h"
 #include <SDL.h>
 #include <vector>
 #include <cmath>
@@ -113,6 +114,7 @@ void AudioCallback(void *userdata, Uint8 *stream, int len) {
 	mix.assign((size_t)frames * 2, 0.0f);
 
 	RenderMusic(a, mix.data(), frames);
+	if (g_voice) g_voice->Mix(mix.data(), frames, MIX_RATE);   // other players' voices
 
 	for (BCVoice &v : a->voices) {
 		if (!v.active) continue;

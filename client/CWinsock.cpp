@@ -303,6 +303,7 @@ void CWinsock::ProcessBuffer() {
 		checksum2 += 3412;
 		checksum2 = checksum2 % 71;
 		if (checksum == checksum2) {
+			p->Process->LastPayloadLength = packetlength - 3;   // length byte, checksum, id
 			p->Process->ProcessData(&ValidPacket[2]);
 		}
 		else {

@@ -87,6 +87,7 @@ void CDrawing::DrawGame() {
 	this->DrawInfo();
 	this->DrawInventory();
 	this->DrawItemHint();
+	this->DrawVoiceHud();
 
 	// If the player is Mayor,
 	if (p->Player[p->Winsock->MyIndex]->isMayor) {
@@ -2133,4 +2134,51 @@ void CDrawing::DrawItemHint() {
 	p->DDraw->DFillRectColor(x, y, w, 36, 0, 0, 0);
 	p->DDraw->DTextOut(x + 6, y + 2, line1, COLOR_YELLOW);
 	p->DDraw->DTextOut(x + 6, y + 18, line2, COLOR_WHITE);
+}
+
+
+/***************************************************************
+ * Function:	DrawVoiceHud
+ *
+ * One line under the info text says whether voice chat is on and how to talk, and who is talking is listed below it.
+ * (A click on the line opens the voice settings.)
+ **************************************************************/
+void CDrawing::DrawVoiceHud() {
+	CVoice *v = p->Voice;
+	if (!v || !v->serverEnabled) return;
+	const int x = 4, y = 64;
+	string line;
+	COLORREF color;
+	if (!v->on) {
+		line = "Voice off: press V to turn it on";
+		color = RGB(150,150,150);
+	} else if (v->Transmitting()) {
+		line = "TRANSMITTING";
+		color = RGB(255,90,90);
+	} else if (!v->status.empty()) {
+		line = v->status;
+		color = COLOR_YELLOW;
+	} else if (v->mode == 0) {
+		line = "Voice on: hold ` to talk (" + string(CVoice::ScopeName(v->scope)) + ")";
+		color = RGB(120,255,140);
+	} else {
+		line = "Voice on: open mic (" + string(CVoice::ScopeName(v->scope)) + ")";
+		color = RGB(120,255,140);
+	}
+	p->DDraw->DFillRectAlpha(0, y - 1, p->DDraw->MeasureText(line) + 10, 17, 0, 0, 0, 130);     // (readable over any ground)
+	p->DDraw->DTextOut(x, y, line, color);
+	int row = 1;
+	if (v->on && v->Level() > 0.002f) {
+		int w = (int)(v->Level() * 600.0f);
+		if (w > 100) w = 100;
+		p->DDraw->DFillRectColor(x, y + 16, w < 2 ? 2 : w, 3, v->Transmitting() ? 255 : 90, v->Transmitting() ? 90 : 160, 90);
+		row = 1;
+	}
+	for (int i = 0; i < MAX_PLAYERS && row < 6; i++) {
+		if (!v->Speaking(i)) continue;
+		string who = ">> " + p->Player[i]->Name;
+		p->DDraw->DFillRectAlpha(0, y + 5 + 16 * row, p->DDraw->MeasureText(who) + 10, 16, 0, 0, 0, 130);
+		p->DDraw->DTextOut(x, y + 6 + 16 * row, who, RGB(120,255,140));
+		row++;
+	}
 }

@@ -166,6 +166,7 @@ void CEngine::Frame() {
 		}
         //  Update the 3d sound engine
 		p->Sound->Update();
+		p->Voice->Update();
         //  Increase loops by one
 		p->Engine->loops++;
         //  Verify limitfps is defined

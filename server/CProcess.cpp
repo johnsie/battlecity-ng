@@ -28,6 +28,7 @@
 /// </summary>
 /// <param name="Server">Dereferneced CServer pointer</param>
 CProcess::CProcess(CServer *Server) {
+    PacketPayloadLength = 0;
     this->p = Server;
 }
 
@@ -186,6 +187,17 @@ void CProcess::ProcessData(char *TheData, int playerId) {
         // Packet: cmCrash
         case cmCrash:
             this->ProcessCrash(&TheData[1], playerId);
+            break;
+
+        // Packets: voice chat
+        case cmVoiceSet:
+            this->p->Voice->HandleSet(&TheData[1], this->PacketPayloadLength, playerId);
+            break;
+        case cmVoice:
+            this->p->Voice->HandleAudio(&TheData[1], this->PacketPayloadLength, playerId);
+            break;
+        case cmVoiceReport:
+            this->p->Voice->HandleReport(&TheData[1], this->PacketPayloadLength, playerId);
             break;
 
         // Packet: cmResumeLater (the client is reloading itself for an update)

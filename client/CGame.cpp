@@ -49,6 +49,7 @@ CGame::CGame() {
 	Build = new CBuildingList(this);
 	Input = new CInput(this);
 	Sound = new CSound(this);
+	Voice = new CVoice(this);
 	Item = new CItemList(this);
 	Inventory = new CInventory(this);
 	Bullet = new CBulletList(this);
@@ -128,6 +129,7 @@ CGame::~CGame() {
  	delete Collision;
 	delete Build;
 	delete Input;
+	delete Voice;
 	delete Sound;
 	delete Item;
 	delete Inventory;
@@ -242,6 +244,7 @@ void CGame::Init(HWND hWnd, HINSTANCE hInst) {
 	this->Map->LoadMap();
     //  Initialize the sound engine
 	this->Sound->Init();
+	this->Voice->Init();
     //  Initialize DirectInput, acquire devices
 	this->Input->StartDInput();
     //  Initialize connection with game server
@@ -613,6 +616,11 @@ void CGame::handleGameKey(WPARAM wParam) {
 		if (this->InGame->ShowMap == 1) {
 			this->Winsock->SendData(cmMiniMap, " ");
 		}
+	}
+
+	// KEY: v (voice chat on/off)
+	else if ((wParam == 86) || (wParam == 118)) {
+		this->Voice->Toggle();
 	}
 
 	// KEY: p or F1

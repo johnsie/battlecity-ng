@@ -29,6 +29,8 @@
 class CServer;
 
 class CProcess {
+	public:
+		int PacketPayloadLength;   // bytes after the packet id of the packet being processed (set by CSocket::ProcessBuffer)
 
 	public:
 		CProcess(CServer *Server);

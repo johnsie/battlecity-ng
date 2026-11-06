@@ -229,7 +229,7 @@ static void HotUpdateTick() {
 		g.InGame->AppendInfo("A new version is ready. It installs the next time you stop for a moment, and you come back to the same spot.");
 	}
 	bool busy = me->isDead || me->isMoving || me->isTurning || g.InGame->IsChatting || g.InGame->ShowBuildMenu || g.InGame->IsBuilding != 0
-	            || BCDialogsActive() || me->X != lastX || me->Y != lastY || g.Input->LastShotValue() != lastShot;
+	            || BCDialogsActive() || g.Voice->Transmitting() || me->X != lastX || me->Y != lastY || g.Input->LastShotValue() != lastShot;
 	lastX = me->X; lastY = me->Y; lastShot = g.Input->LastShotValue();
 	if (busy) { idleSince = 0; return; }
 	if (!idleSince) idleSince = now;
@@ -357,6 +357,7 @@ int main(int argc, char *argv[]) {
 			else if (n == "meeting") game.Meeting->ShowMeetingDlg();
 			else if (n == "personnel") game.Personnel->ShowPersonnelDialog();
 			else if (n == "options") game.Options->ShowOptionsDialog();
+			else if (n == "voice") game.Voice->OpenSettings();
 			else if (n == "help") game.Help->ShowHelpDialog();
 			else if (n == "manage") game.Manage->ShowManageDlg();
 			else if (n == "recover") game.Recover->ShowRecoverDlg();
@@ -439,6 +440,10 @@ int main(int argc, char *argv[]) {
 				g.Input->TestClick(menuX + 40, y);
 				printf("script: menu click row %d at y=%d -> IsBuilding=%d (menu shown=%d)\n", row, y, (int)g.InGame->IsBuilding, (int)g.InGame->ShowBuildMenu);
 			}
+		}
+		if (getenv("BC_TEST_VOICE") && getenv("BC_TEST_SCENE") && frames == 25) {
+			printf("voice self test: %s\n", game.Voice->SelfTest() ? "PASS" : "FAIL");
+			game.Voice->serverEnabled = true; game.Voice->on = true;
 		}
 		// BC_TEST_MENU=3: pointer over the chat area
 		if (getenv("BC_TEST_MENU") && getenv("BC_TEST_SCENE") && getenv("BC_TEST_MENU")[0] == '3') game.Input->MouseOverChat = 1;

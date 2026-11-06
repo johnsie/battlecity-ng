@@ -405,6 +405,7 @@ void CSocket::ProcessBuffer(int playerId) {
         //  Verify both checksums to determine validity; Matching then process valid packet
         //  Otherwise, drop packet and log client error
         if (checksum == checksum2) {
+            this->p->Process->PacketPayloadLength = packetlength - 3;   // length byte, checksum, id
             this->p->Process->ProcessData(&ValidPacket[2], playerId);
         } else {
             this->p->Log->logClientError("Packet Dropped TCP - Invalid Checksum", playerId);

@@ -580,6 +580,15 @@ void CInput::MouseDown(DIMOUSESTATE mouse_state, int X, int Y, char buffer[256])
 
 
 		/************************************************
+		* Voice chat line (opens the voice settings)
+		************************************************/
+		if (p->Voice->serverEnabled && X >= 0 && X < 230 && Y >= 62 && Y < 80) {
+			p->Voice->OpenSettings();
+			this->endMouseDown(mouse_state);
+			return;
+		}
+
+		/************************************************
 		* Admin Button
 		************************************************/
 		// If player is an admin, and player clicked admin button, show admin dialog

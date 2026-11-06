@@ -34,6 +34,7 @@ public:
     CProcess(CGame *game);
     ~CProcess();
 
+    int LastPayloadLength;     // bytes after the packet id of the packet being processed (set by CWinsock)
     int ProcessData(char *TheData);
     void ProcessEvent(int Event);
 

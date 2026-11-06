@@ -108,6 +108,27 @@ static const BCControlDef controls_ID_OPTIONS[] = {
     { BCK_CHECK, 1107, "Show Player Names", 5, 138, 142, 16, 0 },
     { BCK_CHECK, 1108, "Limit Frames per Second (Recommended)", 5, 156, 142, 16, 0 },
     { BCK_CHECK, 1109, "1024x768 Resolution", 5, 174, 142, 16, 0 },
+    { BCK_BUTTON, 1110, "Voice chat...", 5, 194, 80, 14, 0 },
+};
+static const BCControlDef controls_ID_VOICE[] = {
+    { BCK_DEFBUTTON, 1, "OK", 128, 212, 50, 14, 0 },
+    { BCK_BUTTON, 2, "Cancel", 184, 212, 50, 14, 0 },
+    { BCK_CHECK, 1301, "Voice chat on (V turns it on and off in the game)", 5, 5, 230, 14, 0 },
+    { BCK_LABEL, -1, "When you talk:", 5, 26, 70, 10, 0 },
+    { BCK_COMBO, 1302, "", 80, 24, 155, 60, 0 },
+    { BCK_LABEL, -1, "Who hears you:", 5, 44, 70, 10, 0 },
+    { BCK_COMBO, 1303, "", 80, 42, 155, 60, 0 },
+    { BCK_LABEL, -1, "Open mic sensitivity:", 5, 62, 75, 10, 0 },
+    { BCK_COMBO, 1304, "", 80, 60, 155, 60, 0 },
+    { BCK_LABEL, -1, "Volume:", 5, 80, 70, 10, 0 },
+    { BCK_COMBO, 1305, "", 80, 78, 155, 60, 0 },
+    { BCK_CHECK, 1306, "Mute everyone (you hear no one)", 5, 96, 230, 14, 0 },
+    { BCK_LABEL, -1, "Players you can hear (pick one):", 5, 115, 160, 10, 0 },
+    { BCK_LIST, 1307, "", 5, 126, 150, 64, 0 },
+    { BCK_BUTTON, 1308, "Mute / unmute", 160, 126, 75, 14, 0 },
+    { BCK_BUTTON, 1309, "Block (remembered)", 160, 144, 75, 14, 0 },
+    { BCK_BUTTON, 1310, "Report", 160, 162, 75, 14, 0 },
+    { BCK_LABEL, 1311, "", 5, 194, 230, 16, 0 },
 };
 static const BCControlDef controls_ID_NEW[] = {
     { BCK_EDIT, 1019, "", 65, 5, 49, 14, 0 },
@@ -273,7 +294,8 @@ const BCDialogDef g_dialogDefs[] = {
     { 111, "ID_EDITACCOUNT", "Edit Account", 289, 200, false, controls_ID_EDITACCOUNT, 46 },
     { 113, "ID_MEMBER", "Battle City - Member Panel", 226, 137, true, controls_ID_MEMBER, 2 },
     { 1046, "ID_CONNECTIONMANAGER", "Connection Manager", 209, 59, false, controls_ID_CONNECTIONMANAGER, 6 },
-    { 107, "ID_OPTIONS", "Battle City Options", 177, 195, true, controls_ID_OPTIONS, 12 },
+    { 107, "ID_OPTIONS", "Battle City Options", 177, 215, true, controls_ID_OPTIONS, 13 },
+    { 1300, "ID_VOICE", "Voice chat", 240, 232, true, controls_ID_VOICE, 18 },
     { 9, "ID_NEW", "Character Details", 194, 136, false, controls_ID_NEW, 14 },
     { 148, "ID_LOGIN", "Enter Battle City", 179, 130, false, controls_ID_LOGIN, 12 },
     { 239, "ID_PERSONALITY", "Personality Profile", 195, 165, false, controls_ID_PERSONALITY, 33 },
@@ -283,4 +305,4 @@ const BCDialogDef g_dialogDefs[] = {
     { 172, "ID_ORGANIZE", "Organize the team", 187, 134, false, controls_ID_ORGANIZE, 6 },
     { 1016, "ID_BCHELP", "Battle City Help", 347, 255, true, controls_ID_BCHELP, 53 },
 };
-const int g_dialogDefCount = 14;
+const int g_dialogDefCount = 15;

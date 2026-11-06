@@ -69,7 +69,9 @@ enum ServerMessages {
 	smCloak,
 	smAutoBuild,
 	smNowOrbable,
-	smStartingCity
+	smStartingCity,
+	smVoice,            // somebody's voice: [speaker slot][seq 2][ADPCM predictor 2][step index 1][audio]
+	smVoiceState      // voice chat on this server: [enabled][on][scope]
 };
 
 struct sSMUpdate
@@ -312,7 +314,10 @@ enum ClientMessages {
 	cmCheatCheck,
 	cmStartingCity,
 	cmChangeStartingCity,
-	cmResumeLater      // the client is about to reload itself (an update): keep my seat for a short while
+	cmResumeLater,     // the client is about to reload itself (an update): keep my seat for a short while
+	cmVoiceSet,       // voice chat on/off and who hears me: [on][scope]
+	cmVoice,          // my voice: [seq 2][ADPCM predictor 2][step index 1][audio]
+	cmVoiceReport     // report a player's voice: [slot]
 };
 
 struct sCMBuild

@@ -162,6 +162,8 @@ void CPlayer::Clear(bool triggerServerReset) {
  **************************************************************/
 void CPlayer::ResetPlayer() {
 
+	if (this->p && this->p->Voice) this->p->Voice->Reset(this->id);
+
 	this->Out.Clear();
 
 	// Reset the player stats
@@ -381,6 +383,7 @@ void CPlayer::JoinGame() {
 	this->lastMove = this->p->Tick;
 	cout << "Join::" << Name.c_str() << endl;
 	this->p->Bots->HumanJoined(this->id);
+	this->p->Voice->SendState(this->id);
 }
 
 /***************************************************************

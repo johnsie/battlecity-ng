@@ -295,6 +295,51 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 }
 
 
+// ---- Small settings files (voice chat settings): a file next to the login on the desktop, localStorage in the browser ----
+#ifdef __EMSCRIPTEN__
+EM_JS(int, bc_text_load, (const char *key), {
+	try {
+		var v = localStorage.getItem('bc.' + UTF8ToString(key));
+		if (!v) { Module.bcTextBytes = null; return 0; }
+		Module.bcTextBytes = new TextEncoder().encode(v);
+		return Module.bcTextBytes.length;
+	} catch (e) { Module.bcTextBytes = null; return 0; }
+});
+EM_JS(int, bc_text_byte, (int i), { return Module.bcTextBytes ? Module.bcTextBytes[i] : 0; });
+EM_JS(void, bc_text_begin, (), { Module.bcTextOut = []; });
+EM_JS(void, bc_text_push, (int b), { Module.bcTextOut.push(b & 255); });
+EM_JS(void, bc_text_commit, (const char *key), {
+	try { localStorage.setItem('bc.' + UTF8ToString(key), new TextDecoder().decode(new Uint8Array(Module.bcTextOut))); } catch (e) {}
+});
+#endif
+
+std::string BCLoadText(const char *key) {
+	std::string text;
+#ifdef __EMSCRIPTEN__
+	int n = bc_text_load(key);
+	for (int i = 0; i < n && i < 4096; i++) text += (char)bc_text_byte(i);
+#else
+	std::string path;
+	if (char *pref = SDL_GetPrefPath("Outiva", "BattleCity")) { path = pref; SDL_free(pref); }
+	std::ifstream in(path + key, std::ios::binary);
+	if (in) text.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+#endif
+	return text;
+}
+
+void BCSaveText(const char *key, const std::string &text) {
+#ifdef __EMSCRIPTEN__
+	bc_text_begin();
+	for (unsigned char c : text) bc_text_push(c);
+	bc_text_commit(key);
+#else
+	std::string path;
+	if (char *pref = SDL_GetPrefPath("Outiva", "BattleCity")) { path = pref; SDL_free(pref); }
+	std::ofstream out(path + key, std::ios::binary | std::ios::trunc);
+	if (out) out << text;
+#endif
+}
+
 
 // ---- Remembered login ----
 // Stored on this device only, and only while the "Remember me" box is ticked (unticking erases it).

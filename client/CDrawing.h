@@ -45,6 +45,7 @@ class CDrawing {
         void DrawPlayers();
         void DrawBuildMenu();
         void DrawItemHint();
+        void DrawVoiceHud();
         void DrawBuildPlacement();
         void DrawArrow();
         void DrawHealth();

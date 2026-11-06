@@ -32,6 +32,7 @@ void *ClassPointer;
  * @param game
  **************************************************************/
 CProcess::CProcess(CGame *game) {
+	LastPayloadLength = 0;
 	this->p = game;
 	ClassPointer = this;
 }
@@ -371,6 +372,14 @@ int CProcess::ProcessData(char *TheData) {
 		// Packet: smStartingCity
 		case smStartingCity:
 			this->ProcessStartingCity((sSMStartingCity *)&TheData[1]);
+			break;
+
+		// Packets: voice chat
+		case smVoiceState:
+			this->p->Voice->OnState(&TheData[1], this->LastPayloadLength);
+			break;
+		case smVoice:
+			this->p->Voice->OnAudio(&TheData[1], this->LastPayloadLength);
 			break;
 
 		// Packet: unknown!

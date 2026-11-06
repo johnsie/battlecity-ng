@@ -91,6 +91,7 @@ using namespace std;
 #include "CEmail.h"
 #include "CDatabase.h"
 #include "CBot.h"
+#include "CVoice.h"
 
 class CSocket;
 class CPlayer;
@@ -111,6 +112,7 @@ class CLog;
 class CEMail;
 class CDatabase;
 class CBotManager;
+class CVoice;
 class CStatusEndpoint;
 
 // Doubles single quotes so a client-supplied string cannot end its SQL literal early (queries are built by concatenation).
@@ -174,6 +176,7 @@ class CServer {
 		CDatabase *Database;
 		CStatusEndpoint *StatusEndpoint;
 		CBotManager *Bots;
+		CVoice *Voice;
 
 		CTime *Timer;
 		float Tick;

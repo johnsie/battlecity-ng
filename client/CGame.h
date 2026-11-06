@@ -62,6 +62,7 @@ using namespace std;
 #include "CBuilding.h"
 #include "CInput.h"
 #include "CSound.h"
+#include "CVoice.h"
 #include "CBullet.h"
 #include "CItem.h"
 #include "CWinsock.h"
@@ -101,6 +102,7 @@ class CBuilding;
 class CBuildingList;
 class CInput;
 class CSound;
+class CVoice;
 class CBullet;
 class CBulletList;
 class CItem;
@@ -163,6 +165,7 @@ public:
     CItemList *Item;
     CInput *Input;
     CSound *Sound;
+    CVoice *Voice;
     CInventory *Inventory;
     CBulletList *Bullet;
     CExplosionList *Explode;
