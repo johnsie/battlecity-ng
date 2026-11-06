@@ -59,6 +59,7 @@ public:
     void DrawRing(int cx, int cy, int radius, int r, int g, int b, int alpha, int clipW, int clipH);   // additive thin ring (shockwaves)
     void DrawStreaks(const std::vector<int> &lines, int r, int g, int b, int alpha);   // translucent 1px lines, x1,y1,x2,y2 per line (rain, wind)
     void DrawOverlay(int w, int h, int r, int g, int b, int alpha);   // translucent colour wash over the map view   // darkens the corners of the map view   // soft elliptical shadow centred on (cx, cy)
+    void DFillRectAlpha(int X, int Y, int width, int height, int r, int g, int b, int alpha);   // translucent fill
     void DFillRectColor(int X, int Y, int width, int height, int r, int g, int b);
     void ApplyLogicalSize();   // call after the game's resolution changed
 

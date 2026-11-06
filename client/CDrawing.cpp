@@ -963,7 +963,9 @@ void CDrawing::DrawChat() {
 	// If mouse is over chat,
 	Y = MaxMapY - 126;
 	if (p->Input->MouseOverChat) {
-		p->DDraw->DFillRect(0, Y, MaxMapX, 126);
+		// A translucent dark band with a soft top edge, so the map stays visible behind the chat
+		for (int i = 0; i < 8; i++) p->DDraw->DFillRectAlpha(0, Y - 16 + i * 2, MaxMapX, 2, 0, 0, 0, 12 + i * 12);
+		p->DDraw->DFillRectAlpha(0, Y, MaxMapX, 126, 0, 0, 0, 110);
 	}
 
 	// Draw chat lines

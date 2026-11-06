@@ -338,6 +338,8 @@ int main(int argc, char *argv[]) {
 				printf("script: menu click row %d at y=%d -> IsBuilding=%d (menu shown=%d)\n", row, y, (int)g.InGame->IsBuilding, (int)g.InGame->ShowBuildMenu);
 			}
 		}
+		// BC_TEST_MENU=3: pointer over the chat area
+		if (getenv("BC_TEST_MENU") && getenv("BC_TEST_SCENE") && getenv("BC_TEST_MENU")[0] == '3') game.Input->MouseOverChat = 1;
 		// BC_TEST_MENU=2: leave the menu open for a screenshot
 		if (getenv("BC_TEST_MENU") && getenv("BC_TEST_SCENE") && getenv("BC_TEST_MENU")[0] == '2' && frames > 20) {
 			game.InGame->ShowBuildMenu = 1; game.Draw->BuildMenuX = game.Draw->MaxMapX - 180; game.Draw->BuildMenuY = 344;

@@ -825,6 +825,16 @@ void CDDraw::DFillRectColor(int X, int Y, int width, int height, int r, int g, i
     SDL_RenderFillRect(Renderer, &rect);
 }
 
+void CDDraw::DFillRectAlpha(int X, int Y, int width, int height, int r, int g, int b, int alpha)
+{
+    if (!Renderer || alpha <= 0) return;
+    SDL_Rect rc = { XOff + X, YOff + Y, width, height };
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(Renderer, (Uint8)r, (Uint8)g, (Uint8)b, (Uint8)std::min(255, alpha));
+    SDL_RenderFillRect(Renderer, &rc);
+    SDL_SetRenderDrawBlendMode(Renderer, SDL_BLENDMODE_NONE);
+}
+
 void CDDraw::DFillRect(int X, int Y, int width, int height)
 {
     DFillRectColor(X, Y, width, height, 0, 0, 0);    // DirectDraw's colour fill with no colour set is black
