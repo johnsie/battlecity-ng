@@ -100,6 +100,7 @@ class CBotManager {
 		CServer *p;
 		bool enabled;
 		int maxBots;
+		float safeRadius;     // BC_BOTS_SAFE_RADIUS: how far bots keep from a human city (tests set 0 so bots engage at once)
 		float tempo;          // BC_BOTS_TEMPO: scales the gaps between events (tests only)
 		int botCity;
 		std::string webhook;

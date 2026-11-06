@@ -67,7 +67,7 @@ def main():
         return {"RAID!", "MISSION:", "BOUNTY:", "SUPPLY CRATE"} <= {k for k, _ in seen} and picked_crate and any(
             a.names.get(s[0], ("", ""))[1] in ("Raiders", "Bounty") for s in a.shots) and t > 4.5   # long enough for the ghost recording
 
-    while time.time() - t0 < 40 and not done():
+    while time.time() - t0 < 60 and not done():
         now = time.time()
         if now >= nxt:
             nxt = now + 0.15

@@ -41,6 +41,7 @@ All of it is in `server/CBot.cpp` (`CBotManager`), driven from the main loop (`S
 | `BC_BOTS` | 3 | maximum fighting bots (1 to 12); `0` turns every feature off |
 | `BC_BOT_CITY` | 63 | city index the bots belong to |
 | `BC_DISCORD_WEBHOOK` | unset | https webhook for the "someone is online" message |
+| `BC_BOTS_SAFE_RADIUS` | 1500 | pixels bots keep from a city that has a mayor; `0` removes the safe zone (tests) |
 | `BC_BOTS_TEMPO` | 1 | test hook: scales the gaps between events (0.02 makes them seconds) |
 | `BC_WEATHER` | unset | client: `rain`, `dust` or `off` |
 

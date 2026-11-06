@@ -844,7 +844,7 @@ void CDDraw::WindowToGame(int wx, int wy, int *gx, int *gy)
     if (Renderer && lastScale > 0) {
         int ow = 0, oh = 0, ww = 0, wh = 0;
         SDL_GetRendererOutputSize(Renderer, &ow, &oh);
-        SDL_Window *win = SDL_RenderGetWindow(Renderer);
+        SDL_Window *win = (SDL_Window *)p->hWnd;   // the game's window handle is the SDL window (SDL_RenderGetWindow needs SDL 2.0.22; CI has 2.0.20)
         if (win) SDL_GetWindowSize(win, &ww, &wh);
         float fx = (float)wx, fy = (float)wy;
         if (ww > 0 && wh > 0) { fx = fx * ow / ww; fy = fy * oh / wh; }   // window units -> output pixels (high-DPI)

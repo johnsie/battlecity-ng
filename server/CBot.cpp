@@ -70,6 +70,7 @@ CBotManager::CBotManager(CServer *Server) {
 	p = Server;
 	enabled = true;
 	tempo = 1.0f;
+	safeRadius = 1500.0f;
 	maxBots = 3;
 	botCity = 63;
 	overseer = -1;
@@ -98,6 +99,7 @@ void CBotManager::Init() {
 	if (maxBots < 0) maxBots = 0;
 	if (maxBots > MAX_FIGHTERS_HARD) maxBots = MAX_FIGHTERS_HARD;
 	if (const char *c = getenv("BC_BOT_CITY")) botCity = atoi(c);
+	if (const char *z = getenv("BC_BOTS_SAFE_RADIUS")) { safeRadius = (float)atof(z); if (safeRadius < 0) safeRadius = 0; }
 	if (!CCity::isValidCityIndex(botCity)) botCity = 63;
 	if (const char *w = getenv("BC_DISCORD_WEBHOOK")) webhook = w;
 	if (const char *t = getenv("BC_BOTS_TEMPO")) { tempo = (float)atof(t); if (tempo < 0.01f) tempo = 0.01f; if (tempo > 10.0f) tempo = 10.0f; }   // test hook: scales the gaps between events
@@ -182,7 +184,7 @@ bool CBotManager::FreeSpot(float x, float y) const {
 
 /// Bots keep well clear of cities that have a mayor, so nobody is hunted (or blocked by a tank parked on the plot) while building at home
 bool CBotManager::InSafeZone(float x, float y, float *awayX, float *awayY) const {
-	static const float SAFE = 1500.0f;
+	const float SAFE = safeRadius;
 	for (int ci = 0; ci < MAX_CITIES; ci++) {
 		if (ci == botCity || p->City[ci]->Mayor == -1) continue;
 		float dx = x - (float)p->City[ci]->x, dy = y - (float)p->City[ci]->y;

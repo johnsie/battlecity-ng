@@ -44,7 +44,7 @@ run_case() {
 }
 
 ( run_case basic  $BASE        -- python3 "$TOOLS/bots_test.py" 127.0.0.1 $BASE 15 ) &  PIDS="$PIDS $!"
-( run_case events $((BASE + 2)) BC_BOTS_TEMPO=0.005 -- python3 "$TOOLS/bots_events_test.py" 127.0.0.1 $((BASE + 2)) ) &  PIDS="$PIDS $!"
+( run_case events $((BASE + 2)) BC_BOTS_TEMPO=0.005 BC_BOTS_SAFE_RADIUS=0 -- python3 "$TOOLS/bots_events_test.py" 127.0.0.1 $((BASE + 2)) ) &  PIDS="$PIDS $!"
 ( run_case off    $((BASE + 4)) BC_BOTS=0 -- python3 "$TOOLS/bots_off_test.py" 127.0.0.1 $((BASE + 4)) ) &  PIDS="$PIDS $!"
 wait
 
