@@ -69,6 +69,9 @@ void CEngine::Frame() {
 		p->Tick = p->Timer->GetTime();
         //  Set time passed by calling the difference between current time interval and previous time interval
 		p->TimePassed = p->Tick - p->lastTick;
+        //  A hidden browser tab (or a suspended laptop) stops the loop for minutes; movement, bullets and the camera all scale by this value, so cap it
+		if (p->TimePassed > 100.0f) p->TimePassed = 100.0f;
+		if (p->TimePassed < 0.0f) p->TimePassed = 0.0f;
         //  Observe the current game state
 		switch (p->State) {
             //  Perform game cycle and draw debug information
