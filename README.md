@@ -12,7 +12,7 @@ Your goals are to keep your city safe and to take on the cities of other players
 * **Attack.** Teams raid enemy cities, and a city can be destroyed when its enemies get through its defences.
 * **Team up.** Chat with your city, with everyone, or whisper to one person. Cities rise and fall on how well their players work together.
 
-Battle City was first released in the 2000s. It is open source (GPLv3), so the game belongs to its community and will stay free.
+Battle City was first released in the 1990s. It is open source (GPLv3), so the game belongs to its community and will stay free.
 
 ## How orbs work
 
