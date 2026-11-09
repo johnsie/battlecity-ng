@@ -1,0 +1,41 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/premium_client.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/battlefield.gd" id="2_world"]
+[ext_resource type="Script" path="res://scripts/presentation_camera.gd" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/command_hud.gd" id="4_hud"]
+[ext_resource type="Script" path="res://scripts/modern_menu.gd" id="5_menu"]
+
+[node name="PremiumClient" type="Node"]
+script = ExtResource("1_main")
+
+[node name="Battlefield" type="Node2D" parent="."]
+script = ExtResource("2_world")
+
+[node name="PresentationCamera" type="Camera2D" parent="Battlefield"]
+position = Vector2(0, 0)
+position_smoothing_enabled = true
+position_smoothing_speed = 7.0
+script = ExtResource("3_camera")
+
+[node name="Interface" type="CanvasLayer" parent="."]
+
+[node name="CommandHUD" type="Control" parent="Interface"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("4_hud")
+
+[node name="ModernMenu" type="Control" parent="Interface"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("5_menu")

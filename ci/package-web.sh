@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Bundles the built browser client (the output of ci/build-web.sh) into a release tarball.
+# Bundles the classic browser client and its Modern Preview into one release tarball.
 # Usage: ci/package-web.sh <web-build-dir> <version> <out-dir>
 set -euo pipefail
 SRC=$(readlink -f "$1"); VERSION=$2; OUT=$(mkdir -p "$3" && readlink -f "$3")
 [ -f "$SRC/index.html" ] || { echo "no index.html in $SRC"; exit 1; }
+[ -f "$SRC/modern/index.html" ] || { echo "no Modern Preview index.html in $SRC/modern"; exit 1; }
 STAGE=$(mktemp -d); trap 'rm -rf "$STAGE"' EXIT
 DIR="$STAGE/battlecity-web-$VERSION"
 mkdir -p "$DIR"

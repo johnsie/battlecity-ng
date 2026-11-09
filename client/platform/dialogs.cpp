@@ -634,6 +634,12 @@ bool DrawLoginLink(const char *label) {
 	return clicked;
 }
 
+#ifdef __EMSCRIPTEN__
+void OpenModernPreview() {
+	EM_ASM({ window.location.href = new URL('modern/', window.location.href).href; });
+}
+#endif
+
 void DrawModernLogin(Dlg *d) {
 	ImGuiIO &io = ImGui::GetIO();
 	const float margin = 14.0f;
@@ -800,6 +806,10 @@ void DrawModernLogin(Dlg *d) {
 		if (d->open) {
 			ImGui::Dummy(ImVec2(0, 12.0f));
 			ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.62f, 0.69f, 1.0f));
+			#ifdef __EMSCRIPTEN__
+			if (DrawLoginLink("Modern Preview")) OpenModernPreview();
+			ImGui::SameLine();
+			#endif
 			if (DrawLoginLink("Exit game")) Notify(d, IDCANCEL, BN_CLICKED, FindCtl(d, IDCANCEL));
 			ImGui::SameLine();
 			ImGui::TextUnformatted("Battle City NG");

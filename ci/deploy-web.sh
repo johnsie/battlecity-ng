@@ -21,6 +21,10 @@ code=$(curl -ks -o /dev/null -w '%{http_code}' --resolve bc.outiva.com:443:127.0
 echo "   https://bc.outiva.com/ -> HTTP $code"
 [ "$code" = "200" ] || { echo "site did not answer 200"; exit 1; }
 
+modern_code=$(curl -ks -o /dev/null -w '%{http_code}' --resolve bc.outiva.com:443:127.0.0.1 https://bc.outiva.com/modern/ || true)
+echo "   https://bc.outiva.com/modern/ -> HTTP $modern_code"
+[ "$modern_code" = "200" ] || { echo "Modern Preview did not answer 200"; exit 1; }
+
 CHECK_DIR=$(mktemp -d)
 trap 'rm -rf "$CHECK_DIR"' EXIT
 status_code=$(curl -ksS -o "$CHECK_DIR/body" -D "$CHECK_DIR/headers" -w '%{http_code}' \

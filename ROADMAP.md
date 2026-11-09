@@ -2,6 +2,12 @@
 
 Goal: make the game stable and playable on every target, with automated build and release.
 
+The stability/release work in this document remains the foundation. The separate
+[modern presentation roadmap](docs/premium-roadmap.md) covers the staged client,
+art, HUD, combat-feedback, audio and onboarding work intended to make the game
+feel like a modern premium title while retaining the right-hand command HUD and
+the authoritative server.
+
 | # | Deliverable | Build | Release / deploy |
 |---|-------------|-------|------------------|
 | 1 | Linux server | CMake, GitLab CI and GitHub Actions | GitLab CI deploys to bc.outiva.com; GitHub Release asset too |
