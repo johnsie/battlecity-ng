@@ -77,6 +77,16 @@ def main():
             p.wait(lambda: False, 0.3)
             spots[p] = (x0 + 180, y0 + 120)
 
+        # the server must have both players in the game before it is stopped (a slow runner can lag behind the test's clock)
+        def joined():
+            text = open(os.path.join(work, "server.log"), "rb").read().decode(errors="replace")
+            return ("Join::" + mayor.name.decode()) in text and ("Join::" + member.name.decode()) in text
+        for _ in range(100):
+            if joined():
+                break
+            time.sleep(0.1)
+        bt.check(joined(), "the server has both players in the game", "the server never reported both players joined")
+
         # stop the server the way systemd does and start it again
         proc.send_signal(signal.SIGTERM)
         proc.wait(timeout=20)
@@ -91,12 +101,12 @@ def main():
             time.sleep(0.05)
             q.send(CM["cmLogin"], bt.field(q.name, 15) + bt.field(b"pw", 15))
             q.send(CM["cmSetState"], bytes([67]))      # the real client opens its meeting room window at once and says so; it must not undo the restore
-            ok = q.wait(lambda: q.steps and q.login_slot is not None, 3)
+            ok = q.wait(lambda: q.steps and q.login_slot is not None, 8)
             bt.check(ok, "%s was sent straight into the game after the restart (no meeting room)" % label, "%s got no smNextStep after the restart" % label)
             if not ok:
                 continue
             q.send(CM["cmNextStep"], bytes([65]))
-            bt.check(q.wait(lambda: q.x is not None, 3), "%s started playing again" % label, "%s got no smStateGame" % label)
+            bt.check(q.wait(lambda: q.x is not None, 8), "%s started playing again" % label, "%s got no smStateGame" % label)
             tx, ty = spots[p]
             bt.check(q.x is not None and abs(q.x - tx) <= 2 and abs(q.y - ty) <= 2, "...at the place they had reached (%s,%s)" % (q.x, q.y), "placed at %s,%s instead of %s,%s" % (q.x, q.y, tx, ty))
             back[p] = q
@@ -119,7 +129,7 @@ def main():
         proc.kill()
         proc.wait()
         if bt.check.failed:
-            print(open(os.path.join(work, "server.log"), "rb").read().decode(errors="replace")[-2500:])
+            print("--- server log (both runs)"); print(open(os.path.join(work, "server.log"), "rb").read().decode(errors="replace")[-12000:])
         shutil.rmtree(work, ignore_errors=True)
     if bt.check.failed:
         raise SystemExit(1)

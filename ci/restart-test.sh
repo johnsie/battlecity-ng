@@ -3,4 +3,4 @@
 # Usage: ci/restart-test.sh <path-to-bc-server> <path-to-map.dat>
 set -uo pipefail
 TOOLS=$(cd "$(dirname "$0")/../tools" && pwd)
-python3 "$TOOLS/restart_test.py" "$1" "$2" "${BC_TEST_PORT:-19800}"
+python3 "$TOOLS/restart_test.py" "$1" "$2" "${BC_TEST_PORT:-19820}"

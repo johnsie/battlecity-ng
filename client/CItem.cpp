@@ -105,6 +105,9 @@ void CItem::targetNearestEnemy() {
 			(player->isDead == false)
 			&&
 			(player->isAdmin() == false)
+			&&
+			// the ghost (a replay of an earlier run, see the solo-play bots) is not a target
+			!(player->Town == "Echoes" && player->Name.compare(0, 6, "Ghost:") == 0)
 		) {
 
 			// Get the distance between the item and the player
