@@ -46,12 +46,40 @@ const Def DEFS[HK_COUNT] = {
 	{ "reload",  "Reload graphics", "Reloads the game's pictures if something looks broken.", HC_INTERFACE, false, { SDL_SCANCODE_RIGHTBRACKET, 0 } },
 	{ "voice",   "Voice chat on/off","Turns voice chat on or off.", HC_VOICE, false, { SDL_SCANCODE_V, 0 } },
 	{ "ptt",     "Push to talk",    "Hold it to talk when voice chat is set to push to talk.", HC_VOICE, true, { SDL_SCANCODE_GRAVE, 0 } },
+	{ "buildmenu","Build menu",     "Opens the build menu at the pointer (mayors). Press it again to close the menu or put a building back.", HC_BUILD, false, { SDL_SCANCODE_F, 0 } },
+	{ "demolish","Demolish",        "Puts the wrecking cursor on the pointer; click a building to demolish it. Press it again to put it away.", HC_BUILD, false, { SDL_SCANCODE_X, 0 } },
+	{ "b0", "Build Hospital", "Puts a Hospital on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b1", "Build House", "Puts a House on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b2", "Build Bazooka Research", "Puts a Bazooka Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b3", "Build Bazooka Factory", "Puts a Bazooka Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b4", "Build Turret Research", "Puts a Turret Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b5", "Build Turret Factory", "Puts a Turret Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b6", "Build Cloak Research", "Puts a Cloak Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b7", "Build Cloak Factory", "Puts a Cloak Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b8", "Build MedKit Research", "Puts a MedKit Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b9", "Build MedKit Factory", "Puts a MedKit Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b10", "Build Plasma Turret Research", "Puts a Plasma Turret Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b11", "Build Plasma Turret Factory", "Puts a Plasma Turret Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b12", "Build Mine Research", "Puts a Mine Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b13", "Build Mine Factory", "Puts a Mine Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b14", "Build Orb Research", "Puts a Orb Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b15", "Build Orb Factory", "Puts a Orb Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b16", "Build Time Bomb Research", "Puts a Time Bomb Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b17", "Build Time Bomb Factory", "Puts a Time Bomb Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b18", "Build Sleeper Research", "Puts a Sleeper Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b19", "Build Sleeper Factory", "Puts a Sleeper Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b20", "Build Wall Research", "Puts a Wall Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b21", "Build Wall Factory", "Puts a Wall Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b22", "Build DFG Research", "Puts a DFG Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b23", "Build DFG Factory", "Puts a DFG Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b24", "Build Flare Gun Research", "Puts a Flare Gun Research on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
+	{ "b25", "Build Flare Gun Factory", "Puts a Flare Gun Factory on the cursor; click to place it. Mayors only, and only what you can build.", HC_BUILD, false, { 0, 0 } },
 };
 
-const char *const CATEGORY_NAMES[HC_COUNT] = { "MOVEMENT", "COMBAT", "ITEMS", "INTERFACE", "VOICE" };
+const char *const CATEGORY_NAMES[HC_COUNT] = { "MOVEMENT", "COMBAT", "ITEMS", "INTERFACE", "VOICE", "BUILDING" };
 const ImU32 CATEGORY_COLORS[HC_COUNT] = {
 	IM_COL32(86, 156, 236, 255), IM_COL32(232, 90, 80, 255), IM_COL32(96, 196, 120, 255),
-	IM_COL32(238, 186, 70, 255), IM_COL32(176, 120, 230, 255),
+	IM_COL32(238, 186, 70, 255), IM_COL32(176, 120, 230, 255), IM_COL32(64, 200, 204, 255),
 };
 
 float g_s = 1.0f;     // pixels per logical pixel for the frame being drawn
@@ -77,7 +105,50 @@ ImVec2 Pt(ImVec2 c, float r, float x, float y) { return ImVec2(c.x + x * r, c.y 
 void DrawIcon(ImDrawList *dl, int a, ImVec2 c, float r, ImU32 col) {
 	const float PI = 3.14159265f;
 	float th = std::max(1.5f, r * 0.16f);
+	if (a >= HK_BUILD0) {               // buildings: hospital (cross), house, then a flask for each research and a factory for each factory
+		int n = a - HK_BUILD0;
+		ImU32 wall = Alpha(col, 90);
+		if (n == 0 || n == 1) {
+			dl->AddRectFilled(Pt(c, r, -0.7f, -0.2f), Pt(c, r, 0.7f, 0.85f), wall);
+			dl->AddRect(Pt(c, r, -0.7f, -0.2f), Pt(c, r, 0.7f, 0.85f), col, 0, 0, th);
+			dl->AddTriangleFilled(Pt(c, r, -0.9f, -0.15f), Pt(c, r, 0.9f, -0.15f), Pt(c, r, 0.0f, -0.95f), col);
+			if (n == 0) {
+				dl->AddRectFilled(Pt(c, r, -0.12f, 0.15f), Pt(c, r, 0.12f, 0.75f), IM_COL32(230, 60, 60, 255));
+				dl->AddRectFilled(Pt(c, r, -0.35f, 0.38f), Pt(c, r, 0.35f, 0.54f), IM_COL32(230, 60, 60, 255));
+			} else {
+				dl->AddRectFilled(Pt(c, r, -0.15f, 0.35f), Pt(c, r, 0.15f, 0.85f), col);
+			}
+		} else if (n % 2 == 0) {            // research: a flask
+			dl->AddRectFilled(Pt(c, r, -0.2f, -0.9f), Pt(c, r, 0.2f, -0.3f), col);
+			dl->AddTriangleFilled(Pt(c, r, -0.2f, -0.3f), Pt(c, r, 0.2f, -0.3f), Pt(c, r, 0.85f, 0.85f), wall);
+			dl->AddTriangleFilled(Pt(c, r, -0.2f, -0.3f), Pt(c, r, -0.85f, 0.85f), Pt(c, r, 0.85f, 0.85f), wall);
+			dl->AddLine(Pt(c, r, -0.2f, -0.3f), Pt(c, r, -0.85f, 0.85f), col, th);
+			dl->AddLine(Pt(c, r, 0.2f, -0.3f), Pt(c, r, 0.85f, 0.85f), col, th);
+			dl->AddLine(Pt(c, r, -0.85f, 0.85f), Pt(c, r, 0.85f, 0.85f), col, th);
+		} else {                            // factory: sawtooth roof and a chimney
+			dl->AddRectFilled(Pt(c, r, -0.9f, -0.1f), Pt(c, r, 0.9f, 0.85f), wall);
+			dl->AddRect(Pt(c, r, -0.9f, -0.1f), Pt(c, r, 0.9f, 0.85f), col, 0, 0, th);
+			dl->AddTriangleFilled(Pt(c, r, -0.9f, -0.1f), Pt(c, r, -0.3f, -0.1f), Pt(c, r, -0.9f, -0.6f), col);
+			dl->AddTriangleFilled(Pt(c, r, -0.3f, -0.1f), Pt(c, r, 0.3f, -0.1f), Pt(c, r, -0.3f, -0.6f), col);
+			dl->AddRectFilled(Pt(c, r, 0.5f, -0.85f), Pt(c, r, 0.75f, -0.1f), col);
+		}
+		return;
+	}
 	switch (a) {
+		case HK_BUILDMENU: {                // the menu: a list of rows with a house on top
+			for (int i = 0; i < 3; i++) {
+				float y = -0.5f + i * 0.55f;
+				dl->AddRectFilled(Pt(c, r, -0.9f, y - 0.18f), Pt(c, r, 0.9f, y + 0.18f), i == 0 ? col : Alpha(col, 110), 2.0f);
+			}
+			break;
+		}
+		case HK_DEMOLISH: {                 // a building with a red cross over it
+			dl->AddRectFilled(Pt(c, r, -0.7f, -0.3f), Pt(c, r, 0.7f, 0.85f), Alpha(col, 90));
+			dl->AddRect(Pt(c, r, -0.7f, -0.3f), Pt(c, r, 0.7f, 0.85f), col, 0, 0, th);
+			dl->AddLine(Pt(c, r, -0.85f, -0.85f), Pt(c, r, 0.85f, 0.85f), IM_COL32(236, 64, 56, 255), th * 1.8f);
+			dl->AddLine(Pt(c, r, 0.85f, -0.85f), Pt(c, r, -0.85f, 0.85f), IM_COL32(236, 64, 56, 255), th * 1.8f);
+			break;
+		}
 		case HK_UP: case HK_DOWN: case HK_LEFT: case HK_RIGHT: {
 			float fx = a == HK_LEFT ? -1.f : a == HK_RIGHT ? 1.f : 0.f;
 			float fy = a == HK_UP ? -1.f : a == HK_DOWN ? 1.f : 0.f;
@@ -356,7 +427,7 @@ void CHotkeys::SetPreset(int preset) {
 		edit[HK_LEFT][0] = SDL_SCANCODE_A;  edit[HK_LEFT][1] = SDL_SCANCODE_LEFT;
 		edit[HK_RIGHT][0] = SDL_SCANCODE_D; edit[HK_RIGHT][1] = SDL_SCANCODE_RIGHT;
 		edit[HK_FIRE][0] = SDL_SCANCODE_SPACE; edit[HK_FIRE][1] = SDL_SCANCODE_LSHIFT;
-		edit[HK_DROP][0] = SDL_SCANCODE_X;
+		edit[HK_DROP][0] = SDL_SCANCODE_Q;
 	}
 }
 
@@ -606,7 +677,7 @@ bool CHotkeys::Draw(float s) {
 		float bw = 120.0f * s, bh = 28.0f * s;
 		if (ImGui::Button("Default layout", ImVec2(bw, bh))) { SetPreset(0); listenAct = -1; note = "Every key is back to its default."; }
 		ImGui::SameLine();
-		if (ImGui::Button("WASD layout", ImVec2(bw, bh))) { SetPreset(1); listenAct = -1; note = "W A S D drive, Space fires, X drops items. The arrow keys still work."; }
+		if (ImGui::Button("WASD layout", ImVec2(bw, bh))) { SetPreset(1); listenAct = -1; note = "W A S D drive, Space fires, Q drops items. The arrow keys still work."; }
 		float right = ImGui::GetWindowContentRegionMax().x;
 		ImGui::SameLine(right - bw * 2 - 8 * s);
 		if (ImGui::Button("Save", ImVec2(bw, bh))) save = true;

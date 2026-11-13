@@ -15,10 +15,14 @@ enum HotAction {
 	HK_INFO, HK_POINTS, HK_MAP, HK_POINTERS, HK_CHAT, HK_RELOAD,
 	// voice chat
 	HK_VOICE, HK_PTT,
-	HK_COUNT
+	// building (mayors)
+	HK_BUILDMENU, HK_DEMOLISH,
+	HK_BUILD0,                       // HK_BUILD0 + n starts placing building n of the build menu (same order as buildNames)
+	HK_BUILD_COUNT = 26,
+	HK_COUNT = HK_BUILD0 + HK_BUILD_COUNT
 };
 
-enum HotCategory { HC_MOVE, HC_COMBAT, HC_ITEMS, HC_INTERFACE, HC_VOICE, HC_COUNT };
+enum HotCategory { HC_MOVE, HC_COMBAT, HC_ITEMS, HC_INTERFACE, HC_VOICE, HC_BUILD, HC_COUNT };
 
 class CHotkeys {
 public:

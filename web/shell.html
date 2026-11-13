@@ -124,6 +124,15 @@
     check();
     setInterval(check, 60000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+    // A hidden tab stops the game loop but not the audio: loops and queued sounds then play on without the game. Pause the
+    // sound while the page is hidden and carry on when it is shown again.
+    document.addEventListener('visibilitychange', function () {
+      try {
+        var ctx = window.Module && Module.SDL2 && Module.SDL2.audioContext;
+        if (!ctx) return;
+        if (document.hidden) ctx.suspend(); else ctx.resume();
+      } catch (e) { /* no audio context yet */ }
+    });
   })();
   // Called by the game when it ends (quit, disconnected): the canvas would otherwise just freeze
   window.bcEnded = function () {

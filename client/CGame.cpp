@@ -626,6 +626,51 @@ void CGame::DoHotkey(int action) {
 		case HK_POINTS:
 			this->Input->PointsButton();
 			break;
+
+		// Build menu at the pointer (a second press closes it, or puts the building on the cursor back)
+		case HK_BUILDMENU:
+			if (!this->Player[this->Winsock->MyIndex]->isMayor) {
+				this->InGame->AppendChat("Only the mayor can build.", COLOR_SYSTEM);
+			} else if (this->InGame->IsBuilding != 0 || this->InGame->ShowBuildMenu) {
+				this->InGame->IsBuilding = 0;
+				this->InGame->ShowBuildMenu = 0;
+			} else {
+				this->InGame->ShowBuildMenu = 1;
+				this->Draw->BuildMenuX = this->Input->LastMouseX;
+				this->Draw->BuildMenuY = this->Input->LastMouseY;
+				if (this->Draw->BuildMenuX < 16) {
+					this->Draw->BuildMenuX = 16;
+				}
+				if (this->Draw->BuildMenuY > (this->ResolutionY - BUILD_MENU_ROW - 4)) {
+					this->Draw->BuildMenuY = this->ResolutionY - BUILD_MENU_ROW - 4;
+				}
+			}
+			break;
+
+		// Wrecking cursor on/off
+		case HK_DEMOLISH:
+			if (!this->Player[this->Winsock->MyIndex]->isMayor) {
+				this->InGame->AppendChat("Only the mayor can demolish buildings.", COLOR_SYSTEM);
+			} else {
+				this->InGame->ShowBuildMenu = 0;
+				this->InGame->IsBuilding = (this->InGame->IsBuilding == -1) ? 0 : -1;
+			}
+			break;
+
+		// A building straight onto the cursor
+		default:
+			if (action >= HK_BUILD0 && action < HK_BUILD0 + HK_BUILD_COUNT) {
+				int j = action - HK_BUILD0;
+				if (!this->Player[this->Winsock->MyIndex]->isMayor) {
+					this->InGame->AppendChat("Only the mayor can build.", COLOR_SYSTEM);
+				} else if (!this->InGame->CanBuild[j] && !this->Player[this->Winsock->MyIndex]->isAdmin()) {
+					this->InGame->AppendChat(std::string("You cannot build a ") + buildNames[j] + " yet.", COLOR_SYSTEM);
+				} else {
+					this->InGame->ShowBuildMenu = 0;
+					this->InGame->IsBuilding = (this->InGame->IsBuilding == j + 1) ? 0 : (char)(j + 1);
+				}
+			}
+			break;
 	}
 }
 

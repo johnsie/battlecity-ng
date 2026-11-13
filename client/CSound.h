@@ -49,6 +49,8 @@ public:
 	void PlayWav(int Index, int channel);
 	void PlaYMID(int Index);               // 0-6
 	void StopWav(int Index);               // stops a fixed channel
+	void StopAll();                        // silences every effect (music keeps playing)
+	void Quiet(unsigned int ms);           // no new effects for this long: after a long stall the backlog of events would all play at once
 	void StopMID(int all, int Index);
 
 	/// <summary> Positional sound: volume 0-255; x/y are world coordinates, attenuated and panned

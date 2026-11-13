@@ -274,9 +274,26 @@ void CSound::Shutdown()
 	audio = NULL;
 }
 
+static Uint32 g_quietUntil = 0;
+
+void CSound::Quiet(unsigned int ms)
+{
+	g_quietUntil = SDL_GetTicks() + ms;
+	StopAll();
+}
+
+void CSound::StopAll()
+{
+	if (!audio || !audio->device) return;
+	SDL_LockAudioDevice(audio->device);
+	for (BCVoice &v : audio->voices) v.active = false;
+	SDL_UnlockAudioDevice(audio->device);
+}
+
 void CSound::Play(BCSample *sample, int channel, float left, float right)
 {
 	if (!audio || !audio->device || !sample) return;
+	if ((int)(g_quietUntil - SDL_GetTicks()) > 0) return;
 	SDL_LockAudioDevice(audio->device);
 	int slot = channel;
 	if (slot < 0 || slot >= MAX_VOICES) {

@@ -5,7 +5,8 @@
 - Every command has two key slots. Click a slot and press the new key; Backspace clears it, Esc cancels.
 - The keyboard picture colours each key by the kind of command it runs (blue movement, red combat, green items, gold interface, purple voice) and shows the command's icon on it. Pointing at a command outlines its keys. Clicking a key gives it to the selected command.
 - Giving a key that is already used to another command moves it, and the editor says so.
-- Presets: **Default layout** and **WASD layout** (W A S D drive, Space fires, X drops items, arrows still work).
+- Building (mayors): **Build menu** (F) opens the menu at the pointer, **Demolish** (X) puts the wrecking cursor on the pointer, and there is one **Build ...** command for each of the 26 buildings (unbound until you give them a key; they put that building on the cursor, and only for buildings you can build). Pressing the same key again puts the building back.
+- Presets: **Default layout** and **WASD layout** (W A S D drive, Space fires, Q drops items, arrows still work).
 - Keys 1 to 0 pick the tank and cannot be changed. Chat must keep a key.
 - Changed keys are shown in gold with a Reset button. Nothing changes until **Save**; Cancel (or Esc) throws the edits away.
 

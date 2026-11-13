@@ -70,6 +70,8 @@ void CEngine::Frame() {
         //  Set time passed by calling the difference between current time interval and previous time interval
 		p->TimePassed = p->Tick - p->lastTick;
         //  A hidden browser tab (or a suspended laptop) stops the loop for minutes; movement, bullets and the camera all scale by this value, so cap it
+		//  Everything that happened meanwhile arrives at once (shots, blasts ...): do not play it all back as one roar
+		if (p->TimePassed > 400.0f) p->Sound->Quiet(2000);
 		if (p->TimePassed > 100.0f) p->TimePassed = 100.0f;
 		if (p->TimePassed < 0.0f) p->TimePassed = 0.0f;
         //  Observe the current game state

@@ -6,6 +6,7 @@
 static const char *const BC_CHANGELOG =
 "2026-11-13\r\n"
 "  + Shortcut editor (Options > Shortcuts...): rebind every key, with a keyboard map, icons, two keys per action and presets.\r\n"
+"  + Build menu, Demolish and one-key placement for every building are in the shortcut editor too.\r\n"
 "  + What's New tab in the Meeting Room.\r\n"
 "  * Turrets now hurt the bots. Before, the shots were only drawn.\r\n"
 "\r\n"
