@@ -266,6 +266,7 @@ BEGIN
     CONTROL         "Limit Frames per Second (Recommended)",1108,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,156,142,16
     CONTROL         "1024x768 Resolution",1109,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,5,174,142,16
     PUSHBUTTON      "Voice chat...",IDOPT_VOICE,5,194,80,14
+    PUSHBUTTON      "Shortcuts...",IDOPT_HOTKEYS,90,194,80,14
 END
 
 ID_VOICE DIALOGEX 0, 0, 240, 232
@@ -388,7 +389,8 @@ BEGIN
     PUSHBUTTON      "Refresh",IDREFRESH,405,136,32,14
     CTEXT           "The Battle City Meeting Room - Select a city from the city list to join the game!",IDC_STATIC,7,2,431,9
     CTEXT           "City list - double click to apply!",IDC_STATIC,227,153,211,9
-    CTEXT           "The Daily Bullet",IDC_STATIC,6,153,214,8
+    CONTROL         "The Daily Bullet",IDNEWS_TAB,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_GROUP | WS_TABSTOP,5,151,107,11
+    CONTROL         "What's New",IDLOG_TAB,"Button",BS_AUTORADIOBUTTON | BS_PUSHLIKE | WS_TABSTOP,113,151,107,11
 END
 
 ID_PERSONNEL DIALOGEX 0, 0, 229, 193

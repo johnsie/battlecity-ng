@@ -118,7 +118,7 @@ class CBotManager {
 		BotInfo bots[24];
 		int overseer;                    // slot used to speak for the server, -1 when absent
 
-		float nextStep, nextManage, nextSave, lastStepTick;
+		float nextStep, nextManage, nextSave, lastStepTick, nextTurret;
 		float lastHumanSeen;
 		int lastHumanCount;
 		float lastWebhook;
@@ -194,6 +194,7 @@ class CBotManager {
 		void Think(BotInfo &b, float now);
 		void StepBot(BotInfo &b, float dt, float now);
 		void Fire(BotInfo &b);
+		void TurretsFire(float now);
 		void Manage(float now);
 		int CountTier(int tier) const;
 		int CountRaiders() const;

@@ -42,6 +42,7 @@ struct Ctl {
 	int cursel = -1;
 	WNDPROC subclass = nullptr;
 	bool scrollToBottom = false;
+	bool scrollToTop = false;
 	bool refocus = false;
 	bool isEditable() const { return def->kind == BCK_EDIT && !(def->flags & BCF_READONLY); }
 	bool isLog() const { return def->kind == BCK_EDIT && (def->flags & BCF_READONLY) && (def->flags & BCF_MULTILINE); }
@@ -73,6 +74,9 @@ std::map<int, Dlg *> g_dialogs;          // dialog id -> persistent instance (ha
 std::map<void *, Dlg *> g_dlgHandles;
 std::map<void *, Ctl *> g_ctlHandles;
 Dlg *g_active = nullptr;
+std::function<bool(float)> g_custom;     // a custom ImGui screen (the shortcut editor) shown in place of a dialog
+float g_customW = 900.0f, g_customH = 600.0f;
+int g_lastKey = 0;                       // SDL scancode of the latest key press, for key-binding screens
 
 struct Message {
 	std::string title, text;
@@ -122,6 +126,7 @@ void ResetDialog(Dlg *d) {
 		c.limit = 0;
 		c.subclass = nullptr;
 		c.scrollToBottom = false;
+		c.scrollToTop = false;
 		c.refocus = false;
 		c.buffer.clear();
 		if (c.isEditable()) SetEditText(c, "");
@@ -296,7 +301,10 @@ LRESULT BCSendMessage(HWND target, UINT msg, WPARAM wParam, LPARAM lParam) {
 				return (LRESULT)c->items[wParam].size();
 			case BM_GETCHECK: return c->check;
 			case BM_SETCHECK: CheckDlgButton(c->dlg, c->def->id, (UINT)wParam); return 0;
-			case WM_VSCROLL: c->scrollToBottom = true; return 0;
+			case WM_VSCROLL:
+				if (wParam == SB_TOP) { c->scrollToBottom = false; c->scrollToTop = true; }
+				else c->scrollToBottom = true;
+				return 0;
 			case WM_LBUTTONDBLCLK: return c->subclass ? c->subclass(c, msg, wParam, lParam) : 0;
 			default: return 0;
 		}
@@ -406,7 +414,13 @@ void BCSetLoginLayout(bool active) {
 #endif
 }
 
-bool BCDialogsActive() { return g_active != nullptr || !g_messages.empty(); }
+bool BCDialogsActive() { return g_active != nullptr || (bool)g_custom || !g_messages.empty(); }
+
+void BCDialogsShowCustom(std::function<bool(float)> draw, float designW, float designH) {
+	g_custom = draw; g_customW = designW; g_customH = designH; g_lastKey = 0;
+}
+
+int BCTakeKeyPress() { int k = g_lastKey; g_lastKey = 0; return k; }
 
 bool BCMessagesPending() { return !g_messages.empty(); }
 
@@ -431,9 +445,10 @@ void BCDialogsCloseActive() {
 }
 
 void BCDialogsProcessEvent(const void *sdlEvent) {
-	if (!g_imguiReady || (!g_active && g_messages.empty())) return;
+	if (!g_imguiReady || (!g_active && !g_custom && g_messages.empty())) return;
 	const SDL_Event &e = *(const SDL_Event *)sdlEvent;
 	ImGuiIO &io = ImGui::GetIO();
+	if (e.type == SDL_KEYDOWN && !e.key.repeat) g_lastKey = (int)e.key.keysym.scancode;
 	switch (e.type) {
 		case SDL_MOUSEMOTION: {
 			int mx = e.motion.x, my = e.motion.y;
@@ -505,6 +520,17 @@ void DrawControl(Dlg *d, Ctl &c, int index, float originY) {
 		}
 		case BCK_RADIO: {
 			std::string label = StripMnemonics(c.text.c_str()) + "###r";
+			if (def.flags & BCF_PUSHLIKE) {                  // a tab: the chosen one is lit and joined to the page below
+				bool on = c.check != 0;
+				if (on) {
+					ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+					ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+				}
+				bool clicked = ImGui::Button(label.c_str(), size);
+				if (on) ImGui::PopStyleColor(2);
+				if (clicked && !on) { SelectRadio(d, &c); Notify(d, def.id, BN_CLICKED, &c); }
+				break;
+			}
 			if (ImGui::RadioButton(label.c_str(), c.check != 0)) { SelectRadio(d, &c); Notify(d, def.id, BN_CLICKED, &c); }
 			break;
 		}
@@ -515,6 +541,7 @@ void DrawControl(Dlg *d, Ctl &c, int index, float originY) {
 				ImGui::TextUnformatted(c.text.c_str());
 				ImGui::PopTextWrapPos();
 				if (c.scrollToBottom) { ImGui::SetScrollHereY(1.0f); c.scrollToBottom = false; }
+				if (c.scrollToTop) { ImGui::SetScrollY(0.0f); c.scrollToTop = false; }
 				ImGui::EndChild();
 				break;
 			}
@@ -868,7 +895,7 @@ static void DrawMessage(float titleH) {
 }
 
 void BCDialogsRender() {
-	if (!g_imguiReady || (!g_active && g_messages.empty())) return;
+	if (!g_imguiReady || (!g_active && !g_custom && g_messages.empty())) return;
 	Dlg *d = g_active;
 
 	// Draw at native output resolution (not scaled up from the game's logical 1024x768) so text stays sharp
@@ -881,6 +908,8 @@ void BCDialogsRender() {
 	bool modernLogin = d && d->def->id == ID_LOGIN;
 	if (modernLogin) {
 		ui = std::max(1.15f, std::min(1.5f, std::min(ow / 760.0f, oh / 520.0f) * 1.25f));
+	} else if (!d && g_custom) {
+		ui = std::min(ui, std::min(ow * 0.97f / g_customW, oh * 0.97f / g_customH));
 	} else if (d) {                                                     // ... but must fit inside the window
 		float fitW = ow * 0.97f / (d->def->w * DLU_X);
 		float fitH = (oh * 0.97f - 40.0f) / (d->def->h * DLU_Y);
@@ -926,6 +955,10 @@ void BCDialogsRender() {
 	ImGui::PopStyleVar();
 	if (!keepOpen && d->open && d->proc) d->proc(d, WM_CLOSE, 0, 0);   // title-bar close button
 	}   // if (d)
+	else if (g_custom) {
+		std::function<bool(float)> draw = g_custom;
+		if (!draw(g_scale) && g_custom) g_custom = nullptr;
+	}
 
 	if (!g_messages.empty()) DrawMessage(titleH);
 

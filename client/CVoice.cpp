@@ -3,6 +3,7 @@
  */
 #include "CGame.h"
 #include "CVoice.h"
+#include "CHotkeys.h"
 #include "adpcm.h"
 #include "platform/dialogs.h"
 #include <algorithm>
@@ -143,7 +144,8 @@ void CVoice::Toggle() {
 	}
 	SetOn(!on);
 	if (on) {
-		p->InGame->AppendChat(mode == 0 ? "Voice chat on. Hold ` (the key left of 1) to talk. Press V to turn it off." : "Voice chat on: you are heard when you speak. Click the Voice button for settings, V turns it off.", COLOR_SYSTEM);
+		std::string talk = CHotkeys::Get().KeyText(HK_PTT), toggle = CHotkeys::Get().KeyText(HK_VOICE);
+		p->InGame->AppendChat(mode == 0 ? "Voice chat on. Hold " + talk + " to talk. Press " + toggle + " to turn it off." : "Voice chat on: you are heard when you speak. Click the Voice button for settings, " + toggle + " turns it off.", COLOR_SYSTEM);
 	} else {
 		p->InGame->AppendChat("Voice chat off.", COLOR_SYSTEM);
 	}
@@ -241,7 +243,7 @@ void CVoice::Update() {
 	wasInGame = true;
 	// push to talk: the key left of 1 (` / ~)
 	const Uint8 *keys = SDL_GetKeyboardState(NULL);
-	bool keyDown = keys && keys[SDL_SCANCODE_GRAVE];
+	bool keyDown = CHotkeys::Get().Down(HK_PTT, keys);
 	ptt = keyDown && !p->InGame->IsChatting && !BCDialogsActive();
 
 	bool want = serverEnabled && on;

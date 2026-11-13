@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CMeeting.h"
+#include "Changelog.h"
 
 CGame *CMeetPointer;
 WNDPROC wpOrigEditProc;
@@ -40,6 +41,7 @@ int CALLBACK MyChatProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 CMeeting::CMeeting(CGame *game) {
 	this->p = game;
 	CMeetPointer = game;
+	this->ShowLog = false;
 
 	for (int i = 0; i < 30; i++) {
 		City[i].Mayor = -1;
@@ -79,6 +81,8 @@ int CALLBACK MeetDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) 
 			wpOrigEditProc = (WNDPROC) SetWindowLong(p->Meeting->EditWnd, GWL_WNDPROC, &MyEditProc); 
 			p->Meeting->RedrawList();
 
+			p->Meeting->ShowLog = false;
+			CheckDlgButton(hwnd, IDNEWS_TAB, 1);
 			SetDlgItemText(hwnd, IDNEWS, p->Meeting->News.c_str());
 			wpOrigNewsProc = (WNDPROC) SetWindowLong(p->Meeting->NewsWnd, GWL_WNDPROC, &MyNewsProc); 
 			wpOrigChatProc = (WNDPROC) SetWindowLong(p->Meeting->ChatWnd, GWL_WNDPROC, &MyChatProc); 
@@ -90,6 +94,17 @@ int CALLBACK MeetDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam) 
 		}
         case WM_COMMAND: {
 			switch(LOWORD(wParam)) {
+				case IDNEWS_TAB:
+					p->Meeting->ShowLog = false;
+					CheckDlgButton(hwnd, IDNEWS_TAB, 1);
+					SetDlgItemText(hwnd, IDNEWS, p->Meeting->News.c_str());
+					break;
+				case IDLOG_TAB:
+					p->Meeting->ShowLog = true;
+					CheckDlgButton(hwnd, IDLOG_TAB, 1);
+					SetDlgItemText(hwnd, IDNEWS, BC_CHANGELOG);
+					SendDlgItemMessage(hwnd, IDNEWS, WM_VSCROLL, SB_TOP, 0);   // the changelog reads from the top
+					break;
 				case IDQUIT:
 					SendMessage(p->hWnd, WM_CLOSE, 0, 0);
 					break;
@@ -341,7 +356,9 @@ int CMeeting::FreePlayer() {
  **************************************************************/
 void CMeeting::AppendNews(string TheData) {
 	this->News.append(TheData);
-	SetDlgItemText(this->hWnd, IDNEWS, this->News.c_str());
+	if (!this->ShowLog) {
+		SetDlgItemText(this->hWnd, IDNEWS, this->News.c_str());
+	}
 }
 
 /***************************************************************

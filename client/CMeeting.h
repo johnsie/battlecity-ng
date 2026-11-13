@@ -48,6 +48,7 @@ class CMeeting {
         HWND NewsWnd;
         string Chat;
         string News;
+        bool ShowLog;          // the news box shows the changelog tab instead of the news
 
         void ShowMeetingDlg();
         void AppendData(string TheData);

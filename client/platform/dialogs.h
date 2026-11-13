@@ -75,6 +75,7 @@
 	#undef BST_CHECKED
 	#undef SB_VERT
 	#undef SB_THUMBTRACK
+	#undef SB_TOP
 	#undef SIF_ALL
 	#undef IDOK
 	#undef IDCANCEL
@@ -112,6 +113,7 @@ typedef DLGPROC WNDPROC;
 #define BST_CHECKED     1
 #define SB_VERT         1
 #define SB_THUMBTRACK   5
+#define SB_TOP          6
 #define SIF_ALL         0x17
 #define IDOK            1
 #define IDCANCEL        2
@@ -169,6 +171,10 @@ bool BCLoadSavedLogin(std::string &user, std::string &pass, bool &remember);
 void BCStoreLogin(const std::string &user, const std::string &pass, bool remember);   // remember=false forgets the login
 bool BCLoginRemember();                              // state of the "Remember me" checkbox
 void BCSetLoginLayout(bool active);                  // browser: full viewport while authentication is visible
+// A custom ImGui screen (drawn instead of a dialog; the game ignores input while it is open). The callback draws one
+// frame at the given pixels-per-logical-pixel scale and returns false when the screen should close.
+void BCDialogsShowCustom(std::function<bool(float)> draw, float designW, float designH);
+int  BCTakeKeyPress();                               // SDL scancode of the last key pressed since the previous call, or 0
 void BCDialogsCloseActive();                         // closes the open dialog (if any) without calling its procedure
 bool BCDialogsActive();
 HWND BCDialogsActiveHandle();                        // the open dialog (for tests), or NULL                              // true while a dialog is open (game ignores input)

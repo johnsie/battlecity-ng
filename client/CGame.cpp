@@ -21,6 +21,7 @@
 ===============================================================================
 */
 #include "CGame.h"
+#include "CHotkeys.h"
 std::string BCLoadText(const char *key);
 void BCSaveText(const char *key, const std::string &text);
 #include "NetMessages.h"
@@ -511,131 +512,120 @@ void CGame::handleChatKey(WPARAM wParam) {
  * @param wParam
  **************************************************************/
 void CGame::handleGameKey(WPARAM wParam) {
-
-	// KEY: Enter
+	// Commands come in through the shortcut table (see DoHotkey); only Enter is still offered here as "open the chat"
+	// for scripts that type a line into the chat.
 	if (wParam == 13) {
-		// Open chat
 		this->InGame->IsChatting = 1;
 	}
+}
 
-	// KEY: u or F6 (and user isn't frozen)
-	if (((wParam == 85) || (wParam == 117)) && (this->Player[this->Winsock->MyIndex]->isFrozen == 0)) {
+/***************************************************************
+ * Function:	DoHotkey
+ *
+ * Runs a one-press command from the shortcut table (CHotkeys).
+ **************************************************************/
+void CGame::DoHotkey(int action) {
+	if (this->State != STATE_GAME || this->InGame->IsChatting == 1) {
+		return;
+	}
+	switch (action) {
 
-		// Get the item under the user's current position
-		CItem *item = this->Item->findItembyLocation(((int)this->Player[this->Winsock->MyIndex]->X + 24) / 48, ((int)this->Player[this->Winsock->MyIndex]->Y + 24) / 48);
+		// Open chat
+		case HK_CHAT:
+			this->InGame->IsChatting = 1;
+			break;
 
-		// If found, send a command to pick it up
-		if (item) {
-			sCMItem ii;
-			ii.id = item->id;
-			ii.active = item->active;
-			ii.type = item->Type;
-			this->Winsock->SendData(cmItemUp,(char *)&ii,sizeof(ii));
+		// Pick up the item under the tank (not while frozen)
+		case HK_PICKUP:
+			if (this->Player[this->Winsock->MyIndex]->isFrozen == 0) {
+				CItem *item = this->Item->findItembyLocation(((int)this->Player[this->Winsock->MyIndex]->X + 24) / 48, ((int)this->Player[this->Winsock->MyIndex]->Y + 24) / 48);
+				if (item) {
+					sCMItem ii;
+					ii.id = item->id;
+					ii.active = item->active;
+					ii.type = item->Type;
+					this->Winsock->SendData(cmItemUp,(char *)&ii,sizeof(ii));
+				}
+			}
+			break;
+
+		case HK_INFO:
+			this->Input->InfoButton();
+			break;
+
+		// Drop an orb from the inventory
+		case HK_ORB: {
+			CItem *itm = this->Inventory->findItembyType(5);
+			if (itm) {
+				sCMItem ii;
+				ii.id = itm->id;
+				ii.active = itm->active;
+				ii.type = itm->Type;
+				this->Winsock->SendData(cmItemDrop,(char *)&ii,sizeof(ii));
+			}
+			break;
 		}
-	}
 
-	// KEY: i or NUMPAD9
-	else if ((wParam == 73) || (wParam == 105)) {
-		// Trigger the info button
-		this->Input->InfoButton();
-	}
-
-	// KEY: o or NUMPAD/
-	else if ((wParam == 79) || (wParam == 111)) {
-		// Get an orb from the user's inventory
-		CItem *itm = this->Inventory->findItembyType(5);
-		// If found, send a command to drop it 
-		if (itm) {
-			sCMItem ii;
-			ii.id = itm->id;
-			ii.active = itm->active;
-			ii.type = itm->Type;
-			this->Winsock->SendData(cmItemDrop,(char *)&ii,sizeof(ii));
+		// Arm and drop a bomb from the inventory
+		case HK_BOMB: {
+			CItem *itm = this->Inventory->findItembyType(3);
+			if (itm) {
+				sCMItem ii;
+				ii.id = itm->id;
+				ii.active = 1;
+				ii.type = itm->Type;
+				this->Winsock->SendData(cmItemDrop,(char *)&ii,sizeof(ii));
+			}
+			break;
 		}
-	}
 
-	// KEY: b or NUMPAD2
-	else if ((wParam == 66) || (wParam == 98)) {
-		// Get a bomb from the user's inventory
-		CItem *itm = this->Inventory->findItembyType(3);
-		// If found, activate it then send a command to drop it
-		if (itm) {
-			sCMItem ii;
-			ii.id = itm->id;
-			ii.active = 1;
-			ii.type = itm->Type;
-			this->Winsock->SendData(cmItemDrop,(char *)&ii,sizeof(ii));
+		case HK_MEDKIT:
+			this->Inventory->triggerItem(ITEM_TYPE_MEDKIT);
+			break;
+
+		case HK_CLOAK:
+			this->Inventory->triggerItem(ITEM_TYPE_CLOAK);
+			break;
+
+		case HK_DROP:
+			this->Inventory->Drop();
+			break;
+
+		// Reload surfaces
+		case HK_RELOAD:
+			if (this->Tick > this->Input->lastRefresh) {
+				this->Input->lastRefresh = this->Tick + TIMER_RELOAD_SURFACES;
+				this->DDraw->LoadSurfaces();
+				this->InGame->AppendChat("The game's surfaces were reloaded.", COLOR_SYSTEM);
+			}
+			break;
+
+		// Center the player, freeze the player, toggle the minimap (and request it when it opens)
+		case HK_MAP:
+			this->Draw->resetPlayerOffset();
+			this->Player[this->Winsock->MyIndex]->isMoving = 0;
+			this->InGame->ShowMap = 1 - this->InGame->ShowMap;
+			if (this->InGame->ShowMap == 1) {
+				this->Winsock->SendData(cmMiniMap, " ");
+			}
+			break;
+
+		// Pointers to the important places on/off
+		case HK_POINTERS: {
+			this->Draw->ShowWaypoints = !this->Draw->ShowWaypoints;
+			BCSaveText("waypoints", this->Draw->ShowWaypoints ? "1" : "0");
+			std::string key = CHotkeys::Get().KeyText(HK_POINTERS);
+			this->InGame->AppendChat(this->Draw->ShowWaypoints ? "Pointers on: arrows at the edge of the screen show where your base, crates, raids and fights are. Press " + key + " to turn them off." : "Pointers off. Press " + key + " to turn them on.", COLOR_SYSTEM);
+			break;
 		}
-	}
 
-	// KEY: h or NUMPAD8
-	else if ((wParam == 72) || (wParam == 104) ) {
+		case HK_VOICE:
+			this->Voice->Toggle();
+			break;
 
-		// Tell the inventory to trigger a medkit
-		this->Inventory->triggerItem(ITEM_TYPE_MEDKIT);
-	}
-
-	
-	// KEY: c
-	else if ((wParam == 67) || (wParam == 99) ) {
-
-		// Tell the inventory to trigger a medkit
-		this->Inventory->triggerItem(ITEM_TYPE_CLOAK);
-	}
-
-	// KEY: d or NUMPAD4 
-	else if ((wParam == 68) || (wParam == 100)) {
-		// Drop the selected item
-		this->Inventory->Drop();
-	}
-
-	// KEY: [
-	else if ((wParam == 123) || (wParam == 91)) {
-		//Refresh Data
-		//this->Player[this->Winsock->MyIndex]->timeFrozen = this->Timer->GetTime() + 60000;
-		//this->Player[this->Winsock->MyIndex]->isFrozen = 1;
-	}
-
-	// KEY: ]
-	else if ((wParam == 93) || wParam == 125) {
-		// Reload Surfaces
-		if (this->Tick > this->Input->lastRefresh) {
-			this->Input->lastRefresh = this->Tick + TIMER_RELOAD_SURFACES;
-			this->DDraw->LoadSurfaces();
-			this->InGame->AppendChat("The game's surfaces were reloaded.", COLOR_SYSTEM);
-		}
-	}
-
-	// KEY: m or NUMPAD-
-	else if ((wParam == 77) || (wParam == 109)) {
-
-		// Center the player, freeze the player
-		this->Draw->resetPlayerOffset();
-		this->Player[this->Winsock->MyIndex]->isMoving = 0;
-
-		// Toggle the minimap, and request it if it is now open
-		this->InGame->ShowMap = 1 - this->InGame->ShowMap;
-		if (this->InGame->ShowMap == 1) {
-			this->Winsock->SendData(cmMiniMap, " ");
-		}
-	}
-
-	// KEY: n (pointers to the important places on/off)
-	else if ((wParam == 78) || (wParam == 110)) {
-		this->Draw->ShowWaypoints = !this->Draw->ShowWaypoints;
-		BCSaveText("waypoints", this->Draw->ShowWaypoints ? "1" : "0");
-		this->InGame->AppendChat(this->Draw->ShowWaypoints ? "Pointers on: arrows at the edge of the screen show where your base, crates, raids and fights are. Press N to turn them off." : "Pointers off. Press N to turn them on.", COLOR_SYSTEM);
-	}
-
-	// KEY: v (voice chat on/off)
-	else if ((wParam == 86) || (wParam == 118)) {
-		this->Voice->Toggle();
-	}
-
-	// KEY: p or F1
-	else if ((wParam == 80) || (wParam == 112)) {
-		// Trigger the points button
-		this->Input->PointsButton();
+		case HK_POINTS:
+			this->Input->PointsButton();
+			break;
 	}
 }
 

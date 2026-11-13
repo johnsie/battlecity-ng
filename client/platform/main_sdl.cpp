@@ -6,6 +6,7 @@
 #ifdef _WIN32
 #include <direct.h>
 #endif
+#include "CHotkeys.h"
 #include "CGame.h"
 #include "platform/input_compat.h"
 #include <SDL.h>
@@ -53,7 +54,7 @@ static bool FindAndEnterDataDir() {
 }
 
 // ---- Test script runner: BC_TEST_SCRIPT=<file> drives the dialogs/keys headlessly (used for automated checks) ----
-//   wait <frames> | text <controlId> <text> | click <controlId> | check <controlId> | key up|down|left|right on|off
+//   hotkeys | meeting | scancode <n> | wait <frames> | text <controlId> <text> | click <controlId> | check <controlId> | key up|down|left|right on|off
 //   | shot <file> | print <text> | quit
 #include <fstream>
 #include <sstream>
@@ -100,6 +101,10 @@ static void RunScript() {
 			int dik = which == "up" ? DIK_UP : which == "down" ? DIK_DOWN : which == "left" ? DIK_LEFT : DIK_RIGHT;
 			BCTestSetKey(dik, state == "on");
 		}
+		else if (cmd == "hotkeys") { BCDialogsCloseActive(); g_game->Dialog->StartDialog = 0; CHotkeys::Get().OpenEditor([]() {}); }
+		else if (cmd == "meeting") { BCDialogsCloseActive(); g_game->Dialog->StartDialog = 0; g_game->Meeting->ShowMeetingDlg(); }
+		else if (cmd == "state") printf("script: state=%d dialog=%d showmap=%d waypoints=%d chatting=%d\n", g_game->State, (int)BCDialogsActive(), (int)g_game->InGame->ShowMap, (int)g_game->Draw->ShowWaypoints, (int)g_game->InGame->IsChatting);
+		else if (cmd == "scancode") { int sc; line >> sc; SDL_Event ev; SDL_zero(ev); ev.type = SDL_KEYDOWN; ev.key.keysym.scancode = (SDL_Scancode)sc; ev.key.state = SDL_PRESSED; SDL_PushEvent(&ev); }
 		else if (cmd == "shot") { std::string path; line >> path; g_game->DDraw->SaveScreenshot(path.c_str()); }
 		else if (cmd == "print") { std::string rest; std::getline(line, rest); printf("script:%s\n", rest.c_str()); }
 		else if (cmd == "restart") { BCRestartApplication(); }
@@ -107,6 +112,8 @@ static void RunScript() {
 		else printf("script: unknown command '%s'\n", cmd.c_str());
 	}
 }
+
+static bool g_swallowText = false;   // the key press that just ran a command must not also be typed as text
 
 static void HandleEvent(const SDL_Event &e) {
 	CGame &game = *g_game;
@@ -141,20 +148,38 @@ static void HandleEvent(const SDL_Event &e) {
 			}
 			break;
 		case SDL_TEXTINPUT:
-			// Printable characters (what WM_CHAR used to deliver)
+			// Printable characters (what WM_CHAR used to deliver). In the game they only matter for the chat line:
+			// commands come from the shortcut table below, and a key that ran a command must not also type itself.
 			if (!dialog) {
-				for (const char *c = e.text.text; *c; ++c) game.handleKey((unsigned char)*c);
+				bool typing = game.State != STATE_GAME || game.InGame->IsChatting == 1;
+				if (typing && !g_swallowText) {
+					for (const char *c = e.text.text; *c; ++c) game.handleKey((unsigned char)*c);
+				}
 			}
+			g_swallowText = false;
 			break;
 		case SDL_KEYDOWN:
-			// Control keys that arrive as WM_CHAR on Windows
 			if (!dialog) {
-				switch (e.key.keysym.sym) {
-					case SDLK_RETURN:
-					case SDLK_KP_ENTER: game.handleKey(13); break;
-					case SDLK_BACKSPACE: game.handleKey(8); break;
-					case SDLK_ESCAPE: game.handleKey(27); break;
-					default: break;
+				bool inGame = game.State == STATE_GAME;
+				bool chatting = inGame && game.InGame->IsChatting == 1;
+				// A command key from the shortcut table (Options > Shortcuts...)
+				if (inGame && !chatting && !e.key.repeat) {
+					int action = CHotkeys::Get().ActionForKey((int)e.key.keysym.scancode);
+					if (action >= 0) {
+						game.DoHotkey(action);
+						g_swallowText = true;
+						break;
+					}
+				}
+				// Control keys that arrive as WM_CHAR on Windows (only the chat line and the dialogs use them)
+				if (!inGame || chatting) {
+					switch (e.key.keysym.sym) {
+						case SDLK_RETURN:
+						case SDLK_KP_ENTER: game.handleKey(13); break;
+						case SDLK_BACKSPACE: game.handleKey(8); break;
+						case SDLK_ESCAPE: game.handleKey(27); break;
+						default: break;
+					}
 				}
 			}
 			break;

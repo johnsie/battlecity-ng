@@ -81,7 +81,7 @@ CBotManager::CBotManager(CServer *Server) {
 	maxBots = 3;
 	botCity = 63;
 	overseer = -1;
-	nextStep = nextManage = nextSave = lastStepTick = 0;
+	nextStep = nextManage = nextSave = lastStepTick = nextTurret = 0;
 	lastHumanSeen = 0;
 	lastHumanCount = 0;
 	lastWebhook = -1e9f;
@@ -1092,6 +1092,8 @@ void CBotManager::Cycle() {
 	}
 	(void)any;
 
+	TurretsFire(now);
+
 	if (now >= nextManage) {
 		Manage(now);
 		nextManage = now + 1000.0f;
@@ -1099,6 +1101,37 @@ void CBotManager::Cycle() {
 	if (dirty && now >= nextSave) {
 		Save();
 		nextSave = now + 30000.0f;
+	}
+}
+
+// Turrets are simulated by the clients, whose bullets never reach the server, so bots (which live on the server)
+// were never hurt by them. Fire the city's guns at bots here: same range and damage as the client turret.
+void CBotManager::TurretsFire(float now) {
+	if (now < nextTurret) return;
+	nextTurret = now + 500.0f;
+	for (CItem *itm = p->Item->itemListHead; itm; itm = itm->next) {
+		if (itm->holder != -1 || !itm->active) continue;
+		int dmg;
+		if (itm->type == ITEM_TYPE_TURRET || itm->type == ITEM_TYPE_SLEEPER) dmg = 4;
+		else if (itm->type == ITEM_TYPE_PLASMA) dmg = 5;
+		else continue;
+		float ix = (float)itm->x * 48.0f, iy = (float)itm->y * 48.0f;
+		BotInfo *best = NULL;
+		float bestD = 360.0f;
+		for (int i = 0; i < 24; i++) {
+			BotInfo &b = bots[i];
+			if (!b.used || b.dead || b.tier == BOT_GHOST || itm->City == botCity) continue;
+			float d = sqrtf((b.x - ix) * (b.x - ix) + (b.y - iy) * (b.y - iy));
+			if (d < bestD) { bestD = d; best = &b; }
+		}
+		if (!best) continue;
+		// credit the city's mayor when they are online
+		int shooter = -1;
+		if (CCity::isValidCityIndex(itm->City)) {
+			int m = p->City[itm->City]->Mayor;
+			if (m >= 0 && IsHuman(m)) shooter = m;
+		}
+		BulletHitBot(best->slot, dmg, shooter);
 	}
 }
 
@@ -1561,6 +1594,20 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 	if (cmd == "help" || cmd == "solo") {
 		Tell(idx, "Solo play commands: /where  /bots  /challenge  /mission  /range  /trial  /ghost  /events  /top  /streak");
 		Tell(idx, "Raiders, a bounty Warlord, supply crates and missions appear while you play. Kill raiders for points (capped daily).");
+		return true;
+	}
+	// Test hook (BC_TEST_TURRET=1): put a turret of city 0 next to the nearest target so the tests can check turret damage
+	if (cmd == "testturret" && getenv("BC_TEST_TURRET")) {
+		BotInfo *best = NULL; float bestD = 1e9f;
+		for (int i = 0; i < 24; i++) {
+			if (!bots[i].used || bots[i].dead || bots[i].tier != BOT_DUMMY) continue;
+			float d = hypotf(bots[i].x - p->Player[idx]->X, bots[i].y - p->Player[idx]->Y);
+			if (d < bestD) { bestD = d; best = &bots[i]; }
+		}
+		if (!best) { Tell(idx, "No target."); return true; }
+		CItem *t = p->Item->newItem((int)(best->x / 48) + 1, (int)(best->y / 48), ITEM_TYPE_TURRET, 0, (unsigned short)(p->Item->itmID++));
+		t->active = 1;
+		Tell(idx, "Turret placed.");
 		return true;
 	}
 	if (cmd == "bots") {

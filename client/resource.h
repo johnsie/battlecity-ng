@@ -20,6 +20,9 @@
 #define IDV_REPORT                      1310
 #define IDV_STATUS                      1311
 #define IDOPT_VOICE                     1110
+#define IDOPT_HOTKEYS                   1111
+#define IDNEWS_TAB                      1112
+#define IDLOG_TAB                       1113
 #define ID_ADMIN                        110
 #define ID_EDITACCOUNT                  111
 #define ID_MEMBER                       113

@@ -13,6 +13,7 @@ enum BCFlags {
 	BCF_GROUP      = 1 << 5,
 	BCF_SORT       = 1 << 6,
 	BCF_NUMBER     = 1 << 7,
+	BCF_PUSHLIKE   = 1 << 8,   // radio button drawn as a tab / push button
 };
 
 struct BCControlDef {

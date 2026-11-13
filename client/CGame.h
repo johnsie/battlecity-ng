@@ -128,6 +128,7 @@ public:
     void handleKey(WPARAM wParam);
     void handleChatKey(WPARAM wParam);
     void handleGameKey(WPARAM wParam);
+    void DoHotkey(int action);
 
     int running;
     int State;

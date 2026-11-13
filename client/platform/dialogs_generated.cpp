@@ -109,6 +109,7 @@ static const BCControlDef controls_ID_OPTIONS[] = {
     { BCK_CHECK, 1108, "Limit Frames per Second (Recommended)", 5, 156, 142, 16, 0 },
     { BCK_CHECK, 1109, "1024x768 Resolution", 5, 174, 142, 16, 0 },
     { BCK_BUTTON, 1110, "Voice chat...", 5, 194, 80, 14, 0 },
+    { BCK_BUTTON, 1111, "Shortcuts...", 90, 194, 80, 14, 0 },
 };
 static const BCControlDef controls_ID_VOICE[] = {
     { BCK_DEFBUTTON, 1, "OK", 128, 212, 50, 14, 0 },
@@ -206,7 +207,8 @@ static const BCControlDef controls_ID_MEETING[] = {
     { BCK_BUTTON, 1037, "Refresh", 405, 136, 32, 14, 0 },
     { BCK_LABEL_CENTER, -1, "The Battle City Meeting Room - Select a city from the city list to join the game!", 7, 2, 431, 9, 0 },
     { BCK_LABEL_CENTER, -1, "City list - double click to apply!", 227, 153, 211, 9, 0 },
-    { BCK_LABEL_CENTER, -1, "The Daily Bullet", 6, 153, 214, 8, 0 },
+    { BCK_RADIO, 1112, "The Daily Bullet", 5, 151, 107, 11, BCF_PUSHLIKE | BCF_GROUP },
+    { BCK_RADIO, 1113, "What's New", 113, 151, 107, 11, BCF_PUSHLIKE },
 };
 static const BCControlDef controls_ID_PERSONNEL[] = {
     { BCK_DEFBUTTON, 1, "Back to game", 125, 155, 83, 14, 0 },
@@ -294,12 +296,12 @@ const BCDialogDef g_dialogDefs[] = {
     { 111, "ID_EDITACCOUNT", "Edit Account", 289, 200, false, controls_ID_EDITACCOUNT, 46 },
     { 113, "ID_MEMBER", "Battle City - Member Panel", 226, 137, true, controls_ID_MEMBER, 2 },
     { 1046, "ID_CONNECTIONMANAGER", "Connection Manager", 209, 59, false, controls_ID_CONNECTIONMANAGER, 6 },
-    { 107, "ID_OPTIONS", "Battle City Options", 177, 215, true, controls_ID_OPTIONS, 13 },
+    { 107, "ID_OPTIONS", "Battle City Options", 177, 215, true, controls_ID_OPTIONS, 14 },
     { 1300, "ID_VOICE", "Voice chat", 240, 232, true, controls_ID_VOICE, 18 },
     { 9, "ID_NEW", "Character Details", 194, 136, false, controls_ID_NEW, 14 },
     { 148, "ID_LOGIN", "Enter Battle City", 179, 130, false, controls_ID_LOGIN, 12 },
     { 239, "ID_PERSONALITY", "Personality Profile", 195, 165, false, controls_ID_PERSONALITY, 33 },
-    { 155, "ID_MEETING", "Battle City - Meeting Room", 443, 311, false, controls_ID_MEETING, 11 },
+    { 155, "ID_MEETING", "Battle City - Meeting Room", 443, 311, false, controls_ID_MEETING, 12 },
     { 169, "ID_PERSONNEL", "Personnel", 229, 193, false, controls_ID_PERSONNEL, 8 },
     { 170, "ID_INTERVIEW", "Interview Room", 230, 156, false, controls_ID_INTERVIEW, 4 },
     { 172, "ID_ORGANIZE", "Organize the team", 187, 134, false, controls_ID_ORGANIZE, 6 },

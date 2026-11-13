@@ -1,6 +1,7 @@
 /*
  * Battle City - SDL2 implementations of the portability layer (compat.h / net.h).
  */
+#include "CHotkeys.h"
 #include "compat.h"
 #include "net.h"
 #include "dialogs.h"
@@ -265,16 +266,20 @@ void BCReadInput(char keyboard[256], DIMOUSESTATE *mouse, int *mouseWindowX, int
 		{ SDL_SCANCODE_1, DIK_1 }, { SDL_SCANCODE_2, DIK_2 }, { SDL_SCANCODE_3, DIK_3 },
 		{ SDL_SCANCODE_4, DIK_4 }, { SDL_SCANCODE_5, DIK_5 }, { SDL_SCANCODE_6, DIK_6 },
 		{ SDL_SCANCODE_7, DIK_7 }, { SDL_SCANCODE_8, DIK_8 }, { SDL_SCANCODE_9, DIK_9 },
-		{ SDL_SCANCODE_0, DIK_0 }, { SDL_SCANCODE_TAB, DIK_TAB },
-		{ SDL_SCANCODE_LCTRL, DIK_LCONTROL }, { SDL_SCANCODE_RCTRL, DIK_RCONTROL },
-		{ SDL_SCANCODE_LSHIFT, DIK_LSHIFT }, { SDL_SCANCODE_RSHIFT, DIK_RSHIFT },
-		{ SDL_SCANCODE_UP, DIK_UP }, { SDL_SCANCODE_DOWN, DIK_DOWN },
-		{ SDL_SCANCODE_LEFT, DIK_LEFT }, { SDL_SCANCODE_RIGHT, DIK_RIGHT },
+		{ SDL_SCANCODE_0, DIK_0 },
+	};
+	// the held commands (drive, turn, fire, flares, look around) follow the player's shortcut settings
+	static const struct { int action; int dik; } held[] = {
+		{ HK_UP, DIK_UP }, { HK_DOWN, DIK_DOWN }, { HK_LEFT, DIK_LEFT }, { HK_RIGHT, DIK_RIGHT },
+		{ HK_FIRE, DIK_LSHIFT }, { HK_FLARE, DIK_LCONTROL }, { HK_CENTER, DIK_TAB },
 	};
 	memset(keyboard, 0, 256);
 	const Uint8 *state = SDL_GetKeyboardState(NULL);
 	for (const auto &m : map) {
 		if (state[m.sdl]) keyboard[m.dik] = (char)0x80;
+	}
+	for (const auto &h : held) {
+		if (CHotkeys::Get().Down(h.action, state)) keyboard[h.dik] = (char)0x80;
 	}
 	for (int i = 0; i < 256; i++) if (g_testKeys[i]) keyboard[i] = (char)0x80;
 	int x = 0, y = 0;

@@ -20,6 +20,7 @@
     along with Battle City.  If not, see <http://www.gnu.org/licenses/>.
 ===============================================================================
 */
+#include "CHotkeys.h"
 #include "COptions.h"
 #include <algorithm>
 
@@ -66,6 +67,11 @@ int CALLBACK OptionsDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lPara
 				case 2:
 					p->Dialog->StartDialog = 0;
 					EndDialog(hwnd, 2);
+				break;
+				case IDOPT_HOTKEYS:
+					// keep the other changes, then open the shortcut editor; Options comes back when it closes
+					OptionsDlgProc(hwnd, WM_COMMAND, 1, 0);
+					CHotkeys::Get().OpenEditor([]() { ((CGame *)COptionsPointer)->Options->ShowOptionsDialog(); });
 				break;
 				case IDOPT_VOICE:
 					// keep the other changes, then open the voice chat settings
