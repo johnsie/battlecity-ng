@@ -478,6 +478,10 @@ void CInGame::ClearOut() {
  **************************************************************/
 void CInGame::CheckRefVariables() {
 	int me = this->p->Winsock->MyIndex;
+	// Not before the server has put the player into the game: HP and its reference values are set then (a check earlier would ban an honest player)
+	if (me < 0 || me >= MAX_PLAYERS || !this->p->Player[me]->isInGame) {
+		return;
+	}
 	int HP = this->p->Player[me]->HP;
 	int HP1 = (HP^2-31)*2;
 	int HP2 = -(HP);

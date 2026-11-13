@@ -221,6 +221,7 @@ bool CProcess::RestoreSeat(int Index, const char *user) {
 	player->resumeX = seat.x;
 	player->resumeY = seat.y;
 	player->lastMove = p->Tick;
+	player->seatGuardUntil = p->Tick + 8000.0f;
 	player->StartJoin();                    // State_Game, and the client is told to start joining
 	if (seat.mayor) {
 		city->DestructTimer = 0;

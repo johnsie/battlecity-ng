@@ -232,6 +232,7 @@ void CPlayer::ResetPlayer() {
 	this->lingering = false;
 	this->lingerExpires = 0;
 	this->resumePending = false;
+	this->seatGuardUntil = 0;
 	this->resumeX = this->resumeY = 0;
 }
 

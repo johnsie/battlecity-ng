@@ -83,6 +83,7 @@ class CPlayer {
 		bool guest;                  // playing without an account: a temporary row that is deleted when the player leaves
 		bool lingering;              // in the game with no connection, waiting for the account to come back
 		time_t lingerExpires;
+		float seatGuardUntil;        // until this tick a "back to the meeting room" from the client is ignored (its meeting window opens as it logs in, after the seat was restored)
 		bool resumePending;          // the next JoinGame puts the player at resumeX/Y instead of at the Command Center
 		float resumeX, resumeY;
 		void StartLinger();

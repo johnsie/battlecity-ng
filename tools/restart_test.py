@@ -90,6 +90,7 @@ def main():
             q.send(CM["cmVersion"], bt.field(b"bots", 50) + bt.field(bt.VERSION, 10))
             time.sleep(0.05)
             q.send(CM["cmLogin"], bt.field(q.name, 15) + bt.field(b"pw", 15))
+            q.send(CM["cmSetState"], bytes([67]))      # the real client opens its meeting room window at once and says so; it must not undo the restore
             ok = q.wait(lambda: q.steps and q.login_slot is not None, 3)
             bt.check(ok, "%s was sent straight into the game after the restart (no meeting room)" % label, "%s got no smNextStep after the restart" % label)
             if not ok:

@@ -1078,6 +1078,11 @@ void CProcess::ProcessSetState(char *TheData, int Index) {
 
             //State C/City List
             case 67: 
+                // right after a seat was restored (a hot update, a server restart) the client's meeting room window says "I am in the
+                // meeting room" as it opens: that must not take the player out of the game they were just put back into
+                if (player->State == State_Game && p->Tick < player->seatGuardUntil) {
+                    break;
+                }
                 if (player->State == State_Game) {
                     player->LeaveGame(true);
                 }
@@ -2471,6 +2476,7 @@ void CProcess::ResumeSession(int newSlot, int oldSlot) {
     op->resumeX = op->X;
     op->resumeY = op->Y;
     op->lastMove = this->p->Tick;
+    op->seatGuardUntil = this->p->Tick + 8000.0f;
     cout << "Resumed::" << op->Name << " in slot " << oldSlot << endl;
 
     // Same replies as a normal login (the client now knows its slot), then straight into the game
