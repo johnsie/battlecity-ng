@@ -105,6 +105,19 @@ def main():
     early = [x for x in obs.cleared if x == d.login_slot]
     bt.check(not early, "the seat is kept while the client may still return", "the player was removed immediately: %s" % early)
     bt.check(obs.wait(lambda: d.login_slot in obs.cleared, 5), "...and released when the waiting time is over", "the player was never removed")
+    # 4. the same account logs in again while its old connection is still open and in the game (a network change, a second tab):
+    # the seat moves to the new connection; the old player is not thrown out (which would destroy a mayor's city)
+    e = join(host, port, b"two" + tag, 3)
+    obs.cleared.clear()
+    f = P(host, port, b"two" + tag)
+    f.send(CM["cmVersion"], bt.field(b"bots", 50) + bt.field(bt.VERSION, 10))
+    time.sleep(0.05)
+    f.send(CM["cmLogin"], bt.field(f.name, 15) + bt.field(b"pw", 15))
+    ok = f.wait(lambda: f.steps and f.login_slot is not None, 3)
+    bt.check(ok, "a second login of the same account took the seat over (sent straight into the game)", "no takeover: steps=%s" % f.steps)
+    bt.check(f.login_slot == e.login_slot, "...in the same slot", "the takeover used another slot")
+    obs.wait(lambda: False, 0.5)
+    bt.check(e.login_slot not in obs.cleared, "...and nobody was told the player left", "the old player was cleared (the city would be gone)")
     if bt.check.failed:
         raise SystemExit(1)
     print("OK: hot-update resume works")

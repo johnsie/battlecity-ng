@@ -728,7 +728,7 @@ void CProcess::ProcessItemUp(sCMItem *data, int Index) {
     if (! player->isAdmin()) {
 
         // If the item doesn't belong to the player's city, return
-        if (item->City != player->City) {
+        if (item->City != player->City && !p->Bots->CrateIsFor(item->id, Index)) {
             return;
         }
     }
@@ -877,6 +877,16 @@ void CProcess::EnterAccount(int Index, const char *user, bool guest) {
 
             // The account's own seat, kept for it after a hot-update reload: take it back
             if (j != Index && playerToCompare->lingering && p->PlatformCaseCompare(user, playerToCompare->Name.c_str()) == 0) {
+                lingeringSlot = j;
+                continue;
+            }
+
+            // The same account again while its old connection is still open in the game (a change of network, a reload, a second tab):
+            // hand the seat over to the new connection. Throwing the old player out would destroy a mayor's city.
+            if (j != Index && playerToCompare->isInGame() && !playerToCompare->IsBot && playerToCompare->Socket >= 0
+                && p->PlatformCaseCompare(user, playerToCompare->Name.c_str()) == 0) {
+                cout << "Takeover::" << user << " (the old connection is replaced)" << endl;
+                playerToCompare->StartLinger();
                 lingeringSlot = j;
                 continue;
             }

@@ -105,6 +105,7 @@ class CBotManager {
 		void BulletHitBot(int botSlot, int damage, int shooter);
 		bool HandleChat(int idx, const char *text);       // true if the line was a bot command and is consumed
 		void HumanJoined(int idx);
+		bool CrateIsFor(int itemId, int slot) const;     // a supply crate stays the property of the player it was dropped for, even if their city is gone
 		void HumanLeft(int idx);
 		void HumanUpdated(int idx);
 		void Objectives(int slot, std::vector<WaypointInfo> &out);   // this player's crate, raid, boss, zone and trial gate
@@ -156,7 +157,7 @@ class CBotManager {
 		} mission;
 		float nextMission;
 		float nextBounty;
-		struct Drop { bool active; int id; int x, y; int city; float expiresAt; } drops[4];
+		struct Drop { bool active; int id; int x, y; int city; char owner[24]; float expiresAt; } drops[4];   // owner: the account the crate was dropped for (lower case)
 		float nextDrop;
 
 		// Per-player activities

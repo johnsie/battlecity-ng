@@ -611,7 +611,7 @@ void CDrawing::DrawPlayers() {
 			if (tankimg != -1) {
 				// The Warlord (the server's bounty boss, which looks like an ordinary red tank to older clients) has a sprite of its own, a little bigger
 				if (p->DDraw->imgWarlord && p->Player[i]->Name == "Warlord" && p->Player[i]->Town == "Bounty") {
-					p->DDraw->DrawShadow(relativeX + 27, relativeY + 40, 72, 32, 150, MaxMapX, MaxMapY);
+					p->DDraw->DrawShadow(relativeX + 27, relativeY + 38, 66, 28, 170, MaxMapX, MaxMapY);
 					p->DDraw->Draw(p->DDraw->imgWarlord, relativeX - 8, relativeY - 8, 64, 64, (p->Player[i]->Direction / 2) * 64, 0, MaxMapX, MaxMapY);
 				}
 				else {

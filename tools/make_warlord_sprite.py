@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds data/imgWarlord.bmp, the sprite sheet of the Warlord (the bounty boss), from a picture of the tank seen from above, barrel up.
 
-16 columns of 64x64: column n is the tank turned n * 22.5 degrees anticlockwise, like the columns of imgTanks.bmp (the game picks the
+16 columns of 64x64: column n is the tank turned n * 22.5 degrees clockwise (column 4 faces right), like the columns of imgTanks.bmp (the game picks the
 column from the tank's direction / 2). The background is the game's transparency colour (magenta).
 
 Usage: tools/make_warlord_sprite.py <tank.png> [out.bmp]
@@ -75,10 +75,10 @@ canvas.paste(tank, ((side - w) // 2, (side - h) // 2))
 
 sheet = Image.new("RGB", (CELL * 16, CELL), (255, 0, 255))
 scale = RADIUS * 2 / side
-TILT = 0.66            # the tank is seen from above and in front, like the others: the top is squashed ...
-DEPTH = 8              # ... and the side of the hull shows below it (pixels)
+TILT = 0.72            # the tank is seen from above and in front, like the others: the top is squashed ...
+DEPTH = 4              # ... and the side of the hull shows below it (pixels)
 for col in range(16):
-    turned = canvas.rotate(col * 22.5, resample=Image.BICUBIC)
+    turned = canvas.rotate(-col * 22.5, resample=Image.BICUBIC)      # clockwise: column 4 faces right, as in imgTanks.bmp
     n = max(1, round(side * scale))
     top = turned.resize((n, max(1, round(n * TILT))), Image.LANCZOS)
     t = np.array(top).astype(np.float32)
@@ -110,11 +110,11 @@ for col in range(16):
         covered[sl] |= mask
     # the wheels: round black tyres with a pale hub hanging on the side of the hull, like the other tanks. Placed where the picture's wheels
     # are, turned with the tank, squashed with the tilt, and dropped towards the bottom of the side wall.
-    th = math.radians(col * 22.5)
+    th = -math.radians(col * 22.5)
     for (wx, wy) in WHEELS_SRC:
         px_, py_ = wx - xs.min() + (side - w) // 2 - side / 2, wy - ys.min() + (side - h) // 2 - side / 2
         rx, ry = px_ * math.cos(th) + py_ * math.sin(th), -px_ * math.sin(th) + py_ * math.cos(th)    # anticlockwise, like Image.rotate
-        cx, cy = n / 2 + rx * scale, t.shape[0] / 2 + ry * scale * TILT + DEPTH * 0.7
+        cx, cy = n / 2 + rx * scale, t.shape[0] / 2 + ry * scale * TILT + DEPTH * 0.9
         R = 5.0
         d2 = (xx_full - cx) ** 2 + (yy_full - cy) ** 2
         tyre = d2 <= R * R

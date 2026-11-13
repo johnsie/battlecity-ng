@@ -1557,6 +1557,8 @@ void CBotManager::DropCrate(int humanSlot, int itemType, float x, float y, bool 
 	drops[slotIdx].id = item.id;
 	drops[slotIdx].x = tx; drops[slotIdx].y = ty;
 	drops[slotIdx].city = city;
+	strncpy(drops[slotIdx].owner, Lower(p->Player[humanSlot]->Name).c_str(), sizeof(drops[slotIdx].owner) - 1);
+	drops[slotIdx].owner[sizeof(drops[slotIdx].owner) - 1] = 0;
 	drops[slotIdx].expiresAt = Now() + 360000.0f;
 	if (announce) {
 		static const char *names[] = { "cloak", "rocket", "medkit" };
@@ -1565,6 +1567,11 @@ void CBotManager::DropCrate(int humanSlot, int itemType, float x, float y, bool 
 			if (IsHuman(i) && p->Player[i]->City == city)
 				Tell(i, "SUPPLY CRATE (" + what + "): " + Rel(i, (float)(tx * 48), (float)(ty * 48)) + " (tile " + Num(tx) + "," + Num(ty) + "). Your city can pick it up for 6 minutes.");
 	}
+}
+
+bool CBotManager::CrateIsFor(int itemId, int slot) const {
+	for (int i = 0; i < 4; i++) if (drops[i].active && drops[i].id == itemId) return IsHuman(slot) && Lower(p->Player[slot]->Name) == drops[i].owner;
+	return false;
 }
 
 void CBotManager::ExpireDrops(float now) {
