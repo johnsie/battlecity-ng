@@ -21,6 +21,8 @@ A new server means a restart, which used to end the game for everybody (the worl
 
 Test: `ci/restart-test.sh <bc-server> <map.dat>` (`tools/restart_test.py`).
 
+Outiva sign-ins have no password to store: the reload stores the marker `@outiva` instead, and the new page logs in with a fresh one-time ticket (`AutoLoginTick` waits for `window.bcTicket`, which the page renews from the stored Outiva sign-in, for up to 20 seconds). Guests have nothing to keep and log in again by hand.
+
 If anything fails (no stored login, the seat expired, the server restarted) the player lands on the normal login screen. A connection that drops without the announcement behaves as before: the player leaves at once.
 
 The desktop clients do not check for updates (the server's version check still forces them to update). `BC_TEST_UPDATE_AT=<n>` makes a desktop client behave as if an update arrived after n frames in the game, and `BC_RESUME_USER` / `BC_RESUME_PASS` log it in by itself, which is how the path is tested.

@@ -6,6 +6,7 @@
 #ifdef _WIN32
 #include <direct.h>
 #endif
+#include "OutivaLogin.h"
 #include "CHotkeys.h"
 #include "CGame.h"
 #include "platform/input_compat.h"
@@ -238,8 +239,18 @@ static void StoreResume(const char *user, const char *pass) {
 EM_JS(double, bc_auto_stamp, (), { try { return parseFloat(sessionStorage.getItem('bc.autoAt') || '0'); } catch (e) { return 0; } });
 EM_JS(void, bc_auto_mark, (double t), { try { sessionStorage.setItem('bc.autoAt', String(t)); } catch (e) {} });
 #endif
-bool BCAutoResume(const char *user, const char *pass) {
-	if (!user || !*user || !pass || !*pass) return false;
+// What a reload stores to log in again: the account and password, or for an Outiva sign-in a marker ("@outiva": the new page logs in with a
+// fresh ticket, which the page renews from the stored Outiva sign-in)
+static bool ResumeCredentials(const char **user, const char **pass) {
+	CGame &g = *g_game;
+	if (g.Login->viaOutiva) { *user = "@outiva"; *pass = "ticket"; return true; }
+	*user = g.Login->user; *pass = g.Login->pass;
+	return (*user)[0] && (*pass)[0];
+}
+
+bool BCAutoResume() {
+	const char *user = NULL, *pass = NULL;
+	if (!ResumeCredentials(&user, &pass)) return false;
 	double now = (double)time(NULL);
 #ifdef __EMSCRIPTEN__
 	double last = bc_auto_stamp();
@@ -287,8 +298,10 @@ static void HotUpdateTick() {
 	if (busy) { idleSince = 0; return; }
 	if (!idleSince) idleSince = now;
 	if (now - idleSince < 3000) return;                // standing still for three seconds
+	const char *ru = NULL, *rp = NULL;
+	ResumeCredentials(&ru, &rp);                       // (nothing to store for a guest: they log in again by hand)
 	g.Winsock->SendData(cmResumeLater, " ");
-	StoreResume(g.Login->user, g.Login->pass);
+	StoreResume(ru, rp);
 	reloadAt = now + 500;
 }
 
@@ -306,9 +319,15 @@ static void AutoLoginTick() {
 		if (g.State != STATE_LOGIN || !dlg) return;
 		if (!mark) { mark = now; return; }
 		if (now - mark < 1200) return;                 // let the connection and the version check finish
-		SetDlgItemText(dlg, IDUSER, u);
-		SetDlgItemText(dlg, IDPASS, pw);
-		SendMessage(dlg, WM_COMMAND, MAKELONG(1, BN_CLICKED), 0);
+		if (strcmp(u, "@outiva") == 0) {
+			// an Outiva sign-in: wait for the page to hand over a fresh ticket (it renews it from the stored sign-in), then use it
+			if (OutivaTicket().empty()) { if (now - mark > 20000) phase = 3; return; }
+			SendMessage(dlg, WM_COMMAND, MAKELONG(IDTICKETLOGIN, BN_CLICKED), 0);
+		} else {
+			SetDlgItemText(dlg, IDUSER, u);
+			SetDlgItemText(dlg, IDPASS, pw);
+			SendMessage(dlg, WM_COMMAND, MAKELONG(1, BN_CLICKED), 0);
+		}
 		phase = (phase == 0) ? 1 : 3;
 		mark = now;
 		return;

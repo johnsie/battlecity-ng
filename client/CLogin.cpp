@@ -78,6 +78,7 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
                 case 1:
                     GetDlgItemText(hwnd, IDUSER, p->Login->user, 15);
 					GetDlgItemText(hwnd, IDPASS, p->Login->pass, 15);
+					p->Login->viaOutiva = false;
 					if ((strlen(p->Login->user) > 0) && (strlen(p->Login->pass) > 0))
 					{
 						BCStoreLogin(p->Login->user, p->Login->pass, BCLoginRemember());
@@ -112,6 +113,7 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 				case IDGUESTLOGIN:
 					// Play without an account: the name is only a label, and nothing is kept
 					GetDlgItemText(hwnd, IDUSER, p->Login->user, 15);
+					p->Login->viaOutiva = false;
 					p->Send->SendGuestLogin(p->Login->user);
 					p->Dialog->StartDialog = 0;
 					EndDialog(hwnd, 1);
@@ -122,6 +124,7 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 					std::string ticket = OutivaTicket();
 					if (!ticket.empty()) {
 						p->Send->SendTicketLogin(ticket.c_str());
+						p->Login->viaOutiva = true;
 						OutivaTicketUsed();
 						p->Dialog->StartDialog = 0;
 						EndDialog(hwnd, 1);
@@ -160,6 +163,7 @@ int CALLBACK LoginDlgProc(HWND hwnd, UINT Message, WPARAM wParam, LPARAM lParam)
 CLogin::CLogin(CGame *game)
 {
 	p = game;
+	viaOutiva = false;
 	CLogPointer = game;
 
 	VersionString = "Battle City ";

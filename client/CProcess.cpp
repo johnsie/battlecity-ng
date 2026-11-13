@@ -20,7 +20,7 @@
     along with Battle City.  If not, see <http://www.gnu.org/licenses/>.
 ===============================================================================
 */
-bool BCAutoResume(const char *user, const char *pass);   // client/platform/main_sdl.cpp
+bool BCAutoResume();   // client/platform/main_sdl.cpp
 #include <math.h>
 #include "CProcess.h"
 #include "NetMessages.h"
@@ -524,7 +524,7 @@ void CProcess::ProcessEvent(int Event) {
 			Sleep(100);
             //  Tell the user, then start again from the login screen (a clean restart is the reliable way to get a
             //  fresh connection: it resets every piece of game state)
-			if (BCAutoResume(this->p->Login->user, this->p->Login->pass)) break;
+			if (BCAutoResume()) break;
 			BCMessageBoxAsync("The connection to the BattleCity NG server was lost (the server may have restarted or your network dropped).\n\nThe game will now restart so you can log back in.", "BattleCity", 0, [](int) { BCRestartApplication(); });
 			break;
 	}

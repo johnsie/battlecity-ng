@@ -36,6 +36,7 @@ public:
     string VersionString;
 
     void ShowLoginDlg();
+    bool viaOutiva;      // the player signed in with Outiva (a ticket, no password): a reload logs in again with a new ticket
     char user[15];
     char pass[15];
 private:
