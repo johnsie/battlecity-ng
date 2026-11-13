@@ -27,6 +27,7 @@
 /// Initializes <see cref="CServer"/> class.
 /// </summary>
 CServer::CServer() {
+    keepWorldUntil = 0;
     //  License information
     cout << endl;
     cout << "Battle City Copyright (C) 2005-2013  battlecity.org" << endl;
@@ -138,6 +139,7 @@ void CServer::Init() {
 	this->Database->LoadDatabase();
 	this->LoadOutivaSettings();
 	this->Bots->Init();
+	this->LoadWorld();
     cout << "+ CServer::Init() @ Loading news" << endl;
     //  Load news into Server object
 	this->LoadNews();
@@ -372,6 +374,11 @@ void CServer::respawnPlayers() {
  *
  **************************************************************/
 void CServer::reset() {
+
+	// A world that was just restored after a restart waits for its players to log back in
+	if (this->keepWorldUntil > 0 && time(NULL) < this->keepWorldUntil) {
+		return;
+	}
 
 	// If any (human) player is connected, return: server-side bots do not keep the world alive
 	for (int i = 0; i < MAX_PLAYERS; i++) {

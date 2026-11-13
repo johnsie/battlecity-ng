@@ -905,6 +905,7 @@ void CProcess::EnterAccount(int Index, const char *user, bool guest) {
         else {
             player->guest = guest;
             player->LoggedIn(user);
+            this->RestoreSeat(Index, user);
         }
     }
 

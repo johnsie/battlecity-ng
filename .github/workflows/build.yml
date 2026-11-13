@@ -59,6 +59,8 @@ jobs:
         run: ci/bots-test.sh build-asan/server/bc-server data/map.dat
       - name: Hot-update seat keeping
         run: ci/resume-test.sh build-asan/server/bc-server data/map.dat
+      - name: Server restart keeps the game
+        run: ci/restart-test.sh build-asan/server/bc-server data/map.dat
       - name: Voice chat
         run: ci/voice-test.sh build-asan/server/bc-server data/map.dat
       - name: Waypoints

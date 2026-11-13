@@ -45,11 +45,12 @@ run_case() {
 
 ( run_case basic  $BASE BC_TEST_TURRET=1 -- python3 "$TOOLS/bots_test.py" 127.0.0.1 $BASE 15 ) &  PIDS="$PIDS $!"
 ( run_case events $((BASE + 2)) BC_BOTS_TEMPO=0.005 BC_BOTS_SAFE_RADIUS=0 -- python3 "$TOOLS/bots_events_test.py" 127.0.0.1 $((BASE + 2)) ) &  PIDS="$PIDS $!"
+( run_case path   $((BASE + 6)) BC_TEST_TURRET=1 BC_BOTS_SAFE_RADIUS=0 -- python3 "$TOOLS/bots_path_test.py" 127.0.0.1 $((BASE + 6)) "$MAP" ) &  PIDS="$PIDS $!"
 ( run_case off    $((BASE + 4)) BC_BOTS=0 -- python3 "$TOOLS/bots_off_test.py" 127.0.0.1 $((BASE + 4)) ) &  PIDS="$PIDS $!"
 wait
 
 failed=0
-for c in basic events off; do
+for c in basic events path off; do
   echo "=== $c"; cat "$ROOT/$c/test.log"
   [ "$(cat "$ROOT/$c/rc" 2>/dev/null || echo 1)" = 0 ] || failed=1
 done

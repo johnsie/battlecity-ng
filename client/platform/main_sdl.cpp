@@ -231,6 +231,34 @@ static void StoreResume(const char *user, const char *pass) {
 #endif
 }
 
+// The connection dropped (most often: the server was restarted for an update). Rather than a message box and the login screen, reload and
+// log back in by ourselves: the server keeps the world across a restart (CWorldState.cpp) and puts the player back where they were.
+// If that was already tried a moment ago and the connection dropped again, give up and tell the player.
+#ifdef __EMSCRIPTEN__
+EM_JS(double, bc_auto_stamp, (), { try { return parseFloat(sessionStorage.getItem('bc.autoAt') || '0'); } catch (e) { return 0; } });
+EM_JS(void, bc_auto_mark, (double t), { try { sessionStorage.setItem('bc.autoAt', String(t)); } catch (e) {} });
+#endif
+bool BCAutoResume(const char *user, const char *pass) {
+	if (!user || !*user || !pass || !*pass) return false;
+	double now = (double)time(NULL);
+#ifdef __EMSCRIPTEN__
+	double last = bc_auto_stamp();
+#else
+	double last = getenv("BC_AUTO_AT") ? atof(getenv("BC_AUTO_AT")) : 0;
+#endif
+	if (last > 0 && now - last < 40) return false;
+	StoreResume(user, pass);
+#ifdef __EMSCRIPTEN__
+	bc_auto_mark(now);
+#elif defined(_WIN32)
+	_putenv_s("BC_AUTO_AT", std::to_string((long long)now).c_str());
+#else
+	setenv("BC_AUTO_AT", std::to_string((long long)now).c_str(), 1);
+#endif
+	BCRestartApplication();
+	return true;
+}
+
 static void HotUpdateTick() {
 	static Uint32 reloadAt = 0, idleSince = 0, lastTick = 0;
 	static bool told = false;
@@ -406,6 +434,7 @@ int main(int argc, char *argv[]) {
 			me->isInGame = 1; me->isDead = false; me->X = mx * 48 + 10; me->Y = my * 48 + 10; me->HP = 10; me->refHP1 = (me->HP ^ 2 - 31) * 2; me->refHP2 = -(me->HP); me->Direction = 4; me->Tank = 0; me->Member = 0; me->isCloaked = false; me->isMayor = 0; me->City = 0; me->NameString = "Tester"; me->TownString = "Testville";
 			CPlayer *o = g.Player[1];
 			o->isInGame = 1; o->isDead = false; o->X = me->X - 150; o->Y = me->Y + 60; o->Direction = 8; o->Tank = 0; o->Member = 0; o->isCloaked = false; o->isMayor = 0; o->NameString = "Rival"; o->TownString = "Elsewhere"; o->City = 1; o->HP = 40;
+			if (getenv("BC_TEST_WARLORD")) { o->Name = "Warlord"; o->Town = "Bounty"; o->NameString = "Warlord"; o->TownString = "Bounty"; o->Tank = 3; o->Direction = atoi(getenv("BC_TEST_WARLORD")); }
 			memset(g.InGame->HasSector, 1, sizeof(g.InGame->HasSector));
 			g.Build->newBuilding(mx - 4, my - 3, 0, 0, 1000 + 1);
 			g.Build->newBuilding(mx + 3, my - 3, 100, 0, 1000 + 2);

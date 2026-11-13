@@ -62,6 +62,7 @@ test:server-sanitizers:
     - ci/relay-test.sh build-asan/server/bc-server data/map.dat
     - ci/bots-test.sh build-asan/server/bc-server data/map.dat
     - ci/resume-test.sh build-asan/server/bc-server data/map.dat
+    - ci/restart-test.sh build-asan/server/bc-server data/map.dat
     - ci/voice-test.sh build-asan/server/bc-server data/map.dat
     - ci/waypoints-test.sh build-asan/server/bc-server data/map.dat
     - ci/load-test.sh build-asan/server/bc-server data/map.dat 20 20

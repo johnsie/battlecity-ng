@@ -52,6 +52,7 @@ How many fighters spawn depends on how many humans are online: all of `BC_BOTS` 
 `ci/bots-test.sh <bc-server> <map.dat>` runs three headless cases at the same time, each against its own server on its own port, and each case moves on as soon as what it waits for has happened (about 25 seconds in all). Use the sanitizer build:
 
 - `tools/bots_test.py`: bots are announced and move, chat commands are answered, a range can be cleared by shooting, a snowman pays a point, a trial starts, the public count excludes bots.
+- The Warlord sprite sheet `data/imgWarlord.bmp` (16 turns of 64x64, drawn for the player named Warlord in town Bounty) is made from a picture by `tools/make_warlord_sprite.py <tank.png>`.
 - `tools/bots_events_test.py` (with `BC_BOTS_TEMPO=0.02`): raid, mission, bounty and crate announcements, a crate is picked up, bots shoot, a ghost appears for the next player, the login news lists events.
 - `tools/bots_off_test.py` (with `BC_BOTS=0`): nothing appears.
 

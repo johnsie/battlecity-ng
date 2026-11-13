@@ -59,6 +59,10 @@ struct BotInfo {
 	float expiresAt;                 // 0 = never
 	int owner;                       // dummy: the human who asked for the range
 	std::map<std::string, int> damageBy;   // boss: damage per human name (for shared rewards)
+	std::vector<int> path;           // route round obstacles: tiles (x * 512 + y), see FindPath
+	int pathIdx;
+	float nextPath, pathGX, pathGY;  // when to plan again, and the goal the route was planned for
+	float steerX, steerY, nextSteer; // where to head right now: the goal itself, or the next bend of the route
 };
 
 struct Sample { float x, y; int dir; };
@@ -193,6 +197,10 @@ class CBotManager {
 		void RespawnBot(BotInfo &b);
 		void Think(BotInfo &b, float now);
 		void StepBot(BotInfo &b, float dt, float now);
+		bool LineClear(float x0, float y0, float x1, float y1) const;
+		bool FindPath(BotInfo &b);
+		void UpdateSteer(BotInfo &b, float now);
+		int pathBudget;                  // route searches left in this step (they are spread over the steps)
 		void Fire(BotInfo &b);
 		void TurretsFire(float now);
 		void Manage(float now);

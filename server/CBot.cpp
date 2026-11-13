@@ -15,6 +15,7 @@
 #include "CBot.h"
 
 #include <algorithm>
+#include <queue>
 #include <ctime>
 
 static const float STEP_MS = 30.0f;            // movement and AI step
@@ -82,6 +83,7 @@ CBotManager::CBotManager(CServer *Server) {
 	botCity = 63;
 	overseer = -1;
 	nextStep = nextManage = nextSave = lastStepTick = nextTurret = 0;
+	pathBudget = 0;
 	lastHumanSeen = 0;
 	lastHumanCount = 0;
 	lastWebhook = -1e9f;
@@ -667,6 +669,8 @@ int CBotManager::SpawnBot(int tier, float x, float y, int raidCity) {
 	b.offX = b.offY = 0;
 	b.avoidUntil = 0;
 	b.avoidDir = 8;
+	b.path.clear(); b.pathIdx = 0; b.nextPath = 0; b.pathGX = b.pathGY = 0;
+	b.steerX = x; b.steerY = y; b.nextSteer = 0;
 	b.expiresAt = 0;
 	b.owner = -1;
 	b.damageBy.clear();
@@ -785,6 +789,7 @@ void CBotManager::RespawnBot(BotInfo &b) {
 	if (h >= 0) { anchorX = p->Player[h]->X; anchorY = p->Player[h]->Y; }
 	if (!FindSpawn(anchorX, anchorY, 1100, 2400, &nx, &ny)) { b.respawnAt = Now() + 3000.0f; return; }
 	b.x = nx; b.y = ny; b.goalX = nx; b.goalY = ny;
+	b.path.clear(); b.steerX = nx; b.steerY = ny; b.nextSteer = 0;
 	b.hp = b.maxHp;
 	b.dead = false;
 	b.target = -1;
@@ -962,6 +967,110 @@ void CBotManager::Think(BotInfo &b, float now) {
 	}
 }
 
+// ---- finding a way round obstacles ------------------------------------------------------------------------------
+// Bots used to head straight for their goal and sidestep at random when they bumped into something, so one that met a lake
+// or a rock wall between itself and a player could stay in front of it for ever. When the straight line is blocked a route
+// over the tile grid (A*, 8 directions, no corner cutting) is planned and followed, planned again now and then.
+
+bool CBotManager::LineClear(float x0, float y0, float x1, float y1) const {
+	float dx = x1 - x0, dy = y1 - y0;
+	int n = (int)(sqrtf(dx * dx + dy * dy) / 24.0f) + 1;
+	for (int i = 1; i <= n; i++) {
+		if (Blocked(x0 + dx * i / n, y0 + dy * i / n)) return false;
+	}
+	return true;
+}
+
+bool CBotManager::FindPath(BotInfo &b) {
+	const int N = 512;
+	static std::vector<unsigned char> blocked;
+	static std::vector<float> cost;
+	static std::vector<int> parent;
+	static std::vector<unsigned> seen;
+	static unsigned stamp = 0;
+	if (blocked.empty()) { blocked.resize(N * N); cost.resize(N * N); parent.resize(N * N); seen.assign(N * N, 0); }
+
+	// what a tank cannot stand on: rock, water, lava, the rim of the map and buildings
+	for (int x = 0; x < N; x++) {
+		for (int y = 0; y < N; y++) {
+			blocked[x * N + y] = (p->Map->map[x][y] != 0 || x < 2 || y < 2 || x > 509 || y > 509) ? 1 : 0;
+		}
+	}
+	for (CBuilding *bld = p->Build->buildingListHead; bld; bld = bld->next) {
+		int x0 = bld->x - 2, y0 = bld->y - 2, w = 3, h = 3;
+		if (bld->type / 100 <= 2) { y0 = bld->y - 1; h = 2; }
+		for (int x = std::max(0, x0); x < std::min(N, x0 + w); x++) for (int y = std::max(0, y0); y < std::min(N, y0 + h); y++) blocked[x * N + y] = 1;
+	}
+
+	auto tileOf = [](float v) { return (int)floorf(v / 48.0f + 0.5f); };
+	int sx = std::max(0, std::min(N - 1, tileOf(b.x))), sy = std::max(0, std::min(N - 1, tileOf(b.y)));
+	int gx = std::max(0, std::min(N - 1, tileOf(b.pathGX))), gy = std::max(0, std::min(N - 1, tileOf(b.pathGY)));
+	auto h = [&](int x, int y) {
+		float dx = (float)abs(x - gx), dy = (float)abs(y - gy);
+		return 1.2f * ((dx + dy) + (1.4142f - 2.0f) * std::min(dx, dy));
+	};
+
+	stamp++;
+	typedef std::pair<float, int> Node;
+	std::priority_queue<Node, std::vector<Node>, std::greater<Node> > open;
+	int start = sx * N + sy;
+	cost[start] = 0; parent[start] = -1; seen[start] = stamp;
+	open.push(Node(h(sx, sy), start));
+	static const int DX[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
+	static const int DY[8] = { 0, 0, 1, -1, 1, -1, 1, -1 };
+	int found = -1, expanded = 0;
+	while (!open.empty() && expanded < 60000) {
+		Node top = open.top(); open.pop();
+		int cur = top.second, cx = cur / N, cy = cur % N;
+		if (top.first > cost[cur] + h(cx, cy) + 0.001f) continue;   // an out-of-date entry
+		expanded++;
+		if (abs(cx - gx) <= 1 && abs(cy - gy) <= 1) { found = cur; break; }
+		for (int k = 0; k < 8; k++) {
+			int nx = cx + DX[k], ny = cy + DY[k];
+			if (nx < 0 || ny < 0 || nx >= N || ny >= N || blocked[nx * N + ny]) continue;
+			if (k >= 4 && (blocked[(cx + DX[k]) * N + cy] || blocked[cx * N + cy + DY[k]])) continue;   // no cutting corners
+			float nc = cost[cur] + (k >= 4 ? 1.4142f : 1.0f);
+			int ni = nx * N + ny;
+			if (seen[ni] == stamp && cost[ni] <= nc) continue;
+			seen[ni] = stamp; cost[ni] = nc; parent[ni] = cur;
+			open.push(Node(nc + h(nx, ny), ni));
+		}
+	}
+	b.path.clear();
+	b.pathIdx = 0;
+	if (found < 0) return false;
+	for (int cur = found; cur != -1 && cur != start; cur = parent[cur]) b.path.push_back(cur);
+	std::reverse(b.path.begin(), b.path.end());
+	return !b.path.empty();
+}
+
+void CBotManager::UpdateSteer(BotInfo &b, float now) {
+	if (now < b.nextSteer) return;
+	b.nextSteer = now + 200.0f;
+	b.steerX = b.goalX; b.steerY = b.goalY;
+	float gdx = b.goalX - b.x, gdy = b.goalY - b.y;
+	if (gdx * gdx + gdy * gdy < 100.0f * 100.0f || LineClear(b.x, b.y, b.goalX, b.goalY)) { b.path.clear(); return; }
+
+	// the straight line is blocked: follow a route, planning a new one when there is none, the goal moved or it got old
+	float mx = b.goalX - b.pathGX, my = b.goalY - b.pathGY;
+	bool stale = b.path.empty() || b.pathIdx >= (int)b.path.size() || now >= b.nextPath || mx * mx + my * my > 300.0f * 300.0f;
+	if (stale && pathBudget > 0) {
+		pathBudget--;
+		b.pathGX = b.goalX; b.pathGY = b.goalY;
+		b.nextPath = now + 4000.0f;
+		if (!FindPath(b)) b.nextPath = now + 1500.0f;     // no way (or too far to search): the sidestep logic keeps trying meanwhile
+	}
+	if (b.path.empty()) return;
+	auto wx = [&](int i) { return (float)(b.path[i] / 512) * 48.0f; };
+	auto wy = [&](int i) { return (float)(b.path[i] % 512) * 48.0f; };
+	while (b.pathIdx + 1 < (int)b.path.size() && fabsf(wx(b.pathIdx) - b.x) + fabsf(wy(b.pathIdx) - b.y) < 50.0f) b.pathIdx++;
+	int best = b.pathIdx;
+	for (int k = b.pathIdx + 1; k < (int)b.path.size() && k <= b.pathIdx + 8; k++) {
+		if (LineClear(b.x, b.y, wx(k), wy(k))) best = k; else break;
+	}
+	b.steerX = wx(best); b.steerY = wy(best);
+}
+
 void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 	if (b.dead) return;
 
@@ -985,15 +1094,18 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 
 	float speed = Speed(b);
 	// turn towards the goal (or the target while shooting)
-	float dx = b.goalX - b.x, dy = b.goalY - b.y;
-	float dgoal = fabsf(dx) + fabsf(dy);
+	UpdateSteer(b, now);
+	float dgoal = fabsf(b.goalX - b.x) + fabsf(b.goalY - b.y);
+	float dx = b.steerX - b.x, dy = b.steerY - b.y;      // head for the goal, or the next bend of the route round an obstacle
 	int want = b.dir;
 	bool aim = false;
-	if (b.target >= 0 && IsHuman(b.target)) {
+	// a detour round an obstacle is under way: drive the route (a tank only moves the way it faces) and do not shoot at the wall
+	bool detour = b.steerX != b.goalX || b.steerY != b.goalY;
+	if (!detour && b.target >= 0 && IsHuman(b.target)) {
 		want = DirTo(p->Player[b.target]->X - b.x, p->Player[b.target]->Y - b.y);
 		aim = true;
 	}
-	else if (b.target == -2) {
+	else if (!detour && b.target == -2) {
 		want = DirTo(b.aimX - b.x, b.aimY - b.y);
 		aim = true;
 	}
@@ -1035,6 +1147,7 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 			if (mx * mx + my * my < 30.0f * 30.0f) {
 				b.avoidUntil = now + 1500.0f + (float)(rand() % 1000);
 				b.avoidDir = (rand() % 2) ? 8 : -8;
+				b.nextPath = 0; b.nextSteer = 0;     // plan the route again
 				if (b.raidCity < 0) { b.nextGoal = 0; b.goalX = b.x; b.goalY = b.y; }
 			}
 			b.stuckSince = 0;
@@ -1049,7 +1162,7 @@ void CBotManager::StepBot(BotInfo &b, float dt, float now) {
 			float ddx = p->Player[b.target]->X - b.x, ddy = p->Player[b.target]->Y - b.y;
 			float dd = sqrtf(ddx * ddx + ddy * ddy);
 			float reach = (b.tier == BOT_SCOUT) ? 520.0f : (b.tier == BOT_HEAVY ? 640.0f : 720.0f);
-			wantsFire = facing && dd < reach;
+			wantsFire = facing && dd < reach && !detour;
 		}
 		else if (b.target == -2) wantsFire = facing;   // raider in range of a building
 	}
@@ -1070,6 +1183,7 @@ void CBotManager::Cycle() {
 	if (dt > 200.0f) dt = 200.0f;
 	lastStepTick = now;
 	nextStep = now + STEP_MS;
+	pathBudget = 2;
 
 	bool any = false;
 	for (int i = 0; i < 24; i++) {
@@ -1608,6 +1722,14 @@ bool CBotManager::HandleChat(int idx, const char *text) {
 		CItem *t = p->Item->newItem((int)(best->x / 48) + 1, (int)(best->y / 48), ITEM_TYPE_TURRET, 0, (unsigned short)(p->Item->itmID++));
 		t->active = 1;
 		Tell(idx, "Turret placed.");
+		return true;
+	}
+	// Test hook (BC_TEST_TURRET=1): "/testbot dx dy" puts a scout dx,dy tiles from the player (the path test)
+	if (cmd == "testbot" && getenv("BC_TEST_TURRET")) {
+		int dx = 0, dy = 0;
+		std::istringstream as(line.substr(1)); std::string skip; as >> skip >> dx >> dy;
+		int bi = SpawnBot(BOT_SCOUT, p->Player[idx]->X + dx * 48.0f, p->Player[idx]->Y + dy * 48.0f);
+		Tell(idx, bi < 0 ? std::string("No bot.") : "Test bot " + Num(bots[bi].slot));
 		return true;
 	}
 	if (cmd == "bots") {

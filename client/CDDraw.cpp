@@ -95,6 +95,7 @@ CDDraw::CDDraw(CGame *game)
     imgSmoke = NULL;
     imgStar = NULL;
     imgTanks = NULL;
+    imgWarlord = NULL;
     imgTurretBase = NULL;
     imgTurretHead = NULL;
     p = game;
@@ -328,6 +329,7 @@ void CDDraw::LoadSurfaces()
         { &imgSmoke, "imgSmoke.bmp", true, COLOR_TRANSPARENCY },
         { &imgStar, "imgStar.bmp", true, COLOR_TRANSPARENCY },
         { &imgTanks, "imgTanks.bmp", true, COLOR_TRANSPARENCY },
+        { &imgWarlord, "imgWarlord.bmp", true, COLOR_TRANSPARENCY },
         { &imgTurretBase, "imgTurretBase.bmp", true, COLOR_TRANSPARENCY },
         { &imgTurretHead, "imgTurretHead.bmp", true, COLOR_TRANSPARENCY },
     };
@@ -379,6 +381,7 @@ void CDDraw::DestroySurfaces()
     FreeImage(imgSmoke);
     FreeImage(imgStar);
     FreeImage(imgTanks);
+    FreeImage(imgWarlord);
     FreeImage(imgTurretBase);
     FreeImage(imgTurretHead);
     FreeImage(Font);

@@ -106,6 +106,7 @@ public:
     BCImage *imgSmoke;
     BCImage *imgStar;
     BCImage *imgTanks;
+    BCImage *imgWarlord;        // the Warlord (bounty boss): 16 turns of 64x64
     BCImage *imgTurretBase;
     BCImage *imgTurretHead;
 

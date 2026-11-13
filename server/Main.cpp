@@ -185,6 +185,8 @@ int main(int argc, char *argv[]) {
     //  Print to the console
 	cout << "Server::Close" << endl;
 	Server.Bots->Shutdown();
+	//  Keep the game going across a restart: cities, buildings, items and who was where
+	Server.SaveWorld();
     //  Loop through available players
 	for (int i = 0; i < MAX_PLAYERS; i++) {
         //  Verify player is not disconnected

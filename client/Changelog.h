@@ -5,6 +5,9 @@
 
 static const char *const BC_CHANGELOG =
 "2026-11-13\r\n"
+"  + Updates no longer throw you out: when the server restarts you are logged back in by yourself and put back where you were, in your own city.\r\n"
+"  + The Warlord has a tank of its own: bigger, red and white with a blue dome.\r\n"
+"  * Bots find their way round lakes and rock walls instead of getting stuck in front of them.\r\n"
 "  + Shortcut editor (Options > Shortcuts...): rebind every key, with a keyboard map, icons, two keys per action and presets.\r\n"
 "  + Build menu, Demolish and one-key placement for every building are in the shortcut editor too.\r\n"
 "  + What's New tab in the Meeting Room.\r\n"

@@ -31,6 +31,7 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <map>
 #include <fstream>
 #include <time.h>
 
@@ -133,10 +134,26 @@ inline std::string SqlEscape(const std::string &in) {
 	return out;
 }
 
+// A player who was in the game when the server was stopped (see CWorldState.cpp): they get their seat back when they log in again
+struct WorldSeat {
+	int city;
+	bool mayor;
+	float x, y;
+	long expires;                  // unix time after which the seat is forgotten
+	struct Held { int type, active, life, city; };
+	std::vector<Held> held;        // what they carried
+};
+
 class CServer {
 
 	public:
 		void Init();
+
+		// Keeping the game going across a restart (an update): the world is saved when the server is stopped and put back at the next start
+		void SaveWorld();
+		void LoadWorld();
+		std::map<std::string, WorldSeat> Seats;       // keyed by lower-case account name
+		long keepWorldUntil;                          // unix time: until then "nobody is connected" does not rebuild a world that was just restored
 
 		string Top20;
 		string News;

@@ -62,6 +62,7 @@ class CProcess {
 		void ProcessDeath(char *TheData, int Index);
 		void ProcessDemolish(sCMDemolish *data, int Index);
 		void ResumeSession(int newSlot, int oldSlot);
+		bool RestoreSeat(int Index, const char *user);      // after a server restart: back into the game where the player was (CWorldState.cpp)
 		void ProcessMedKit(int *data, int Index);
 		void ProcessCloak(int *data, int Index);
 		void ProcessHitObject(sCMItem *data, int Index);
