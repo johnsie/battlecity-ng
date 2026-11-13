@@ -990,16 +990,28 @@ bool CBotManager::FindPath(BotInfo &b) {
 	static unsigned stamp = 0;
 	if (blocked.empty()) { blocked.resize(N * N); cost.resize(N * N); parent.resize(N * N); seen.assign(N * N, 0); }
 
-	// what a tank cannot stand on: rock, water, lava, the rim of the map and buildings
-	for (int x = 0; x < N; x++) {
-		for (int y = 0; y < N; y++) {
-			blocked[x * N + y] = (p->Map->map[x][y] != 0 || x < 2 || y < 2 || x > 509 || y > 509) ? 1 : 0;
-		}
+	// What a tank cannot stand on: rock, water, lava, the rim of the map and buildings. The terrain is read once; the buildings' layer is
+	// only rebuilt when the buildings changed (rebuilding all 262144 tiles for every route made each search cost milliseconds).
+	static std::vector<unsigned char> terrain;
+	static unsigned long long signature = 0;
+	static bool haveGrid = false;
+	if (terrain.empty()) {
+		terrain.resize(N * N);
+		for (int x = 0; x < N; x++) for (int y = 0; y < N; y++) terrain[x * N + y] = (p->Map->map[x][y] != 0 || x < 2 || y < 2 || x > 509 || y > 509) ? 1 : 0;
 	}
+	unsigned long long sig = 1469598103934665603ULL;
 	for (CBuilding *bld = p->Build->buildingListHead; bld; bld = bld->next) {
-		int x0 = bld->x - 2, y0 = bld->y - 2, w = 3, h = 3;
-		if (bld->type / 100 <= 2) { y0 = bld->y - 1; h = 2; }
-		for (int x = std::max(0, x0); x < std::min(N, x0 + w); x++) for (int y = std::max(0, y0); y < std::min(N, y0 + h); y++) blocked[x * N + y] = 1;
+		sig = (sig ^ (unsigned long long)(bld->x * 1021 + bld->y * 7 + bld->type)) * 1099511628211ULL;
+	}
+	if (!haveGrid || sig != signature) {
+		blocked = terrain;
+		for (CBuilding *bld = p->Build->buildingListHead; bld; bld = bld->next) {
+			int x0 = bld->x - 2, y0 = bld->y - 2, w = 3, h = 3;
+			if (bld->type / 100 <= 2) { y0 = bld->y - 1; h = 2; }
+			for (int x = std::max(0, x0); x < std::min(N, x0 + w); x++) for (int y = std::max(0, y0); y < std::min(N, y0 + h); y++) blocked[x * N + y] = 1;
+		}
+		signature = sig;
+		haveGrid = true;
 	}
 
 	auto tileOf = [](float v) { return (int)floorf(v / 48.0f + 0.5f); };
@@ -1019,7 +1031,7 @@ bool CBotManager::FindPath(BotInfo &b) {
 	static const int DX[8] = { 1, -1, 0, 0, 1, 1, -1, -1 };
 	static const int DY[8] = { 0, 0, 1, -1, 1, -1, 1, -1 };
 	int found = -1, expanded = 0;
-	while (!open.empty() && expanded < 60000) {
+	while (!open.empty() && expanded < 15000) {
 		Node top = open.top(); open.pop();
 		int cur = top.second, cx = cur / N, cy = cur % N;
 		if (top.first > cost[cur] + h(cx, cy) + 0.001f) continue;   // an out-of-date entry
@@ -1058,7 +1070,11 @@ void CBotManager::UpdateSteer(BotInfo &b, float now) {
 		pathBudget--;
 		b.pathGX = b.goalX; b.pathGY = b.goalY;
 		b.nextPath = now + 4000.0f;
-		if (!FindPath(b)) b.nextPath = now + 1500.0f;     // no way (or too far to search): the sidestep logic keeps trying meanwhile
+		if (!FindPath(b)) {
+			// no way (or too far to search): do not search again for a while, and a wanderer picks somewhere else to go
+			b.nextPath = now + 6000.0f;
+			if (b.raidCity < 0 && b.target < 0) b.nextGoal = 0;
+		}
 	}
 	if (b.path.empty()) return;
 	auto wx = [&](int i) { return (float)(b.path[i] / 512) * 48.0f; };
@@ -1183,7 +1199,7 @@ void CBotManager::Cycle() {
 	if (dt > 200.0f) dt = 200.0f;
 	lastStepTick = now;
 	nextStep = now + STEP_MS;
-	pathBudget = 2;
+	pathBudget = 1;
 
 	bool any = false;
 	for (int i = 0; i < 24; i++) {
